@@ -27,8 +27,12 @@ class SubprogramBodyNode;
 class WhileNode;
 class RepeatUntilNode;
 class ForNode;
-class DependOnNode; // Added Forward Declaration
-class CaseBranchNode; // Added Forward Declaration
+class DependOnNode;
+class CaseBranchNode;
+class UnaryOpNode;
+class InputNode;
+class ArrayAccessNode;
+class FunctionCallNode; // Added Forward Declaration
 // ExpressionNode, StatementNode, DeclarationNode are abstract, so no visit for them directly.
 
 class ASTVisitor {
@@ -51,8 +55,12 @@ public:
     virtual void visit(WhileNode* node) = 0;
     virtual void visit(RepeatUntilNode* node) = 0;
     virtual void visit(ForNode* node) = 0;
-    virtual void visit(DependOnNode* node) = 0;      // Added visit method
-    virtual void visit(CaseBranchNode* node) = 0;    // Added visit method
+    virtual void visit(DependOnNode* node) = 0;
+    virtual void visit(CaseBranchNode* node) = 0;
+    virtual void visit(UnaryOpNode* node) = 0;
+    virtual void visit(InputNode* node) = 0;
+    virtual void visit(ArrayAccessNode* node) = 0;
+    virtual void visit(FunctionCallNode* node) = 0;  // Added visit method
     // Add any other concrete ASTNode types here
 };
 
@@ -60,7 +68,7 @@ public:
 class CodeGenerator : public ASTVisitor {
 private:
     std::ostream* out_stream_ptr; // Pointer to the output stream
-    SymbolTable symbol_table;     // Symbol table for type checking, etc. (owned for now)
+    const SymbolTable* symbol_table_ptr; // Pointer to the externally populated symbol table
     int current_indent_level;     // For pretty printing C code
 
     // Private helper methods
@@ -70,10 +78,10 @@ private:
     std::string map_an_type_to_c(const std::string& an_type); // Maps AN internal types to C types
 
 public:
-    CodeGenerator();
+    CodeGenerator(); // Constructor updated to initialize symbol_table_ptr to nullptr
 
     // Main method to initiate code generation
-    void generate_c_code(const ProgramNode* program_root, std::ostream& output_stream_ref);
+    void generate_c_code(const ProgramNode* program_root, const SymbolTable& populated_symbol_table, std::ostream& output_stream_ref);
 
     // Overridden visit methods from ASTVisitor
     void visit(ProgramNode* node) override;
@@ -92,8 +100,12 @@ public:
     void visit(WhileNode* node) override;
     void visit(RepeatUntilNode* node) override;
     void visit(ForNode* node) override;
-    void visit(DependOnNode* node) override;      // Added override
-    void visit(CaseBranchNode* node) override;    // Added override
+    void visit(DependOnNode* node) override;
+    void visit(CaseBranchNode* node) override;
+    void visit(UnaryOpNode* node) override;
+    void visit(InputNode* node) override;
+    void visit(ArrayAccessNode* node) override;
+    void visit(FunctionCallNode* node) override;  // Added override
     // Implement visit for any other concrete ASTNode types
 };
 

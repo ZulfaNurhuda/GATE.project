@@ -89,14 +89,23 @@ int main(int argc, char *argv[])
     logger.debug("Lexer finished. Number of tokens: " + std::to_string(tokens.size()));
 
     Parser parser;
-    // ASTNode ast = parser.parse(tokens); // Old AST
-    std::unique_ptr<ProgramNode> ast_root = parser.parse(tokens); // New AST
+    ParseResult parse_result = parser.parse(tokens); // Use ParseResult
     logger.debug("Parser finished.");
 
-    if (!ast_root) {
+    if (!parse_result.ast_root) { // Check ast_root from ParseResult
         logger.error("Parsing failed, AST root is null.");
-        return 1; // Or handle error more gracefully
+        // Optionally, log symbol table status if available even if AST is null
+        if (parse_result.symbol_table) {
+            logger.debug("Symbol table was created despite AST generation failure.");
+        }
+        return 1;
     }
+    if (!parse_result.symbol_table) { // Should not happen if ast_root is valid
+        logger.error("Parsing succeeded (AST not null) but symbol table is null. This is unexpected.");
+        return 1;
+    }
+    logger.debug("Symbol table created. Current scope level (global): " + std::to_string(parse_result.symbol_table->getCurrentScopeLevel()));
+
 
     std::ofstream out(output_file);
     if (!out.is_open()) {
@@ -108,9 +117,8 @@ int main(int argc, char *argv[])
     }
 
     CodeGenerator generator;
-    // std::string c_code = generator.generate(ast); // Old generator call
-    // out << c_code; // Old way of writing
-    generator.generate_c_code(ast_root.get(), out); // New generator call, writes directly to 'out'
+    // Pass the populated symbol table to the generator
+    generator.generate_c_code(parse_result.ast_root.get(), *(parse_result.symbol_table), out);
     logger.debug("Generator finished writing to output file.");
 
     out.close();

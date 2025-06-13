@@ -23,9 +23,19 @@ struct SymbolInfo {
     // std::string element_type;
     // std::vector<int> dimensions;
 
+    // Array metadata
+    bool is_array;
+    std::string array_element_type; // AN element type string
+    long long array_min_bound;
+    long long array_max_bound;
+    // If bounds can be expressions:
+    // std::unique_ptr<ExpressionNode> min_bound_expr;
+    // std::unique_ptr<ExpressionNode> max_bound_expr;
+
     // Default constructor for convenience
     SymbolInfo(std::string t = "", std::string k = "", int sl = 0, int dl = 0, int dc = 0)
-        : type(std::move(t)), kind(std::move(k)), scope_level(sl), declaration_line(dl), declaration_col(dc) {}
+        : type(std::move(t)), kind(std::move(k)), scope_level(sl), declaration_line(dl), declaration_col(dc),
+          is_array(false), array_element_type(""), array_min_bound(0), array_max_bound(0) {}
 };
 
 class SymbolTable {

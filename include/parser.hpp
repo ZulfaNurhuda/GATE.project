@@ -5,9 +5,19 @@
 #include <string>
 #include <memory> // For std::unique_ptr
 #include "lexer.hpp" // Assuming Token is defined here
+#include "symbol_table.hpp" // Added for SymbolTable integration
 
 // Forward declaration of the visitor
 class ASTVisitor;
+
+// Forward declaration for ProgramNode, used in ParseResult
+class ProgramNode;
+
+// Structure to hold the results of parsing
+struct ParseResult {
+    std::unique_ptr<ProgramNode> ast_root;
+    std::unique_ptr<SymbolTable> symbol_table;
+};
 
 // --- Base AST Node ---
 class ASTNode {
@@ -73,6 +83,36 @@ public:
 
     BinaryOpNode(int l, int c, std::unique_ptr<ExpressionNode> lhs, std::string oper, std::unique_ptr<ExpressionNode> rhs)
         : ExpressionNode(l, c), left(std::move(lhs)), op(std::move(oper)), right(std::move(rhs)) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
+class UnaryOpNode : public ExpressionNode {
+public:
+    std::string op; // e.g., "NOT", "-" (for unary minus)
+    std::unique_ptr<ExpressionNode> operand;
+
+    UnaryOpNode(int l, int c, std::string oper, std::unique_ptr<ExpressionNode> oper_node)
+        : ExpressionNode(l, c), op(std::move(oper)), operand(std::move(oper_node)) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
+class ArrayAccessNode : public ExpressionNode {
+public:
+    std::unique_ptr<IdentifierNode> array_identifier; // The array variable itself
+    std::unique_ptr<ExpressionNode> index_expression; // The expression within [ ... ]
+
+    ArrayAccessNode(int l, int c, std::unique_ptr<IdentifierNode> ident, std::unique_ptr<ExpressionNode> index)
+        : ExpressionNode(l, c), array_identifier(std::move(ident)), index_expression(std::move(index)) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
+class FunctionCallNode : public ExpressionNode {
+public:
+    std::unique_ptr<IdentifierNode> function_name;
+    std::vector<std::unique_ptr<ExpressionNode>> arguments;
+
+    FunctionCallNode(int l, int c, std::unique_ptr<IdentifierNode> name, std::vector<std::unique_ptr<ExpressionNode>> args)
+        : ExpressionNode(l, c), function_name(std::move(name)), arguments(std::move(args)) {}
     void accept(ASTVisitor* visitor) override;
 };
 
@@ -180,6 +220,15 @@ public:
     void accept(ASTVisitor* visitor) override;
 };
 
+class InputNode : public StatementNode {
+public:
+    // Stores the identifiers of variables to be read.
+    std::vector<std::unique_ptr<IdentifierNode>> variables;
+
+    InputNode(int l, int c) : StatementNode(l, c) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
 
 // --- Concrete Declaration Nodes ---
 class VariableDeclarationNode : public DeclarationNode {
@@ -264,12 +313,24 @@ private:
     std::unique_ptr<FunctionPrototypeNode> parseFunctionPrototype();
     std::unique_ptr<SubprogramBodyNode> parseSubprogramBody();
     // ... other parsing helpers for different node types
+    // Helper function to get operator precedence - declaration
+    int getOperatorPrecedence(TokenType type);
+    // Helper function to get operator associativity - declaration
+    enum class Associativity; // Forward declare enum for return type
+    Associativity getOperatorAssociativity(TokenType type);
+
+    std::unique_ptr<ExpressionNode> parseExpression(int min_precedence = 1); // Updated signature
+    std::unique_ptr<ExpressionNode> parseUnaryExpression();
+
+
+    // Symbol table to be populated during parsing
+    std::unique_ptr<SymbolTable> symbol_table_ptr;
 
 public:
     Parser() : current_token_idx(0) {} // Initialize if needed
 
     // Main parsing method
-    std::unique_ptr<ProgramNode> parse(const std::vector<Token>& input_tokens);
+    ParseResult parse(const std::vector<Token>& input_tokens); // Updated return type
 };
 
 #endif // PARSER_HPP
