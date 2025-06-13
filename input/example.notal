@@ -1,0 +1,50 @@
+Program CekKelulusan {
+    Membaca nama dan nilai mahasiswa, kemudian menentukan status kelulusan.
+    Program ini akan berjalan sebanyak 3 kali.
+}
+
+KAMUS
+    { Global declarations }
+    type Mahasiswa: < Nama: string, Nilai: integer >
+    
+    Mhs1: Mahasiswa
+    i: integer
+    
+    { Function prototype declaration. 'input' mode is default. }
+    function IsLulus(N: integer) -> boolean
+
+ALGORITMA
+    { Main program logic }
+    for i <- 1 to 3 do
+        output("Masukkan Nama Mahasiswa ke-", i, ": ")
+        input(Mhs1.Nama)
+        
+        output("Masukkan Nilai ", Mhs1.Nama, ": ")
+        input(Mhs1.Nilai)
+        
+        { Call the function and check the boolean result directly }
+        if IsLulus(Mhs1.Nilai) then
+            output(Mhs1.Nama, " dinyatakan LULUS.")
+        else
+            output(Mhs1.Nama, " dinyatakan GAGAL.")
+        endif
+        
+        output("")
+        dispose(Mhs1.Nama)
+    endfor
+    
+    output("Proses selesai.")
+
+{ --- Subprogram Implementations --- }
+
+function IsLulus(N: integer) -> boolean
+{ Mengembalikan true jika nilai N >= 65, selain itu false }
+KAMUS LOKAL
+    hasil: boolean
+ALGORITMA
+    if (N >= 65) then
+        hasil <- true
+    else
+        hasil <- false
+    endif
+    -> hasil
