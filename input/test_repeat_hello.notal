@@ -15,5 +15,3 @@ ALGORITMA
   else
     output("N is not positive, no Hellos for you!");
   endif
-
-END.

@@ -18,11 +18,11 @@ private:
     LogLevel current_log_level;
     std::ostream* log_stream; // Pointer to the output stream
 
+public:
     // Optional helper to convert LogLevel to its string representation for prefixes
     // This can be implemented in the .cpp file
     std::string level_to_string(LogLevel level) const;
 
-public:
     // Default constructor
     Logger();
 

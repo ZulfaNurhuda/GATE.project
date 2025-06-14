@@ -31,8 +31,6 @@ ALGORITMA
     output("Factorial of ", num, " (iterative) is: ", fact);
   endif
 
-END.
-
 function FactorialRecursive(n : integer) -> integer
 KAMUS LOKAL
   // No local variables needed for this simple recursion base case

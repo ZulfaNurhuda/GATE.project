@@ -21,5 +21,3 @@ ALGORITMA
   output("Enter a new value for element 3:");
   input(myNumbers[3]);
   output("New element 3 is: ", myNumbers[3]);
-
-END.

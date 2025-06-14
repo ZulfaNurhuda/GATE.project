@@ -30,5 +30,3 @@ ALGORITMA
     otherwise :
       output("Invalid choice.");
   enddependon
-
-END.
