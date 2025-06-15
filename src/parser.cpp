@@ -1,43 +1,44 @@
 #include "../include/parser.hpp"
 #include "../include/error_handler.hpp" // For error reporting
+#include "../include/generator.hpp"      // Added for ASTVisitor full definition
 #include <stdexcept> // For std::runtime_error
 
 // --- ASTNode accept method implementations ---
 // These methods allow the Visitor to dispatch to the correct visit method.
 
-void IdentifierNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void IntegerLiteralNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void StringLiteralNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void BinaryOpNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void AssignmentNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void BlockNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void IfNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void OutputNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void VariableDeclarationNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void FunctionParameterNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void FunctionPrototypeNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void SubprogramBodyNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void ProgramNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void WhileNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void RepeatUntilNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void ForNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void DependOnNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void CaseBranchNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void UnaryOpNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void InputNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void ArrayAccessNode::accept(ASTVisitor* visitor) { visitor->visit(this); } // Already present, ensure it's correct
-void FunctionCallNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void ReferenceNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void DereferenceNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void AllocateNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void ReallocateNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void DeallocateNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void NullLiteralNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void EnumTypeNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void ConstantDeclarationNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void PointerMemberAccessNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-void RecordTypeNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
-// FieldNode does not need an accept method as it's a data structure part of RecordTypeNode
+void IdentifierNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void IntegerLiteralNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void StringLiteralNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void BinaryOpNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void AssignmentNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void BlockNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void IfNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void OutputNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void VariableDeclarationNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void FunctionParameterNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void FunctionPrototypeNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void SubprogramBodyNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void ProgramNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void WhileNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void RepeatUntilNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void ForNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void DependOnNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void CaseBranchNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void UnaryOpNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void InputNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void ArrayAccessNode::accept(ASTVisitor* visitor) const { visitor->visit(this); } // Already present, ensure it's correct
+void FunctionCallNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void ReferenceNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void DereferenceNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void AllocateNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void ReallocateNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void DeallocateNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void NullLiteralNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void EnumTypeNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void ConstantDeclarationNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void PointerMemberAccessNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void RecordTypeNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void FieldNode::accept(ASTVisitor* visitor) const { visitor->visit(this); } // Added for consistency
 
 // Base classes still need a definition for accept if they are not purely abstract
 // with respect to accept, or if direct instantiation was possible (which it isn't here).
@@ -46,8 +47,8 @@ void RecordTypeNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
 
 // --- Parser Implementation ---
 
-// Helper enum for operator associativity
-enum class Associativity { LEFT, RIGHT, NONE };
+// Helper enum for operator associativity is now defined in parser.hpp
+// enum class Associativity { LEFT, RIGHT, NONE }; // REMOVED
 
 // Helper function to get operator precedence
 int Parser::getOperatorPrecedence(TokenType type) {
@@ -160,7 +161,8 @@ ParseResult Parser::parse(const std::vector<Token>& input_tokens) { // Updated r
     current_token_idx = 0;
     current_token_cache = tokens[current_token_idx]; // Initialize cache
 
-    return parseProgram();
+    // return parseProgram(); // Old incorrect return
+    return {parseProgram(), std::move(this->symbol_table_ptr)};
 }
 
 std::unique_ptr<ProgramNode> Parser::parseProgram() {
@@ -217,7 +219,8 @@ std::unique_ptr<ProgramNode> Parser::parseProgram() {
          ErrorHandler::report(ErrorCode::SYNTAX_MISSING_EXPECTED_TOKEN, current_token_cache.line, current_token_cache.col, "Expected EOF after program.");
     }
 
-    return {std::move(program_node), std::move(this->symbol_table_ptr)}; // Return ParseResult
+    // return {std::move(program_node), std::move(this->symbol_table_ptr)}; // Old incorrect return for this function
+    return program_node; // Correct: return just the ProgramNode unique_ptr
 }
 
 
@@ -361,7 +364,7 @@ std::unique_ptr<ExpressionNode> Parser::parsePrimaryExpression() {
         // Deallocate might be a statement or an expression depending on if it returns status.
         // For now, treating as expression as per AST node derivation.
         return std::make_unique<DeallocateNode>(dealloc_tok.line, dealloc_tok.col, std::move(pointer_expr));
-    }
+    // REMOVED EXTRA BRACE HERE
     } else if (match(TokenType::NULL_KW)) {
         return std::make_unique<NullLiteralNode>(previous_token().line, previous_token().col);
     }
@@ -687,8 +690,8 @@ std::unique_ptr<BlockNode> Parser::parseBlock() {
 
     // A block is a sequence of statements until a DEDENT token is encountered (or EOF).
     // The DEDENT token itself is not consumed by parseBlock.
-    Token block_start_tok = current_token_cache;
-    auto block_node = std::make_unique<BlockNode>(block_start_tok.line, block_start_tok.col);
+    // Token block_start_tok = current_token_cache; // Removed redeclaration
+    // auto block_node = std::make_unique<BlockNode>(block_start_tok.line, block_start_tok.col); // Removed redeclaration
 
     while (!check(TokenType::DEDENT) && !check(TokenType::EOF_TOKEN)) {
         // Check for other potential block terminators if necessary (e.g. specific keywords that might end a list of statements
@@ -806,160 +809,12 @@ std::unique_ptr<VariableDeclarationNode> Parser::parseVariableDeclaration() {
             throw std::runtime_error("Parser error: Invalid type in variable declaration.");
         }
     }
-
-    // Populate SymbolInfo (info.type should get the full string like "pointer to integer" or "integer")
-    // SymbolInfo info; // MOVED TO TOP OF FUNCTION
-    // info.kind = "variable"; // MOVED TO TOP
-    // info.scope_level = symbol_table_ptr->getCurrentScopeLevel(); // MOVED TO TOP
-    // info.declaration_line = var_name_token_for_info.line; // MOVED TO TOP
-    // info.declaration_col = var_name_token_for_info.col; // MOVED TO TOP
-    // info.type is set above based on whether it's a pointer or not
-
-    // Check if node_var_type_string indicates a pointer type
-    // const std::string pointer_prefix = "pointer to "; // This logic is now integrated above
-    // if (node_var_type_string.rfind(pointer_prefix, 0) == 0) {
-    //     info.is_pointer_type = true;
-    //     info.pointed_type = node_var_type_string.substr(pointer_prefix.length());
-    //     info.type = "pointer";
-    // } else {
-    //     info.type = node_var_type_string;
-    // }
-
-    consume(TokenType::SEMICOLON, "Expected ';' after variable declaration.");
-
-    if (!symbol_table_ptr->addSymbol(var_name_node->name, info)) {
-        Token base_type_tok = current_token_cache;
-        if (base_type_tok.type == TokenType::TYPE_INTEGER || base_type_tok.type == TokenType::TYPE_STRING ||
-            base_type_tok.type == TokenType::TYPE_BOOLEAN || base_type_tok.type == TokenType::TYPE_CHARACTER ||
-            base_type_tok.type == TokenType::TYPE_REAL    ||
-            base_type_tok.type == TokenType::IDENTIFIER) { // IDENTIFIER for custom types
-            advance(); // Consume the base type token
-            node_var_type_string = "pointer to " + base_type_tok.value;
-        } else {
-            ErrorHandler::report(ErrorCode::SYNTAX_MISSING_EXPECTED_TOKEN, base_type_tok.line, base_type_tok.col, "Expected base type after 'pointer to'.");
-            throw std::runtime_error("Parser error: Invalid pointer base type.");
-        }
-        // SymbolInfo population for pointer type will be handled in a later subtask
-        // For now, SymbolInfo.type will store "pointer to <base_type>"
-        // And specific fields like is_pointer, pointer_base_type can be added to SymbolInfo later.
-    } else if (check(TokenType::ARRAY)) {
-        consume(TokenType::ARRAY, "Expected 'ARRAY' keyword.");
-        consume(TokenType::LBRACKET, "Expected '[' after ARRAY keyword.");
-
-        auto min_bound_expr_node = parseExpression(); // This should evaluate to an integer literal
-        consume(TokenType::DOTDOT, "Expected '..' for array range separator.");
-        auto max_bound_expr_node = parseExpression(); // This should also evaluate to an integer literal
-
-        consume(TokenType::RBRACKET, "Expected ']' after array bounds.");
-        consume(TokenType::OF, "Expected 'OF' keyword after array bounds specification.");
-
-        Token element_type_token = current_token_cache;
-        if (element_type_token.type == TokenType::TYPE_INTEGER ||
-            element_type_token.type == TokenType::TYPE_REAL ||
-            element_type_token.type == TokenType::TYPE_BOOLEAN ||
-            element_type_token.type == TokenType::TYPE_CHARACTER ||
-            element_type_token.type == TokenType::TYPE_STRING ||
-            element_type_token.type == TokenType::IDENTIFIER) { // For custom types
-            advance(); // Consume the element type token
-        } else {
-            ErrorHandler::report(ErrorCode::SYNTAX_MISSING_EXPECTED_TOKEN, element_type_token.line, element_type_token.col, "Expected valid array element type (e.g., integer, real, custom_type).");
-            throw std::runtime_error("Parser error: Invalid array element type.");
-        }
-
-        info.is_array = true;
-        info.array_element_type = element_type_token.value;
-        info.type = "array"; // Overall type for symbol table
-        node_var_type_string = "array [" + std::string("...") + ".." + std::string("...") + "] of " + element_type_token.value; // Placeholder for actual bound values in string
-
-        // Process bounds: Must be integer literals as per current SymbolInfo structure
-        IntegerLiteralNode* min_lit_node = dynamic_cast<IntegerLiteralNode*>(min_bound_expr_node.get());
-        IntegerLiteralNode* max_lit_node = dynamic_cast<IntegerLiteralNode*>(max_bound_expr_node.get());
-
-        if (min_lit_node && max_lit_node) {
-            info.array_min_bound = min_lit_node->value;
-            info.array_max_bound = max_lit_node->value;
-            node_var_type_string = "array [" + std::to_string(min_lit_node->value) + ".." + std::to_string(max_lit_node->value) + "] of " + element_type_token.value;
-            if (info.array_min_bound > info.array_max_bound) {
-                ErrorHandler::report(ErrorCode::SEMANTIC_ERROR, var_name_token_for_info.line, var_name_token_for_info.col,
-                                     "Array minimum bound (" + std::to_string(info.array_min_bound) +
-                                     ") cannot be greater than maximum bound (" + std::to_string(info.array_max_bound) + ").");
-                // Potentially throw or mark as error
-            }
-        } else {
-            ErrorHandler::report(ErrorCode::SEMANTIC_ERROR, var_name_token_for_info.line, var_name_token_for_info.col, "Array bounds must currently be integer literals.");
-            // Set to default/error values if bounds are not integer literals
-            info.array_min_bound = 0;
-            info.array_max_bound = -1; // Indicates error or uninitialized
-        }
-    } else { // Simple variable type
-        Token type_tok = current_token_cache;
-        if (type_tok.type == TokenType::TYPE_INTEGER || type_tok.type == TokenType::TYPE_STRING ||
-            type_tok.type == TokenType::TYPE_BOOLEAN || type_tok.type == TokenType::TYPE_CHARACTER ||
-            type_tok.type == TokenType::TYPE_REAL    ||
-            type_tok.type == TokenType::IDENTIFIER) {
-            advance(); // Consume the type token
-            info.type = type_tok.value;
-            node_var_type_string = type_tok.value;
-        } else {
-            ErrorHandler::report(ErrorCode::SYNTAX_INVALID_EXPRESSION, type_tok.line, type_tok.col, "Expected type identifier (e.g., integer, string) or custom type name.");
-            throw std::runtime_error("Parser error: Invalid type in variable declaration.");
-        }
-        info.is_array = false;
-    } else { // Simple type or already determined pointer type string
-         Token type_tok = current_token_cache;
-        if (type_tok.type == TokenType::TYPE_INTEGER || type_tok.type == TokenType::TYPE_STRING ||
-            type_tok.type == TokenType::TYPE_BOOLEAN || type_tok.type == TokenType::TYPE_CHARACTER ||
-            type_tok.type == TokenType::TYPE_REAL    ||
-            type_tok.type == TokenType::IDENTIFIER) {
-            advance(); // Consume the type token
-            // info.type = type_tok.value; // This will be set later from node_var_type_string
-            node_var_type_string = type_tok.value;
-        } else {
-            ErrorHandler::report(ErrorCode::SYNTAX_INVALID_EXPRESSION, type_tok.line, type_tok.col, "Expected type identifier (e.g., integer, string) or custom type name, or 'pointer'.");
-            throw std::runtime_error("Parser error: Invalid type in variable declaration.");
-        }
-    }
-
-    // Populate SymbolInfo
-    SymbolInfo info;
-    info.kind = "variable";
-    info.scope_level = symbol_table_ptr->getCurrentScopeLevel();
-    info.declaration_line = var_name_token_for_info.line;
-    info.declaration_col = var_name_token_for_info.col;
-    // info.type is set below based on whether it's a pointer or not
-
-    // Check if node_var_type_string indicates a pointer type
-    const std::string pointer_prefix = "pointer to ";
-    if (node_var_type_string.rfind(pointer_prefix, 0) == 0) { // starts with "pointer to "
-        info.is_pointer_type = true;
-        info.pointed_type = node_var_type_string.substr(pointer_prefix.length());
-        info.type = "pointer"; // Set main type to "pointer" for clarity in SymbolInfo
-    } else {
-        // Not a pointer, is_pointer_type remains false, pointed_type remains ""
-        // info.type is simply node_var_type_string (e.g., "integer", "array [...]...")
-        // This was previously handled by the SymbolInfo constructor default for is_pointer_type and pointed_type.
-        // Explicitly set info.type here for clarity for non-pointer types too.
-        info.type = node_var_type_string;
-    }
-    // is_array, array_element_type etc. are set if it's an array (this logic was inside the 'else if (check(TokenType::ARRAY))' block, needs to be accessible to 'info')
-    // The SymbolInfo 'info' object needs to be accessible where array details are parsed if those details are to be stored in it.
-    // Current structure: node_var_type_string is built, then info is populated.
-    // If it's an array, info.is_array etc. were being set on a *different info object* if it was declared inside that block.
-    // This needs correction: 'info' should be declared before the if/else if/else for type parsing,
-    // and then populated.
-
-    // Refactor: Declare SymbolInfo info at the beginning of the function after var_name_node.
-    // The current diff will apply to the section after node_var_type_string is determined.
-    // The SymbolInfo `info` is already declared *after* node_var_type_string is determined which is fine.
-    // The array specific fields like `info.is_array` were set inside the array parsing block.
-    // This is okay if `info` itself is passed by reference or those fields are set on the same `info` object.
-    // Looking at the code, `info` is declared *after* the if-else-if for type string determination.
-    // This means array metadata (is_array, etc.) is NOT being set on the `info` object that gets added to symbol table.
-    // This is a bug from previous refactoring of this function.
-    // I must correct this by declaring `info` earlier.
-
-    // For this subtask, I will focus only on setting is_pointer_type and pointed_type.
-    // The array metadata issue is pre-existing.
+    // At this point, the single 'info' object declared at the function start should have:
+    // - info.kind, info.scope_level, info.declaration_line, info.declaration_col set.
+    // - For pointers: info.is_pointer_type=true, info.pointed_type set, info.type="pointer".
+    // - For arrays: info.is_array=true, info.array_element_type, info.array_min_bound, info.array_max_bound set, info.type="array".
+    // - For simple types: info.type set to the type string (e.g., "integer").
+    // node_var_type_string also holds the full type string for the AST node.
 
     consume(TokenType::SEMICOLON, "Expected ';' after variable declaration.");
 
@@ -1273,14 +1128,14 @@ std::unique_ptr<SubprogramBodyNode> Parser::parseSubprogramBody() {
     // `current_scope_level` is now the parameter scope.
     // This is a known challenge. For now, we'll try to add to the parent scope by index if possible,
     // or acknowledge this needs a SymbolTable enhancement or different call order.
-    // Quick fix: Temporarily decrement, add, then increment. (This is a hack)
-    symbol_table_ptr->current_scope_level--; // HACK: go to parent scope
+    // Correct approach: Exit parameter scope, add symbol, then re-enter if needed (though not needed here).
+    symbol_table_ptr->exitScope(); // Exit parameter scope to get to the parent scope (e.g. global)
     if (!symbol_table_ptr->addSymbol(prototype_node->func_name, func_sym_info)) {
         ErrorHandler::report(ErrorCode::SEMANTIC_REDEFINITION_IDENTIFIER,
                              func_sym_info.declaration_line, func_sym_info.declaration_col,
                              "Subprogram '" + prototype_node->func_name + "' already declared in this scope.");
     }
-    symbol_table_ptr->current_scope_level++; // HACK: restore to parameter scope
+    symbol_table_ptr->enterScope(); // Re-enter parameter scope for subsequent logic if any, or for consistency before local KAMUS scope.
 
     // Line/col for SubprogramBodyNode can be from the prototype
     auto subprogram_node = std::make_unique<SubprogramBodyNode>(prototype_node->line, prototype_node->col, std::move(prototype_node), nullptr);
