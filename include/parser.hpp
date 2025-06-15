@@ -13,6 +13,13 @@ class ASTVisitor;
 // Forward declaration for ProgramNode, used in ParseResult
 class ProgramNode;
 
+// Enum for parameter passing modes
+enum class ParameterMode {
+    IN,    // Default, or explicitly 'input'
+    OUT,   // Explicitly 'output'
+    IN_OUT // Explicitly 'input/output'
+};
+
 // Structure to hold the results of parsing
 struct ParseResult {
     std::unique_ptr<ProgramNode> ast_root;
@@ -116,6 +123,83 @@ public:
     void accept(ASTVisitor* visitor) override;
 };
 
+// New AST Nodes for Pointers and Memory Operations
+class ReferenceNode : public ExpressionNode {
+public:
+    std::unique_ptr<ExpressionNode> target_expr;
+    ReferenceNode(int l, int c, std::unique_ptr<ExpressionNode> expr)
+        : ExpressionNode(l, c), target_expr(std::move(expr)) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
+class DereferenceNode : public ExpressionNode {
+public:
+    std::unique_ptr<ExpressionNode> pointer_expr;
+    DereferenceNode(int l, int c, std::unique_ptr<ExpressionNode> expr)
+        : ExpressionNode(l, c), pointer_expr(std::move(expr)) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
+class AllocateNode : public ExpressionNode { // Assuming allocate(size_expr)
+public:
+    std::unique_ptr<ExpressionNode> size_expr; // Could also be a type node if allocate(TYPE)
+    AllocateNode(int l, int c, std::unique_ptr<ExpressionNode> expr)
+        : ExpressionNode(l, c), size_expr(std::move(expr)) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
+class ReallocateNode : public ExpressionNode {
+public:
+    std::unique_ptr<ExpressionNode> pointer_expr;
+    std::unique_ptr<ExpressionNode> new_size_expr;
+    ReallocateNode(int l, int c, std::unique_ptr<ExpressionNode> ptr_expr, std::unique_ptr<ExpressionNode> ns_expr)
+        : ExpressionNode(l, c), pointer_expr(std::move(ptr_expr)), new_size_expr(std::move(ns_expr)) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
+class DeallocateNode : public ExpressionNode { // Or StatementNode if it doesn't return a value
+public:
+    std::unique_ptr<ExpressionNode> pointer_expr;
+    DeallocateNode(int l, int c, std::unique_ptr<ExpressionNode> expr)
+        : ExpressionNode(l, c), pointer_expr(std::move(expr)) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
+class NullLiteralNode : public ExpressionNode {
+public:
+    NullLiteralNode(int l, int c) : ExpressionNode(l, c) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
+class PointerMemberAccessNode : public ExpressionNode {
+public:
+    std::unique_ptr<ExpressionNode> pointer_expr;
+    std::unique_ptr<IdentifierNode> member_name;
+    PointerMemberAccessNode(int l, int c, std::unique_ptr<ExpressionNode> ptr_expr, std::unique_ptr<IdentifierNode> member)
+        : ExpressionNode(l, c), pointer_expr(std::move(ptr_expr)), member_name(std::move(member)) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
+// --- New Declaration Nodes ---
+class EnumTypeNode : public DeclarationNode {
+public:
+    std::string name;
+    std::vector<std::string> values;
+    EnumTypeNode(int l, int c, std::string enum_name, std::vector<std::string> enum_values)
+        : DeclarationNode(l, c), name(std::move(enum_name)), values(std::move(enum_values)) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
+class ConstantDeclarationNode : public DeclarationNode {
+public:
+    std::string name;
+    std::unique_ptr<ExpressionNode> value; // Should be a literal expression
+    ConstantDeclarationNode(int l, int c, std::string const_name, std::unique_ptr<ExpressionNode> val_expr)
+        : DeclarationNode(l, c), name(std::move(const_name)), value(std::move(val_expr)) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
+
 // --- Concrete Statement Nodes ---
 class AssignmentNode : public StatementNode {
 public:
@@ -149,8 +233,9 @@ public:
 class OutputNode : public StatementNode { // For 'CETAK' or 'PRINT'
 public:
     std::vector<std::unique_ptr<ExpressionNode>> expressions;
+    bool omit_newline = false; // Added for INLINE keyword
 
-    OutputNode(int l, int c) : StatementNode(l, c) {}
+    OutputNode(int l, int c, bool omit_nl = false) : StatementNode(l, c), omit_newline(omit_nl) {}
     void accept(ASTVisitor* visitor) override;
 };
 
@@ -247,10 +332,11 @@ class FunctionParameterNode : public ASTNode { // Or inherit DeclarationNode
 public:
     std::string param_name;
     std::string param_type;
+    ParameterMode mode;
     // bool is_reference; // Or some other way to denote pass-by-value/reference if needed
 
-    FunctionParameterNode(int l, int c, std::string name, std::string type)
-        : ASTNode(l, c), param_name(std::move(name)), param_type(std::move(type)) {}
+    FunctionParameterNode(int l, int c, std::string name, std::string type, ParameterMode p_mode = ParameterMode::IN)
+        : ASTNode(l, c), param_name(std::move(name)), param_type(std::move(type)), mode(p_mode) {}
     void accept(ASTVisitor* visitor) override;
 };
 
@@ -310,8 +396,12 @@ private:
     std::unique_ptr<BlockNode> parseBlock();
     std::unique_ptr<IdentifierNode> parseIdentifier();
     std::unique_ptr<VariableDeclarationNode> parseVariableDeclaration();
+    std::unique_ptr<FunctionParameterNode> parseFunctionParameter();
     std::unique_ptr<FunctionPrototypeNode> parseFunctionPrototype();
     std::unique_ptr<SubprogramBodyNode> parseSubprogramBody();
+    std::unique_ptr<ConstantDeclarationNode> parseConstantDeclaration(); // New
+    std::unique_ptr<DeclarationNode> parseTypeDefinition();            // New (can return EnumTypeNode or RecordTypeNode)
+    std::unique_ptr<EnumTypeNode> parseEnumTypeDefinitionBody(Token type_name_token); // New Helper
     // ... other parsing helpers for different node types
     // Helper function to get operator precedence - declaration
     int getOperatorPrecedence(TokenType type);

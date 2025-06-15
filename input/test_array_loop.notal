@@ -9,16 +9,14 @@ ALGORITMA
   // Initialize array
   for i <- 1 to 5 do
     myNumbers[i] <- i * 10;
-  endfor
 
   // Output array elements
   output("Array elements:");
   for i <- 1 to 5 do
     output("Element ", i, ": ", myNumbers[i]);
-  endfor
 
   // Test input to an array element
-  output("Enter a new value for element 3:");
+  output("Enter a new value for element 3:", INLINE)
   input(myNumbers[3]);
   output("New element 3 is: ", myNumbers[3]);
 

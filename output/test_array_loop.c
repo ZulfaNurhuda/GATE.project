@@ -21,7 +21,7 @@ int main() {
     }
 
     // Test input to an array element
-    printf("Enter a new value for element 3:\n");
+    printf("Enter a new value for element 3:");
     scanf("%d", &myNumbers[3 - 1]);
     printf("New element 3 is: %d\n", myNumbers[3 - 1]);
 

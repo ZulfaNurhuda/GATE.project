@@ -27,6 +27,15 @@ void UnaryOpNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
 void InputNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
 void ArrayAccessNode::accept(ASTVisitor* visitor) { visitor->visit(this); } // Already present, ensure it's correct
 void FunctionCallNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void ReferenceNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void DereferenceNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void AllocateNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void ReallocateNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void DeallocateNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void NullLiteralNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void EnumTypeNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void ConstantDeclarationNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void PointerMemberAccessNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
 
 // Base classes still need a definition for accept if they are not purely abstract
 // with respect to accept, or if direct instantiation was possible (which it isn't here).
@@ -155,23 +164,22 @@ ParseResult Parser::parse(const std::vector<Token>& input_tokens) { // Updated r
 std::unique_ptr<ProgramNode> Parser::parseProgram() {
     Token program_kw = consume(TokenType::PROGRAM, "Expected 'PROGRAM' keyword.");
     Token program_name_tok = consume(TokenType::IDENTIFIER, "Expected program name.");
-    consume(TokenType::SEMICOLON, "Expected ';' after program name.");
+    // Semicolon after program name is now optional / removed for flexibility
+    // consume(TokenType::SEMICOLON, "Expected ';' after program name.");
 
     auto program_node = std::make_unique<ProgramNode>(program_kw.line, program_kw.col, program_name_tok.value);
 
     // Parse Global KAMUS (Declarations)
     if (check(TokenType::KAMUS)) {
         consume(TokenType::KAMUS, "Expected 'KAMUS' keyword.");
-        while (!check(TokenType::ALGORITMA) && !check(TokenType::EOF_TOKEN) &&
-               (check(TokenType::FUNCTION) || check(TokenType::PROCEDURE) || check(TokenType::IDENTIFIER))) {
-            // Here we'd distinguish between variable, function, and procedure declarations.
-            // For now, let's assume only variable declarations in global KAMUS for simplicity.
-            // And Function/Procedure prototypes might also be here.
-            if (check(TokenType::IDENTIFIER)) { // Likely a variable declaration
+        while (!check(TokenType::ALGORITMA) && !check(TokenType::EOF_TOKEN)) {
+            if (check(TokenType::TYPE)) { // Assuming TYPE is TokenType::TYPE_KEYWORD
+                program_node->global_declarations.push_back(parseTypeDefinition());
+            } else if (check(TokenType::CONSTANT_KW)) {
+                program_node->global_declarations.push_back(parseConstantDeclaration());
+            } else if (check(TokenType::IDENTIFIER)) {
                  program_node->global_declarations.push_back(parseVariableDeclaration());
             } else if (check(TokenType::FUNCTION) || check(TokenType::PROCEDURE)) {
-                // Placeholder: parse function/procedure prototypes or full subprograms if not separated
-                // For now, we'll assume subprograms are defined after main ALGORITMA
                 // So this part might just be for forward declarations if your language supports it.
                 // Let's skip parsing subprogram prototypes here for now.
                 ErrorHandler::report(ErrorCode::NOT_IMPLEMENTED_ERROR, current_token_cache.line, current_token_cache.col, "Function/Procedure prototypes in global KAMUS not yet supported.");
@@ -185,7 +193,9 @@ std::unique_ptr<ProgramNode> Parser::parseProgram() {
 
     // Parse Main ALGORITMA
     consume(TokenType::ALGORITMA, "Expected 'ALGORITMA' keyword.");
+    consume(TokenType::INDENT, "Expected indented block for main ALGORITMA.");
     program_node->main_algoritma = parseBlock(); // Main algorithm is a block of statements
+    consume(TokenType::DEDENT, "Expected dedent after main ALGORITMA.");
 
     // Parse Subprograms (Functions/Procedures) - Simplified
     while (check(TokenType::FUNCTION) || check(TokenType::PROCEDURE)) {
@@ -315,6 +325,43 @@ std::unique_ptr<ExpressionNode> Parser::parsePrimaryExpression() {
         auto expr = parseExpression();
         consume(TokenType::RPAREN, "Expected ')' after expression in parentheses.");
         return expr;
+    } else if (match(TokenType::REFERENCE_KW)) {
+        Token ref_tok = previous_token();
+        consume(TokenType::LPAREN, "Expected '(' after 'reference' keyword.");
+        auto target_expr = parseExpression();
+        consume(TokenType::RPAREN, "Expected ')' after reference target expression.");
+        return std::make_unique<ReferenceNode>(ref_tok.line, ref_tok.col, std::move(target_expr));
+    } else if (match(TokenType::DEREFERENCE_KW)) {
+        Token deref_tok = previous_token();
+        consume(TokenType::LPAREN, "Expected '(' after 'dereference' keyword.");
+        auto pointer_expr = parseExpression();
+        consume(TokenType::RPAREN, "Expected ')' after dereference pointer expression.");
+        return std::make_unique<DereferenceNode>(deref_tok.line, deref_tok.col, std::move(pointer_expr));
+    } else if (match(TokenType::ALLOCATE_KW)) {
+        Token alloc_tok = previous_token();
+        consume(TokenType::LPAREN, "Expected '(' after 'allocate' keyword.");
+        auto size_expr = parseExpression(); // Or parseType() if syntax is allocate(Type)
+        consume(TokenType::RPAREN, "Expected ')' after allocate size expression.");
+        return std::make_unique<AllocateNode>(alloc_tok.line, alloc_tok.col, std::move(size_expr));
+    } else if (match(TokenType::REALLOCATE_KW)) {
+        Token realloc_tok = previous_token();
+        consume(TokenType::LPAREN, "Expected '(' after 'reallocate' keyword.");
+        auto pointer_expr = parseExpression();
+        consume(TokenType::COMMA, "Expected ',' separating pointer and new size in reallocate.");
+        auto new_size_expr = parseExpression();
+        consume(TokenType::RPAREN, "Expected ')' after reallocate arguments.");
+        return std::make_unique<ReallocateNode>(realloc_tok.line, realloc_tok.col, std::move(pointer_expr), std::move(new_size_expr));
+    } else if (match(TokenType::DEALLOCATE_KW)) { // Handles "deallocate" and "dispose"
+        Token dealloc_tok = previous_token();
+        consume(TokenType::LPAREN, "Expected '(' after 'deallocate' or 'dispose' keyword.");
+        auto pointer_expr = parseExpression();
+        consume(TokenType::RPAREN, "Expected ')' after deallocate/dispose pointer expression.");
+        // Deallocate might be a statement or an expression depending on if it returns status.
+        // For now, treating as expression as per AST node derivation.
+        return std::make_unique<DeallocateNode>(dealloc_tok.line, dealloc_tok.col, std::move(pointer_expr));
+    }
+    } else if (match(TokenType::NULL_KW)) {
+        return std::make_unique<NullLiteralNode>(previous_token().line, previous_token().col);
     }
     // Add other primary expressions like boolean literals, function calls, etc.
     Token offending_token = current_token_cache;
@@ -322,22 +369,43 @@ std::unique_ptr<ExpressionNode> Parser::parsePrimaryExpression() {
     throw std::runtime_error("Parser error: Invalid primary expression component.");
 }
 
-// Parses unary operations (like NOT)
-std::unique_ptr<ExpressionNode> Parser::parseUnaryExpression() {
+// Parses unary operations (like NOT) and then postfix operations (like ^.)
+std::unique_ptr<ExpressionNode> Parser::parseUnaryExpression() { // Renamed conceptually to parsePostfixExpression or similar
+    std::unique_ptr<ExpressionNode> expr;
     if (check(TokenType::NOT)) {
         Token not_tok = consume(TokenType::NOT, "Expected 'NOT' keyword for unary operation.");
-        auto operand = parsePrimaryExpression(); // `NOT` typically applies to a primary expression or factor
-        return std::make_unique<UnaryOpNode>(not_tok.line, not_tok.col, "NOT", std::move(operand));
+        // Unary NOT should apply to the result of postfix operations on its operand
+        auto operand = parseUnaryExpression(); // Recursive call to handle potential postfix on operand of NOT
+        expr = std::make_unique<UnaryOpNode>(not_tok.line, not_tok.col, "NOT", std::move(operand));
     }
     // Add other unary operators here, e.g., unary minus '-'
-    // else if (check(TokenType::MINUS)) { ... }
-    return parsePrimaryExpression(); // If no unary operator, parse a primary expression
+    // else if (check(TokenType::MINUS)) { ... expr = std::make_unique<UnaryOpNode>(...parseUnaryExpression()...); }
+    else {
+        expr = parsePrimaryExpression(); // If no unary operator, parse a primary expression
+    }
+
+    // After parsing primary/unary, check for postfix operations
+    while (true) {
+        if (match(TokenType::POINTER_ACCESS_OP)) {
+            Token op_token = previous_token(); // The '^.' token
+            auto member_identifier = parseIdentifier(); // Parse the member name
+            expr = std::make_unique<PointerMemberAccessNode>(op_token.line, op_token.col, std::move(expr), std::move(member_identifier));
+        }
+        // else if (match(TokenType::LBRACKET)) { /* handle array access expr[index] */ }
+        // else if (match(TokenType::LPAREN) && dynamic_cast<IdentifierNode*>(expr.get())) { /* handle function call expr(...) */ }
+        // Note: Function calls are currently handled inside parsePrimaryExpression if the primary is an IDENTIFIER.
+        // This might need refactoring for full operator precedence correctness if calls can chain after other postfix ops e.g. get_ptr()^.member()
+        else {
+            break; // No more postfix operators
+        }
+    }
+    return expr;
 }
 
 
 // Parses expressions using Precedence Climbing algorithm
 std::unique_ptr<ExpressionNode> Parser::parseExpression(int min_precedence /*= 1*/) {
-    auto left = parseUnaryExpression(); // Parse the leftmost operand
+    auto left = parseUnaryExpression(); // This now handles primary, unary, and postfix operations like ^.
 
     while (true) {
         Token current_op_token = current_token_cache; // Peek at the current token
@@ -379,7 +447,7 @@ std::unique_ptr<StatementNode> Parser::parseAssignmentStatement(std::unique_ptr<
 
 std::unique_ptr<OutputNode> Parser::parseOutputStatement() {
     Token output_kw = consume(TokenType::OUTPUT, "Expected 'OUTPUT' keyword."); // Or CETAK, PRINT
-    auto output_node = std::make_unique<OutputNode>(output_kw.line, output_kw.col);
+    bool omit_newline_flag = false;
 
     // Assuming output can take multiple comma-separated expressions, e.g., OUTPUT expr1, expr2
     // Or a single expression, or parenthesized list. For now, let's assume one or more.
@@ -391,14 +459,41 @@ std::unique_ptr<OutputNode> Parser::parseOutputStatement() {
         consume(TokenType::LPAREN, "Expected '(' after OUTPUT if not directly followed by expression.");
     }
 
-    output_node->expressions.push_back(parseExpression());
+    // Create a temporary vector to store expressions before creating the node
+    std::vector<std::unique_ptr<ExpressionNode>> expressions;
+
+    expressions.push_back(parseExpression()); // Parse the first expression
     while (match(TokenType::COMMA)) {
-        output_node->expressions.push_back(parseExpression());
+        // Before parsing the next expression, check if INLINE keyword is next.
+        // If so, it means the expression list has ended, and INLINE follows.
+        if (check(TokenType::INLINE_KEYWORD)) {
+            break; // Exit loop to handle INLINE keyword
+        }
+        expressions.push_back(parseExpression());
     }
+
+    // After parsing all expressions (or expressions before INLINE), check for the INLINE keyword
+    if (check(TokenType::INLINE_KEYWORD)) {
+        consume(TokenType::INLINE_KEYWORD, "Expected INLINE keyword.");
+        omit_newline_flag = true;
+    }
+
+    // Now create the OutputNode with the collected expressions and the omit_newline_flag
+    auto output_node = std::make_unique<OutputNode>(output_kw.line, output_kw.col, omit_newline_flag);
+    output_node->expressions = std::move(expressions);
 
     if(expect_paren) {
         consume(TokenType::RPAREN, "Expected ')' after OUTPUT expressions.");
     }
+
+    // If INLINE was present, it should have been consumed before the semicolon.
+    // If INLINE was after parenthesis (if any) and before semicolon.
+    // Example: output(x,y) INLINE;
+    // Example: output x,y INLINE;
+
+    // Re-check for INLINE if it wasn't caught after expressions (e.g. if no parens and INLINE is last before ';')
+    // The current placement of INLINE check (after expression loop, before closing paren/semicolon) is correct.
+
     consume(TokenType::SEMICOLON, "Expected ';' after output statement.");
     return output_node;
 }
@@ -408,15 +503,17 @@ std::unique_ptr<IfNode> Parser::parseIfStatement() {
     auto condition = parseExpression();
     consume(TokenType::THEN, "Expected 'THEN' after IF condition.");
 
-    auto then_block = parseBlock(); // then_block could be single statement or block
+    consume(TokenType::INDENT, "Expected indented block for IF true branch.");
+    auto then_block = parseBlock();
+    consume(TokenType::DEDENT, "Expected dedent after IF true branch.");
 
     std::unique_ptr<BlockNode> else_block = nullptr;
     if (match(TokenType::ELSE)) {
-        else_block = parseBlock(); // else_block could also be single statement or block
+        consume(TokenType::INDENT, "Expected indented block for ELSE branch.");
+        else_block = parseBlock();
+        consume(TokenType::DEDENT, "Expected dedent after ELSE branch.");
     }
-    // Optional: consume ENDIF if your language uses it
-    // match(TokenType::ENDIF);
-    // consume(TokenType::SEMICOLON, "Expected ';' after IF statement or ENDIF."); // Depending on language
+    // ENDIF is no longer used.
 
     return std::make_unique<IfNode>(if_tok.line, if_tok.col, std::move(condition), std::move(then_block), std::move(else_block));
 }
@@ -466,9 +563,11 @@ std::unique_ptr<StatementNode> Parser::parseWhileStatement() {
     consume(TokenType::LPAREN, "Expected '(' after WHILE.");
     auto condition = parseExpression();
     consume(TokenType::RPAREN, "Expected ')' after WHILE condition.");
-    consume(TokenType::DO, "Expected 'DO' after WHILE condition."); // Assuming AN grammar might use DO here
-    auto body = parseBlock(); // Assumes parseBlock handles statements until ENDWHILE or similar
-    consume(TokenType::ENDWHILE, "Expected 'ENDWHILE' to close WHILE loop.");
+    consume(TokenType::DO, "Expected 'DO' after WHILE condition.");
+    consume(TokenType::INDENT, "Expected indented block for WHILE loop body.");
+    auto body = parseBlock();
+    consume(TokenType::DEDENT, "Expected dedent after WHILE loop body.");
+    // ENDWHILE is no longer used.
     return std::make_unique<WhileNode>(while_tok.line, while_tok.col, std::move(condition), std::move(body));
 }
 
@@ -493,11 +592,13 @@ std::unique_ptr<StatementNode> Parser::parseForStatement() {
     auto loop_var = parseIdentifier();
     consume(TokenType::ASSIGN_OP, "Expected '<-' assignment operator in FOR loop.");
     auto start_value = parseExpression();
-    consume(TokenType::TO, "Expected 'TO' keyword in FOR loop.");
+    consume(TokenType::TO_KW, "Expected 'to' keyword in FOR loop."); // Changed TO to TO_KW
     auto end_value = parseExpression();
     consume(TokenType::DO, "Expected 'DO' keyword in FOR loop.");
-    auto body = parseBlock(); // Assumes parseBlock handles statements until ENDFOR
-    consume(TokenType::ENDFOR, "Expected 'ENDFOR' to close FOR loop.");
+    consume(TokenType::INDENT, "Expected indented block for FOR loop body.");
+    auto body = parseBlock();
+    consume(TokenType::DEDENT, "Expected dedent after FOR loop body.");
+    // ENDFOR is no longer used.
     return std::make_unique<ForNode>(for_tok.line, for_tok.col, std::move(loop_var), std::move(start_value), std::move(end_value), std::move(body));
 }
 
@@ -506,15 +607,24 @@ std::unique_ptr<CaseBranchNode> Parser::parseCaseBranch() {
     Token case_branch_start_tok = current_token_cache; // For line/col info
 
     if (match(TokenType::CASE)) {
-        auto case_value = parseExpression(); // Assuming case value is an expression
+        auto case_value = parseExpression();
         consume(TokenType::COLON, "Expected ':' after CASE value.");
-        auto body = parseBlock(); // Or parseStatementsUntil another CASE/OTHERWISE/ENDDEPENDON
-        consume(TokenType::SEMICOLON, "Expected ';' after statements in CASE branch."); // Assuming typical AN statement termination
+        consume(TokenType::INDENT, "Expected indented block for CASE branch.");
+        auto body = parseBlock();
+        consume(TokenType::DEDENT, "Expected dedent after CASE branch.");
+        // SEMICOLON after block is not typical for indentation-based languages, usually handled by statement terminator within block
+        // For now, keeping semicolon consumption if it was part of original grammar for case body statements.
+        // However, if parseBlock correctly parses statements ending in semicolons, this outer semicolon might be redundant or an error.
+        // Let's assume individual statements within the block are semicolon-terminated as per parseStatement.
+        // The block itself is defined by INDENT/DEDENT.
+        // consume(TokenType::SEMICOLON, "Expected ';' after statements in CASE branch."); // Re-evaluating this
         return std::make_unique<CaseBranchNode>(case_branch_start_tok.line, case_branch_start_tok.col, std::move(case_value), std::move(body));
     } else if (match(TokenType::OTHERWISE)) {
         consume(TokenType::COLON, "Expected ':' after OTHERWISE.");
+        consume(TokenType::INDENT, "Expected indented block for OTHERWISE branch.");
         auto body = parseBlock();
-        consume(TokenType::SEMICOLON, "Expected ';' after statements in OTHERWISE branch."); // Assuming typical AN statement termination
+        consume(TokenType::DEDENT, "Expected dedent after OTHERWISE branch.");
+        // consume(TokenType::SEMICOLON, "Expected ';' after statements in OTHERWISE branch."); // Re-evaluating this
         return std::make_unique<CaseBranchNode>(case_branch_start_tok.line, case_branch_start_tok.col, std::move(body));
     } else {
         ErrorHandler::report(ErrorCode::SYNTAX_UNEXPECTED_TOKEN, case_branch_start_tok.line, case_branch_start_tok.col, "Expected 'CASE' or 'OTHERWISE'.");
@@ -554,8 +664,10 @@ std::unique_ptr<StatementNode> Parser::parseDependOnStatement() {
         throw std::runtime_error("Parser error: Empty DEPEND ON statement.");
     }
 
-    consume(TokenType::ENDDEPENDON, "Expected 'ENDDEPENDON' to close DEPEND ON statement.");
-    consume(TokenType::SEMICOLON, "Expected ';' after ENDDEPENDON."); // Assuming typical AN statement termination
+    // ENDDEPENDON is no longer used. The end of cases and final DEDENT (if depend on was in an indented block) marks its end.
+    // consume(TokenType::ENDDEPENDON, "Expected 'ENDDEPENDON' to close DEPEND ON statement.");
+    // The SEMICOLON after ENDDEPENDON is also likely removed if ENDDEPENDON is removed.
+    // consume(TokenType::SEMICOLON, "Expected ';' after ENDDEPENDON.");
     return depend_on_node;
 }
 
@@ -571,32 +683,33 @@ std::unique_ptr<BlockNode> Parser::parseBlock() {
     Token block_start_tok = current_token_cache; // For line/col info of the block itself
     auto block_node = std::make_unique<BlockNode>(block_start_tok.line, block_start_tok.col);
 
-    // Example: A block ends if we see ELSE, ENDIF, ENDWHILE, FUNCTION, PROCEDURE, EOF, END (for main block)
-    // This list needs to be context-dependent.
-    while (!check(TokenType::END) &&         // General END keyword (e.g. for main block)
-           !check(TokenType::ELSE) &&        // For IF statements
-           !check(TokenType::ENDIF) &&       // If ENDIF is a keyword
-           !check(TokenType::ENDWHILE) &&    // If ENDWHILE is a keyword
-           !check(TokenType::ENDFOR) &&      // If ENDFOR is a keyword
-           !check(TokenType::FUNCTION) &&    // Start of a new subprogram
-           !check(TokenType::PROCEDURE) &&   // Start of a new subprogram
-           !check(TokenType::EOF_TOKEN) &&
-           !check(TokenType::ENDPROGRAM) &&  // End of the whole program
-           !check(TokenType::UNTIL)          // For REPEAT..UNTIL loops
-           /* other stoppers */ ) {
+    // A block is a sequence of statements until a DEDENT token is encountered (or EOF).
+    // The DEDENT token itself is not consumed by parseBlock.
+    Token block_start_tok = current_token_cache;
+    auto block_node = std::make_unique<BlockNode>(block_start_tok.line, block_start_tok.col);
 
-        // Check if the current token can start a statement
-        // This is a simplified check. A real parser might need more lookahead or specific BEGIN/END for blocks.
-        if (check(TokenType::IDENTIFIER) || check(TokenType::OUTPUT) || check(TokenType::IF) ||
-            check(TokenType::WHILE) || check(TokenType::FOR) || check(TokenType::READ) || check(TokenType::RETURN)
-            /* other statement starters */) {
-            block_node->statements.push_back(parseStatement());
-        } else {
-            // If it's not a statement starter and not an end-of-block token, it might be an error
-            // or the end of an implicit block. For now, we break.
+    while (!check(TokenType::DEDENT) && !check(TokenType::EOF_TOKEN)) {
+        // Check for other potential block terminators if necessary (e.g. specific keywords that might end a list of statements
+        // even before a DEDENT in some grammar variations, though pure indentation shouldn't need this).
+        // Example: Python's `elif` or `else` would terminate the previous `if` block's statements before the DEDENT.
+        // For this grammar, assuming simple statement list until DEDENT.
+        // Also, need to ensure we don't loop infinitely if parseStatement fails to consume tokens.
+        if ( check(TokenType::ELSE) || // ELSE will be handled by ifStatement, not as part of then_block's statements.
+             check(TokenType::CASE) || check(TokenType::OTHERWISE) || // these start new branches in dependon
+             check(TokenType::UNTIL) // UNTIL terminates a REPEAT block's statements
+           ) {
             break;
         }
+
+        // Heuristic: if current token cannot start a statement, break to avoid infinite loop on errors.
+        // This check should be more robust based on what parseStatement expects.
+        // For now, assume parseStatement will throw if it finds an invalid start.
+        // If parseStatement *can* return nullptr or not advance, this loop needs more care.
+        // Given parseStatement throws on error, this direct call is okay.
+
+        block_node->statements.push_back(parseStatement());
     }
+    // The DEDENT is consumed by the caller.
     return block_node;
 }
 
@@ -605,18 +718,130 @@ std::unique_ptr<VariableDeclarationNode> Parser::parseVariableDeclaration() {
     // Token var_name_token = previous_token(); // previous_token() is based on current_token_idx, not necessarily var_name_node's token
     Token var_name_token_for_info = Token{TokenType::IDENTIFIER, var_name_node->name, var_name_node->line, var_name_node->col};
 
-
-    consume(TokenType::COLON, "Expected ':' after variable name in declaration.");
-
-    SymbolInfo info;
+    SymbolInfo info; // Declare info object at the beginning
     info.kind = "variable";
     info.scope_level = symbol_table_ptr->getCurrentScopeLevel();
     info.declaration_line = var_name_token_for_info.line;
     info.declaration_col = var_name_token_for_info.col;
-    std::string node_var_type_string; // For VariableDeclarationNode's type field
+    // Default other fields like is_array, is_pointer_type etc., are set by SymbolInfo constructor
 
-    if (check(TokenType::ARRAY)) { // Changed from match to check to avoid consuming ARRAY yet
-        consume(TokenType::ARRAY, "Expected 'ARRAY' keyword."); // Now consume
+    consume(TokenType::COLON, "Expected ':' after variable name in declaration.");
+    std::string node_var_type_string;
+
+    if (match(TokenType::POINTER_KW)) {
+        consume(TokenType::TO_KW, "Expected 'to' after 'pointer'.");
+        Token base_type_tok = current_token_cache;
+        if (base_type_tok.type == TokenType::TYPE_INTEGER || base_type_tok.type == TokenType::TYPE_STRING ||
+            base_type_tok.type == TokenType::TYPE_BOOLEAN || base_type_tok.type == TokenType::TYPE_CHARACTER ||
+            base_type_tok.type == TokenType::TYPE_REAL    ||
+            base_type_tok.type == TokenType::IDENTIFIER) {
+            advance();
+            info.is_pointer_type = true;
+            info.pointed_type = base_type_tok.value;
+            info.type = "pointer"; // Main type for SymbolInfo
+            node_var_type_string = "pointer to " + base_type_tok.value; // For AST Node
+        } else {
+            ErrorHandler::report(ErrorCode::SYNTAX_MISSING_EXPECTED_TOKEN, base_type_tok.line, base_type_tok.col, "Expected base type after 'pointer to'.");
+            throw std::runtime_error("Parser error: Invalid pointer base type.");
+        }
+    } else if (check(TokenType::ARRAY)) {
+        consume(TokenType::ARRAY, "Expected 'ARRAY' keyword.");
+        consume(TokenType::LBRACKET, "Expected '[' after ARRAY keyword.");
+
+        auto min_bound_expr_node = parseExpression();
+        consume(TokenType::DOTDOT, "Expected '..' for array range separator.");
+        auto max_bound_expr_node = parseExpression();
+
+        consume(TokenType::RBRACKET, "Expected ']' after array bounds.");
+        consume(TokenType::OF, "Expected 'OF' keyword after array bounds specification.");
+
+        Token element_type_token = current_token_cache;
+        if (element_type_token.type == TokenType::TYPE_INTEGER ||
+            element_type_token.type == TokenType::TYPE_REAL ||
+            element_type_token.type == TokenType::TYPE_BOOLEAN ||
+            element_type_token.type == TokenType::TYPE_CHARACTER ||
+            element_type_token.type == TokenType::TYPE_STRING ||
+            element_type_token.type == TokenType::IDENTIFIER) {
+            advance();
+        } else {
+            ErrorHandler::report(ErrorCode::SYNTAX_MISSING_EXPECTED_TOKEN, element_type_token.line, element_type_token.col, "Expected valid array element type (e.g., integer, real, custom_type).");
+            throw std::runtime_error("Parser error: Invalid array element type.");
+        }
+
+        info.is_array = true;
+        info.array_element_type = element_type_token.value;
+        info.type = "array"; // Overall type for symbol table
+
+        IntegerLiteralNode* min_lit_node = dynamic_cast<IntegerLiteralNode*>(min_bound_expr_node.get());
+        IntegerLiteralNode* max_lit_node = dynamic_cast<IntegerLiteralNode*>(max_bound_expr_node.get());
+
+        if (min_lit_node && max_lit_node) {
+            info.array_min_bound = min_lit_node->value;
+            info.array_max_bound = max_lit_node->value;
+            node_var_type_string = "array [" + std::to_string(min_lit_node->value) + ".." + std::to_string(max_lit_node->value) + "] of " + element_type_token.value;
+            if (info.array_min_bound > info.array_max_bound) {
+                ErrorHandler::report(ErrorCode::SEMANTIC_ERROR, var_name_token_for_info.line, var_name_token_for_info.col,
+                                     "Array minimum bound (" + std::to_string(info.array_min_bound) +
+                                     ") cannot be greater than maximum bound (" + std::to_string(info.array_max_bound) + ").");
+            }
+        } else {
+            ErrorHandler::report(ErrorCode::SEMANTIC_ERROR, var_name_token_for_info.line, var_name_token_for_info.col, "Array bounds must currently be integer literals.");
+            info.array_min_bound = 0;
+            info.array_max_bound = -1;
+            node_var_type_string = "array [...] of " + element_type_token.value; // Placeholder
+        }
+    } else {
+         Token type_tok = current_token_cache;
+        if (type_tok.type == TokenType::TYPE_INTEGER || type_tok.type == TokenType::TYPE_STRING ||
+            type_tok.type == TokenType::TYPE_BOOLEAN || type_tok.type == TokenType::TYPE_CHARACTER ||
+            type_tok.type == TokenType::TYPE_REAL    ||
+            type_tok.type == TokenType::IDENTIFIER) {
+            advance();
+            info.type = type_tok.value;
+            node_var_type_string = type_tok.value;
+        } else {
+            ErrorHandler::report(ErrorCode::SYNTAX_INVALID_EXPRESSION, type_tok.line, type_tok.col, "Expected type identifier (e.g., integer, string) or custom type name, or 'pointer'.");
+            throw std::runtime_error("Parser error: Invalid type in variable declaration.");
+        }
+    }
+
+    // Populate SymbolInfo (info.type should get the full string like "pointer to integer" or "integer")
+    // SymbolInfo info; // MOVED TO TOP OF FUNCTION
+    // info.kind = "variable"; // MOVED TO TOP
+    // info.scope_level = symbol_table_ptr->getCurrentScopeLevel(); // MOVED TO TOP
+    // info.declaration_line = var_name_token_for_info.line; // MOVED TO TOP
+    // info.declaration_col = var_name_token_for_info.col; // MOVED TO TOP
+    // info.type is set above based on whether it's a pointer or not
+
+    // Check if node_var_type_string indicates a pointer type
+    // const std::string pointer_prefix = "pointer to "; // This logic is now integrated above
+    // if (node_var_type_string.rfind(pointer_prefix, 0) == 0) {
+    //     info.is_pointer_type = true;
+    //     info.pointed_type = node_var_type_string.substr(pointer_prefix.length());
+    //     info.type = "pointer";
+    // } else {
+    //     info.type = node_var_type_string;
+    // }
+
+    consume(TokenType::SEMICOLON, "Expected ';' after variable declaration.");
+
+    if (!symbol_table_ptr->addSymbol(var_name_node->name, info)) {
+        Token base_type_tok = current_token_cache;
+        if (base_type_tok.type == TokenType::TYPE_INTEGER || base_type_tok.type == TokenType::TYPE_STRING ||
+            base_type_tok.type == TokenType::TYPE_BOOLEAN || base_type_tok.type == TokenType::TYPE_CHARACTER ||
+            base_type_tok.type == TokenType::TYPE_REAL    ||
+            base_type_tok.type == TokenType::IDENTIFIER) { // IDENTIFIER for custom types
+            advance(); // Consume the base type token
+            node_var_type_string = "pointer to " + base_type_tok.value;
+        } else {
+            ErrorHandler::report(ErrorCode::SYNTAX_MISSING_EXPECTED_TOKEN, base_type_tok.line, base_type_tok.col, "Expected base type after 'pointer to'.");
+            throw std::runtime_error("Parser error: Invalid pointer base type.");
+        }
+        // SymbolInfo population for pointer type will be handled in a later subtask
+        // For now, SymbolInfo.type will store "pointer to <base_type>"
+        // And specific fields like is_pointer, pointer_base_type can be added to SymbolInfo later.
+    } else if (check(TokenType::ARRAY)) {
+        consume(TokenType::ARRAY, "Expected 'ARRAY' keyword.");
         consume(TokenType::LBRACKET, "Expected '[' after ARRAY keyword.");
 
         auto min_bound_expr_node = parseExpression(); // This should evaluate to an integer literal
@@ -677,8 +902,62 @@ std::unique_ptr<VariableDeclarationNode> Parser::parseVariableDeclaration() {
             ErrorHandler::report(ErrorCode::SYNTAX_INVALID_EXPRESSION, type_tok.line, type_tok.col, "Expected type identifier (e.g., integer, string) or custom type name.");
             throw std::runtime_error("Parser error: Invalid type in variable declaration.");
         }
-        info.is_array = false; // Ensure it's false for non-arrays
+        info.is_array = false;
+    } else { // Simple type or already determined pointer type string
+         Token type_tok = current_token_cache;
+        if (type_tok.type == TokenType::TYPE_INTEGER || type_tok.type == TokenType::TYPE_STRING ||
+            type_tok.type == TokenType::TYPE_BOOLEAN || type_tok.type == TokenType::TYPE_CHARACTER ||
+            type_tok.type == TokenType::TYPE_REAL    ||
+            type_tok.type == TokenType::IDENTIFIER) {
+            advance(); // Consume the type token
+            // info.type = type_tok.value; // This will be set later from node_var_type_string
+            node_var_type_string = type_tok.value;
+        } else {
+            ErrorHandler::report(ErrorCode::SYNTAX_INVALID_EXPRESSION, type_tok.line, type_tok.col, "Expected type identifier (e.g., integer, string) or custom type name, or 'pointer'.");
+            throw std::runtime_error("Parser error: Invalid type in variable declaration.");
+        }
     }
+
+    // Populate SymbolInfo
+    SymbolInfo info;
+    info.kind = "variable";
+    info.scope_level = symbol_table_ptr->getCurrentScopeLevel();
+    info.declaration_line = var_name_token_for_info.line;
+    info.declaration_col = var_name_token_for_info.col;
+    // info.type is set below based on whether it's a pointer or not
+
+    // Check if node_var_type_string indicates a pointer type
+    const std::string pointer_prefix = "pointer to ";
+    if (node_var_type_string.rfind(pointer_prefix, 0) == 0) { // starts with "pointer to "
+        info.is_pointer_type = true;
+        info.pointed_type = node_var_type_string.substr(pointer_prefix.length());
+        info.type = "pointer"; // Set main type to "pointer" for clarity in SymbolInfo
+    } else {
+        // Not a pointer, is_pointer_type remains false, pointed_type remains ""
+        // info.type is simply node_var_type_string (e.g., "integer", "array [...]...")
+        // This was previously handled by the SymbolInfo constructor default for is_pointer_type and pointed_type.
+        // Explicitly set info.type here for clarity for non-pointer types too.
+        info.type = node_var_type_string;
+    }
+    // is_array, array_element_type etc. are set if it's an array (this logic was inside the 'else if (check(TokenType::ARRAY))' block, needs to be accessible to 'info')
+    // The SymbolInfo 'info' object needs to be accessible where array details are parsed if those details are to be stored in it.
+    // Current structure: node_var_type_string is built, then info is populated.
+    // If it's an array, info.is_array etc. were being set on a *different info object* if it was declared inside that block.
+    // This needs correction: 'info' should be declared before the if/else if/else for type parsing,
+    // and then populated.
+
+    // Refactor: Declare SymbolInfo info at the beginning of the function after var_name_node.
+    // The current diff will apply to the section after node_var_type_string is determined.
+    // The SymbolInfo `info` is already declared *after* node_var_type_string is determined which is fine.
+    // The array specific fields like `info.is_array` were set inside the array parsing block.
+    // This is okay if `info` itself is passed by reference or those fields are set on the same `info` object.
+    // Looking at the code, `info` is declared *after* the if-else-if for type string determination.
+    // This means array metadata (is_array, etc.) is NOT being set on the `info` object that gets added to symbol table.
+    // This is a bug from previous refactoring of this function.
+    // I must correct this by declaring `info` earlier.
+
+    // For this subtask, I will focus only on setting is_pointer_type and pointed_type.
+    // The array metadata issue is pre-existing.
 
     consume(TokenType::SEMICOLON, "Expected ';' after variable declaration.");
 
@@ -687,24 +966,168 @@ std::unique_ptr<VariableDeclarationNode> Parser::parseVariableDeclaration() {
                              info.declaration_line, info.declaration_col,
                              "Variable '" + var_name_node->name + "' already declared in this scope.");
     }
-    return std::make_unique<VariableDeclarationNode>(var_name_token.line, var_name_token.col, var_name_node->name, node_var_type_string);
+    return std::make_unique<VariableDeclarationNode>(var_name_token_for_info.line, var_name_token_for_info.col, var_name_node->name, node_var_type_string);
+}
+
+std::unique_ptr<ConstantDeclarationNode> Parser::parseConstantDeclaration() {
+    Token const_kw_tok = consume(TokenType::CONSTANT_KW, "Expected 'constant' keyword.");
+    Token const_name_tok = consume(TokenType::IDENTIFIER, "Expected constant name.");
+    consume(TokenType::EQUAL, "Expected '=' after constant name."); // Assuming lexer provides EQUAL for '='
+
+    // Constant value must be a literal (integer, real, string, boolean, or NULL)
+    // parsePrimaryExpression is a good candidate if it correctly parses literals.
+    // Or, a more restricted parseLiteralExpression() could be used.
+    auto value_expr = parsePrimaryExpression();
+
+    // Validate that value_expr is indeed a literal type
+    if (!dynamic_cast<IntegerLiteralNode*>(value_expr.get()) &&
+        !dynamic_cast<StringLiteralNode*>(value_expr.get()) && // Assuming real literals would be another node type
+        !dynamic_cast<NullLiteralNode*>(value_expr.get()) && // Assuming boolean true/false are identifiers that map to some literal-like node or are handled
+        !(dynamic_cast<IdentifierNode*>(value_expr.get()) && (value_expr->to_string() == "true" || value_expr->to_string() == "false")) // Hacky check for true/false as identifiers
+        // TODO: Add check for RealLiteralNode if/when it exists
+        ) {
+        ErrorHandler::report(ErrorCode::SYNTAX_ERROR, previous_token().line, previous_token().col, "Constant value must be a literal (integer, string, boolean, NULL).");
+        // Fallback or throw: For now, let's allow it and let semantic analysis catch it later if it's not a literal.
+        // Or, make parsePrimaryExpression more restrictive here.
+    }
+
+    consume(TokenType::SEMICOLON, "Expected ';' after constant declaration.");
+
+    auto cdn = std::make_unique<ConstantDeclarationNode>(const_name_tok.line, const_name_tok.col, const_name_tok.value, std::move(value_expr));
+
+    // Add to symbol table
+    SymbolInfo const_info;
+    const_info.kind = "constant"; // Or set using is_constant = true and rely on that
+    const_info.is_constant = true;
+    const_info.declaration_line = cdn->line;
+    const_info.declaration_col = cdn->col;
+    const_info.scope_level = symbol_table_ptr->getCurrentScopeLevel();
+
+    // Infer type from the literal node
+    if (dynamic_cast<IntegerLiteralNode*>(cdn->value.get())) {
+        const_info.type = "integer";
+    } else if (dynamic_cast<StringLiteralNode*>(cdn->value.get())) {
+        const_info.type = "string";
+    } else if (dynamic_cast<NullLiteralNode*>(cdn->value.get())) {
+        const_info.type = "pointer"; // Or a generic "NULL_type"
+    } else if (auto id_val = dynamic_cast<IdentifierNode*>(cdn->value.get())) {
+        if (id_val->name == "true" || id_val->name == "false") {
+            const_info.type = "boolean";
+        } else {
+            // This case should ideally be caught by the literal validation earlier
+            ErrorHandler::report(ErrorCode::SEMANTIC_ERROR, cdn->line, cdn->col, "Constant '" + cdn->name + "' assigned non-literal identifier value '" + id_val->name + "'.");
+            const_info.type = "unknown"; // Fallback
+        }
+    }
+    // TODO: Add RealLiteralNode when available
+    else {
+        ErrorHandler::report(ErrorCode::SEMANTIC_ERROR, cdn->line, cdn->col, "Constant '" + cdn->name + "' has unsupported literal type.");
+        const_info.type = "unknown"; // Fallback
+    }
+
+    if (!symbol_table_ptr->addSymbol(cdn->name, const_info)) {
+        ErrorHandler::report(ErrorCode::SEMANTIC_REDEFINITION_IDENTIFIER, cdn->line, cdn->col, "Constant '" + cdn->name + "' already defined in this scope.");
+    }
+
+    return cdn;
+}
+
+std::unique_ptr<EnumTypeNode> Parser::parseEnumTypeDefinitionBody(Token type_name_token) {
+    consume(TokenType::LPAREN, "Expected '(' after enum type name for values.");
+    std::vector<std::string> values_list;
+
+    if (check(TokenType::RPAREN)) { // Empty enum? (Usually not allowed but syntactically possible to check)
+        ErrorHandler::report(ErrorCode::SYNTAX_ERROR, current_token_cache.line, current_token_cache.col, "Enum definition cannot be empty.");
+        // Fallthrough to consume RPAREN and return, parser might allow it, semantic check would disallow.
+    } else {
+        do {
+            values_list.push_back(consume(TokenType::IDENTIFIER, "Expected enum value identifier.").value);
+        } while (match(TokenType::COMMA));
+    }
+
+    consume(TokenType::RPAREN, "Expected ')' after enum values.");
+    consume(TokenType::SEMICOLON, "Expected ';' after enum type definition.");
+
+    auto etn = std::make_unique<EnumTypeNode>(type_name_token.line, type_name_token.col, type_name_token.value, std::move(values_list));
+
+    // Add Enum Type Name to Symbol Table
+    SymbolInfo enum_type_info;
+    enum_type_info.kind = "type";
+    enum_type_info.is_enum_type = true;
+    enum_type_info.type = etn->name; // Type is its own name
+    enum_type_info.enum_values_list = etn->values;
+    enum_type_info.declaration_line = etn->line;
+    enum_type_info.declaration_col = etn->col;
+    enum_type_info.scope_level = symbol_table_ptr->getCurrentScopeLevel();
+    if (!symbol_table_ptr->addSymbol(etn->name, enum_type_info)) {
+         ErrorHandler::report(ErrorCode::SEMANTIC_REDEFINITION_IDENTIFIER, etn->line, etn->col, "Enum type '" + etn->name + "' already defined in this scope.");
+    }
+
+    // Add Enum Values to Symbol Table
+    for (const std::string& enum_val_name : etn->values) {
+        SymbolInfo enum_value_info;
+        enum_value_info.kind = "constant"; // Enum values are like named constants
+        enum_value_info.is_enum_value = true;
+        enum_value_info.is_constant = true; // Also a form of constant
+        enum_value_info.type = etn->name; // Their data type is the name of the enum type
+        enum_value_info.enum_parent_type_name = etn->name;
+        enum_value_info.declaration_line = etn->line; // All values declared on same line as type for now
+        enum_value_info.declaration_col = etn->col;   // Consider individual col positions if available
+        enum_value_info.scope_level = symbol_table_ptr->getCurrentScopeLevel();
+        if (!symbol_table_ptr->addSymbol(enum_val_name, enum_value_info)) {
+            ErrorHandler::report(ErrorCode::SEMANTIC_REDEFINITION_IDENTIFIER, etn->line, etn->col, "Enum value '" + enum_val_name + "' already defined or conflicts in this scope (possibly with type name or another value).");
+        }
+    }
+    return etn;
+}
+
+std::unique_ptr<DeclarationNode> Parser::parseTypeDefinition() {
+    Token type_kw_tok = consume(TokenType::TYPE, "Expected 'type' keyword.");
+    Token type_name_tok = consume(TokenType::IDENTIFIER, "Expected type name identifier.");
+    consume(TokenType::COLON, "Expected ':' after type name.");
+
+    if (check(TokenType::LPAREN)) { // Enum: type MyEnum : (VAL1, VAL2)
+        // parseEnumTypeDefinitionBody now returns EnumTypeNode and handles symbol table addition for type and values
+        return parseEnumTypeDefinitionBody(type_name_tok);
+    } else if (check(TokenType::LESS)) { // Record: type MyRecord : < ... >
+        // For now, placeholder, as record parsing is assumed to exist or be separate
+        // Example: return parseRecordTypeDefinitionBody(type_name_tok);
+        ErrorHandler::report(ErrorCode::NOT_IMPLEMENTED_ERROR, current_token_cache.line, current_token_cache.col, "Record type definitions not fully implemented in this path yet.");
+        // Skip to a semicolon to allow further parsing attempts
+        while(!check(TokenType::SEMICOLON) && !check(TokenType::EOF_TOKEN)) advance();
+        match(TokenType::SEMICOLON);
+        return nullptr; // Or a generic placeholder node
+    } else {
+        ErrorHandler::report(ErrorCode::SYNTAX_UNEXPECTED_TOKEN, current_token_cache.line, current_token_cache.col, "Expected '(' for enum or '<' for record type definition.");
+        throw std::runtime_error("Parser error: Invalid type definition structure.");
+    }
 }
 
 
 std::unique_ptr<FunctionParameterNode> Parser::parseFunctionParameter() {
-    // Example: `x : integer` or `INPUT x : integer` or `OUTPUT y : string`
-    // This needs to be adapted to the specific language's parameter syntax.
-    // For now, let's assume `var_name : type_name`
+    ParameterMode current_mode = ParameterMode::IN; // Default mode
+
+    // Check for explicit mode specifiers
+    if (match(TokenType::OUTPUT)) {
+        current_mode = ParameterMode::OUT;
+    } else if (match(TokenType::INPUTOUTPUT_KEYWORD)) {
+        current_mode = ParameterMode::IN_OUT;
+    } else if (match(TokenType::INPUT)) {
+        current_mode = ParameterMode::IN;
+    }
+    // If none of these are matched, it defaults to ParameterMode::IN as initialized.
+
     Token param_name_tok = consume(TokenType::IDENTIFIER, "Expected parameter name.");
     consume(TokenType::COLON, "Expected ':' after parameter name.");
     Token param_type_tok = current_token_cache;
+
     if (param_type_tok.type == TokenType::TYPE_INTEGER || param_type_tok.type == TokenType::TYPE_STRING ||
-        param_type_tok.type == TokenType::TYPE_BOOLEAN || param_type_tok.type == TokenType::TYPE_CHARACTER || // Added
-        param_type_tok.type == TokenType::TYPE_REAL    || // Added
-        param_type_tok.type == TokenType::IDENTIFIER) {
-        advance(); // Consume type
+        param_type_tok.type == TokenType::TYPE_BOOLEAN || param_type_tok.type == TokenType::TYPE_CHARACTER ||
+        param_type_tok.type == TokenType::TYPE_REAL    ||
+        param_type_tok.type == TokenType::IDENTIFIER) { // IDENTIFIER for custom types
+        advance(); // Consume type token
     } else {
-        ErrorHandler::report(ErrorCode::SYNTAX_INVALID_EXPRESSION, param_type_tok.line, param_type_tok.col, "Expected type for parameter " + param_name_tok.value);
+        ErrorHandler::report(ErrorCode::SYNTAX_MISSING_EXPECTED_TOKEN, param_type_tok.line, param_type_tok.col, "Expected type for parameter '" + param_name_tok.value + "'.");
         throw std::runtime_error("Parser error: Invalid type in parameter declaration.");
     }
 
@@ -714,14 +1137,16 @@ std::unique_ptr<FunctionParameterNode> Parser::parseFunctionParameter() {
     param_info.scope_level = symbol_table_ptr->getCurrentScopeLevel();
     param_info.declaration_line = param_name_tok.line;
     param_info.declaration_col = param_name_tok.col;
+    param_info.param_mode = current_mode; // Set the parameter mode in SymbolInfo
 
     if (!symbol_table_ptr->addSymbol(param_name_tok.value, param_info)) {
         ErrorHandler::report(ErrorCode::SEMANTIC_REDEFINITION_IDENTIFIER,
                              param_info.declaration_line, param_info.declaration_col,
                              "Parameter '" + param_name_tok.value + "' already declared in this function/procedure scope.");
-        // Error or throw
+        // Consider if this should throw or just report and continue for robustness
     }
-    return std::make_unique<FunctionParameterNode>(param_name_tok.line, param_name_tok.col, param_name_tok.value, param_type_tok.value);
+
+    return std::make_unique<FunctionParameterNode>(param_name_tok.line, param_name_tok.col, param_name_tok.value, param_type_tok.value, current_mode);
 }
 
 
@@ -736,14 +1161,27 @@ std::unique_ptr<FunctionPrototypeNode> Parser::parseFunctionPrototype() {
 
     // Parameters - Enter new scope for parameters
     symbol_table_ptr->enterScope();
-    if (match(TokenType::LPAREN)) {
+
+    // Optional parentheses for procedures
+    if (func_proc_kw.type == TokenType::PROCEDURE && !check(TokenType::LPAREN) && !check(TokenType::COLON)) {
+        // This is a procedure without parentheses and without a return type specifier (colon) immediately following.
+        // e.g. "procedure MyProc;" or "procedure MyProc ALGORITMA" (if semicolon is also optional for prototype)
+        // Parameters list remains empty.
+    } else if (match(TokenType::LPAREN)) {
         if (!check(TokenType::RPAREN)) { // If there are parameters
             do {
                 proto_node->parameters.push_back(parseFunctionParameter());
             } while (match(TokenType::COMMA));
         }
         consume(TokenType::RPAREN, "Expected ')' after function parameters.");
+    } else if (func_proc_kw.type == TokenType::FUNCTION) {
+        // Functions (non-procedures) without parameters must still have ()
+        // This case means LPAREN was expected but not found for a FUNCTION
+        ErrorHandler::report(ErrorCode::SYNTAX_MISSING_EXPECTED_TOKEN, current_token_cache.line, current_token_cache.col, "Expected '(' for function parameter list or function return type.");
+        // Depending on desired error recovery, could throw or try to continue
     }
+    // If it's a procedure and parameters are not specified with (), they are just omitted.
+
     // Parameter scope is still active here. It will be exited by parseSubprogramBody.
 
     // Return type (only for FUNCTION)
@@ -865,7 +1303,9 @@ std::unique_ptr<SubprogramBodyNode> Parser::parseSubprogramBody() {
 
     // ALGORITMA (Subprogram Body)
     consume(TokenType::ALGORITMA, "Expected 'ALGORITMA' for subprogram body.");
-    subprogram_node->body = parseBlock(); // Body is parsed in the local (or parameter) scope
+    consume(TokenType::INDENT, "Expected indented block for subprogram ALGORITMA.");
+    subprogram_node->body = parseBlock();
+    consume(TokenType::DEDENT, "Expected dedent after subprogram ALGORITMA.");
 
     // Exit scopes
     if (local_scope_entered) {

@@ -12,7 +12,7 @@ int main() {
     int i;
     int fact;
 
-    printf("Enter a non-negative integer:\n");
+    printf("Enter a non-negative integer:");
     scanf("%d", &num);
 
     if (num < 0) {

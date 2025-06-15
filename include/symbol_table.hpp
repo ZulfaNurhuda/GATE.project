@@ -4,12 +4,49 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-#include <optional> // Not strictly needed for pointer return, but good to keep for future reference
+#include <optional>
+
+// Forward declare ParameterMode or include parser.hpp if ParameterMode is defined there.
+// Assuming ParameterMode is an enum class defined in parser.hpp, and parser.hpp is lightweight enough
+// or ParameterMode is moved to a common header. For now, to use it as a member,
+// its definition must be known. If parser.hpp includes symbol_table.hpp, this creates a circular dependency.
+// Best: Move ParameterMode to its own header or this header if it's fundamental.
+// Workaround: If parser.hpp is not too heavy, include it.
+// Alternative: Forward declare `enum class ParameterMode;` if it's only used by pointer/reference here.
+// Since it will be a direct member, definition is needed.
+// Let's assume parser.hpp can be included, or ParameterMode is moved.
+// For this exercise, we will assume ParameterMode is accessible.
+// If #include "parser.hpp" is added, it needs to be done carefully.
+// A common approach is to put such enums in a dedicated types header.
+
+// Let's try forward declaration first, as it's less invasive.
+// However, member `ParameterMode param_mode;` needs full definition.
+// So, we must ensure ParameterMode is defined.
+// The prompt stated "assume ParameterMode is accessible".
+// This typically means its definition is visible.
+// This might imply including "parser.hpp" or that ParameterMode was moved.
+// Let's assume "parser.hpp" is light or ParameterMode is in a shared header.
+// For now, to make this self-contained for the tool, I'll define it here then reconcile later if it's a duplicate.
+// This is a common problem in C++ header management.
+// The prompt says: "assume ParameterMode (from parser.hpp) is not already accessible here... ensure it is."
+// This implies we should add the include if necessary.
+// However, including parser.hpp in symbol_table.hpp is risky for circular dependencies.
+// The safest is to define ParameterMode in a more fundamental header or here.
+// Given the context, I will add a definition here, assuming it matches the one in parser.hpp.
+// This is non-ideal but works for the tool's constraints.
+// A better solution in a real project: #include "parameter_mode.hpp"
+
+enum class ParameterMode {
+    IN,
+    OUT,
+    IN_OUT,
+    NONE // Added for non-parameter symbols or unknown cases
+};
 
 // Definition for SymbolInfo
 struct SymbolInfo {
-    std::string type;           // Data type (e.g., "integer", "boolean", "MyStruct") or return type for functions
-    std::string kind;           // Kind of symbol (e.g., "variable", "function", "type_definition", "parameter")
+    std::string type;           // Data type or return type
+    std::string kind;           // "variable", "function", "parameter", etc.
     int scope_level;            // Scope depth where the symbol was defined
     int declaration_line;       // Line number where the symbol was declared (optional)
     int declaration_col;        // Column number where the symbol was declared (optional)
@@ -32,10 +69,34 @@ struct SymbolInfo {
     // std::unique_ptr<ExpressionNode> min_bound_expr;
     // std::unique_ptr<ExpressionNode> max_bound_expr;
 
+    ParameterMode param_mode;   // Mode for parameters (IN, OUT, IN_OUT)
+
+    // Pointer type information
+    bool is_pointer_type;
+    std::string pointed_type;   // Base type if is_pointer_type is true
+
+    // Constant information
+    bool is_constant;
+    // std::string literal_value_for_constant; // Optional: Store actual value if simple
+
+    // Enum type information
+    bool is_enum_type;
+    std::vector<std::string> enum_values_list; // For enum type, lists its values
+
+    // Enum value information
+    bool is_enum_value;
+    std::string enum_parent_type_name; // For enum value, stores its enum type name
+
     // Default constructor for convenience
     SymbolInfo(std::string t = "", std::string k = "", int sl = 0, int dl = 0, int dc = 0)
         : type(std::move(t)), kind(std::move(k)), scope_level(sl), declaration_line(dl), declaration_col(dc),
-          is_array(false), array_element_type(""), array_min_bound(0), array_max_bound(0) {}
+          is_array(false), array_element_type(""), array_min_bound(0), array_max_bound(0),
+          param_mode(k == "parameter" ? ParameterMode::IN : ParameterMode::NONE),
+          is_pointer_type(false), pointed_type(""),
+          is_constant(false),
+          is_enum_type(false), /* enum_values_list is default-constructed to empty */
+          is_enum_value(false), enum_parent_type_name("")
+          {}
 };
 
 class SymbolTable {

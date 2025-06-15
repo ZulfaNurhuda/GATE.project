@@ -1,0 +1,65 @@
+Program TestProcedureParams;
+
+KAMUS
+    num_in : integer;
+    num_out : integer;
+    num_io : integer;
+    str_in : string;
+    str_out : string;
+    str_io : string;
+
+    procedure ProcessNumbers(input a: integer, output b: integer, input/output c: integer);
+    procedure ProcessStrings(input s1: string, output s2: string, input/output s3: string);
+
+ALGORITMA
+    num_in <- 10;
+    // num_out is not initialized by caller
+    num_io <- 20;
+
+    str_in <- "hello_in"; // Assume string literals are handled
+    // str_out is not initialized by caller
+    str_io <- "world_io_initial"; // Assume this is a modifiable string buffer or can be repointed
+
+    output("Initial values:", INLINE);
+    output(" num_in: ", num_in, ", num_io: ", num_io, INLINE);
+    output(" str_in: ", str_in, ", str_io: ", str_io); // Newline at end of this group
+
+    ProcessNumbers(num_in, num_out, num_io);
+    // Expected after call: num_out = 20, num_io = 40
+
+    output("Values after ProcessNumbers:", INLINE);
+    output(" num_out: ", num_out, ", num_io: ", num_io);
+
+    ProcessStrings(str_in, str_out, str_io);
+    // Expected after call:
+    // str_out = "processed_output"
+    // str_io = "modified_io"
+
+    output("Values after ProcessStrings:", INLINE);
+    output(" str_out: ", str_out, ", str_io: ", str_io);
+
+    // Assuming str_out was dynamically allocated by ProcessStrings via `output string` handling
+    dispose(str_out);
+    // If str_io or str_in were from dynamic sources, they'd also need dispose.
+    // For this example, we primarily focus on str_out being disposed.
+    // If str_io was repointed by ProcessStrings to a new heap string, it should also be disposed.
+    dispose(str_io);
+
+
+END. // Program terminator
+
+procedure ProcessNumbers(input a: integer, output b: integer, input/output c: integer)
+ALGORITMA
+    b <- a * 2;    // Assign to output parameter
+    c <- c * 2;    // Modify input/output parameter
+// Procedure block ends with dedent
+
+procedure ProcessStrings(input s1: string, output s2: string, input/output s3: string)
+ALGORITMA
+    // s2 is 'output string' (char** in C). Generator handles allocation via strdup.
+    s2 <- "processed_output";
+
+    // s3 is 'input/output string'.
+    // If C type is char**, this assignment means s3 (the caller's pointer) now points to a new heap string.
+    s3 <- "modified_io";
+// Procedure block ends with dedent

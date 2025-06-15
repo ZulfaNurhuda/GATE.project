@@ -1,0 +1,57 @@
+Program TestPointersMemory
+
+KAMUS
+    num : integer
+    pNum : pointer to integer
+    pAllocatedNum : pointer to integer
+    pGeneric : pointer to integer
+    // NULL is assumed to be a keyword representing a null pointer.
+    // Lexer/Parser would need to support NULL if not already. Assume it is for this example.
+
+ALGORITMA
+    output("--- Basic Pointer Test ---")
+    num <- 10
+    output("num initial: ", num, INLINE)
+
+    pNum <- reference(num) // pNum now points to num
+    output(", Value via pNum: ", dereference(pNum), INLINE)
+
+    dereference(pNum) <- 20 // num becomes 20
+    output(", num after update: ", num, INLINE)
+    output(", pNum after update: ", dereference(pNum))
+    output("---")
+
+    output("--- Dynamic Allocation Test (Integer) ---")
+    // allocate(size) returns a void* equivalent, assigned to a typed pointer.
+    // Assume '4' is known size for integer for this pedagogical example.
+    pAllocatedNum <- allocate(4)
+
+    if pAllocatedNum = NULL then // Check if allocation failed
+        output("Integer allocation failed!")
+    else
+        dereference(pAllocatedNum) <- 123
+        output("Allocated value: ", dereference(pAllocatedNum))
+
+        // Reallocate example:
+        // pAllocatedNum <- reallocate(pAllocatedNum, 8)
+        // output("Reallocated value (if successful): ", dereference(pAllocatedNum))
+        // For simplicity of this step, reallocate is commented out in NOTAL
+        // but its keyword should be lexed/parsed.
+
+        deallocate(pAllocatedNum)
+        // output("pAllocatedNum deallocated.") // Optional: message after deallocate
+        pAllocatedNum <- NULL // Good practice to nullify pointer after dealloc
+    output("---")
+
+    output("--- Dispose Test (as alias for deallocate) ---")
+    pGeneric <- allocate(4)
+    if pGeneric = NULL then
+        output("Generic allocation failed!")
+    else
+        dereference(pGeneric) <- 456
+        output("Generic allocated value: ", dereference(pGeneric))
+        dispose(pGeneric)
+        pGeneric <- NULL
+        // output("pGeneric disposed and nullified.")
+    output("---")
+END.

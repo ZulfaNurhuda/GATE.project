@@ -5,15 +5,13 @@ KAMUS
   i : integer; // Loop counter
 
 ALGORITMA
-  output("Enter a number (n):");
+  output("Enter a number (n):", INLINE)
   input(n);
 
   if (n > 0) then // Ensure loop runs only for positive n
     for i <- 1 to n do
       output("Hello");
-    endfor
   else
     output("N is not positive, no Hellos for you!");
-  endif
 
 END.

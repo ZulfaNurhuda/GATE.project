@@ -9,7 +9,7 @@ KAMUS
   function FactorialRecursive(n : integer) -> integer;
 
 ALGORITMA
-  output("Enter a non-negative integer:");
+  output("Enter a non-negative integer:", INLINE)
   input(num);
 
   if (num < 0) then
@@ -26,12 +26,10 @@ ALGORITMA
         fact <- 1;
         for i <- 1 to num do
             fact <- fact * i;
-        endfor
-    endif
+    // No endfor here
+    // No endif here for the inner if
     output("Factorial of ", num, " (iterative) is: ", fact);
-  endif
-
-END.
+  // No endif here for the outer if
 
 function FactorialRecursive(n : integer) -> integer
 KAMUS LOKAL
@@ -41,4 +39,4 @@ ALGORITMA
     -> 1; // Return 1 for factorial(0)
   else
     -> n * FactorialRecursive(n-1); // Recursive step
-  endif
+  // No endif here

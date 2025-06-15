@@ -8,7 +8,7 @@ int main() {
     int n;
     int i; // Loop counter
 
-    printf("Enter a number (n):\n");
+    printf("Enter a number (n):");
     scanf("%d", &n);
 
     if (n > 0) {

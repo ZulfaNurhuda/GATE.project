@@ -16,10 +16,10 @@ KAMUS
 ALGORITMA
     { Main program logic }
     for i <- 1 to 3 do
-        output("Masukkan Nama Mahasiswa ke-", i, ": ")
+        output("Masukkan Nama Mahasiswa ke-", i, ": ", INLINE)
         input(Mhs1.Nama)
         
-        output("Masukkan Nilai ", Mhs1.Nama, ": ")
+        output("Masukkan Nilai ", Mhs1.Nama, ": ", INLINE)
         input(Mhs1.Nilai)
         
         { Call the function and check the boolean result directly }
@@ -27,11 +27,9 @@ ALGORITMA
             output(Mhs1.Nama, " dinyatakan LULUS.")
         else
             output(Mhs1.Nama, " dinyatakan GAGAL.")
-        endif
         
         output("")
         dispose(Mhs1.Nama)
-    endfor
     
     output("Proses selesai.")
 
@@ -46,5 +44,4 @@ ALGORITMA
         hasil <- true
     else
         hasil <- false
-    endif
     -> hasil

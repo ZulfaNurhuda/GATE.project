@@ -14,13 +14,13 @@ enum class TokenType
     IF,
     THEN,
     ELSE,
-    ENDIF,
+    // ENDIF, // Removed for indentation-based parsing
     FOR,
-    TO,
-    ENDFOR,
+    // TO, // Replaced by TO_KW for consistency, parser will need to use TO_KW
+    // ENDFOR, // Removed for indentation-based parsing
     INPUT,
     OUTPUT,
-    DISPOSE,
+    // DISPOSE, // Will be replaced by DEALLOCATE_KW token for "dispose" keyword
     TRUE,
     FALSE,
     LEFT_ARROW,
@@ -60,14 +60,16 @@ enum class TokenType
     // Control Flow Keywords
     WHILE,
     DO,
-    ENDWHILE,
+    // ENDWHILE, // Removed for indentation-based parsing
     REPEAT,
     UNTIL,
     DEPEND,   // For 'depend on'
     ON,       // For 'depend on'
     CASE,
     OTHERWISE,
-    ENDDEPENDON,
+    // ENDDEPENDON, // Removed for indentation-based parsing
+
+    INPUTOUTPUT_KEYWORD, // For 'input/output' parameter modifier
 
     // Subprogram Keywords
     PROCEDURE,
@@ -98,8 +100,28 @@ enum class TokenType
                   // I will add it, and it's possible LEFT_ARROW is for something else or can be deprecated.
     ASSIGN_OP,    // Explicit assignment operator token, e.g., for '<-'
 
+    INLINE_KEYWORD, // For INLINE keyword in output statements
+
     ENDPROGRAM, // Specific keyword for program termination
     END, // General block end keyword
+
+    // Pointer and Memory Keywords
+    POINTER_KW,
+    TO_KW,          // For POINTER TO type
+    REFERENCE_KW,
+    DEREFERENCE_KW,
+    ALLOCATE_KW,
+    REALLOCATE_KW,
+    DEALLOCATE_KW,  // "deallocate" and "dispose" will map to this
+    NULL_KW,        // For NULL keyword
+    CONSTANT_KW,    // For "constant" keyword
+
+    // Operators
+    POINTER_ACCESS_OP, // For ^. operator
+
+    // Indentation tokens
+    INDENT,
+    DEDENT,
 
     // Utility tokens
     UNKNOWN,   // For unrecognized tokens

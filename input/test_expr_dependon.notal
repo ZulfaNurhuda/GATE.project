@@ -18,7 +18,7 @@ ALGORITMA
   isReady <- (a > b) AND (c < b) OR (a = 10); // Expected: (true AND true) OR true = true
   output("isReady: ", isReady); // Expected: 1 (if boolean prints as int)
 
-  output("Enter a choice (1, 2, or 3):");
+  output("Enter a choice (1, 2, or 3):", INLINE)
   input(choice);
 
   depend on (choice)
@@ -29,6 +29,5 @@ ALGORITMA
       output("You chose three, result is now: ", result);
     otherwise :
       output("Invalid choice.");
-  enddependon
 
 END.

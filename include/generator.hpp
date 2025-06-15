@@ -32,7 +32,16 @@ class CaseBranchNode;
 class UnaryOpNode;
 class InputNode;
 class ArrayAccessNode;
-class FunctionCallNode; // Added Forward Declaration
+class FunctionCallNode;
+class ReferenceNode;
+class DereferenceNode;
+class AllocateNode;
+class ReallocateNode;
+class DeallocateNode;
+class NullLiteralNode; // Added
+class EnumTypeNode;
+class ConstantDeclarationNode;
+class PointerMemberAccessNode; // Added
 // ExpressionNode, StatementNode, DeclarationNode are abstract, so no visit for them directly.
 
 class ASTVisitor {
@@ -60,7 +69,16 @@ public:
     virtual void visit(UnaryOpNode* node) = 0;
     virtual void visit(InputNode* node) = 0;
     virtual void visit(ArrayAccessNode* node) = 0;
-    virtual void visit(FunctionCallNode* node) = 0;  // Added visit method
+    virtual void visit(FunctionCallNode* node) = 0;
+    virtual void visit(ReferenceNode* node) = 0;
+    virtual void visit(DereferenceNode* node) = 0;
+    virtual void visit(AllocateNode* node) = 0;
+    virtual void visit(ReallocateNode* node) = 0;
+    virtual void visit(DeallocateNode* node) = 0;
+    virtual void visit(NullLiteralNode* node) = 0; // Added
+    virtual void visit(EnumTypeNode* node) = 0;
+    virtual void visit(ConstantDeclarationNode* node) = 0;
+    virtual void visit(PointerMemberAccessNode* node) = 0; // Added
     // Add any other concrete ASTNode types here
 };
 
@@ -105,7 +123,16 @@ public:
     void visit(UnaryOpNode* node) override;
     void visit(InputNode* node) override;
     void visit(ArrayAccessNode* node) override;
-    void visit(FunctionCallNode* node) override;  // Added override
+    void visit(FunctionCallNode* node) override;
+    void visit(ReferenceNode* node) override;
+    void visit(DereferenceNode* node) override;
+    void visit(AllocateNode* node) override;
+    void visit(ReallocateNode* node) override;
+    void visit(DeallocateNode* node) override;
+    void visit(NullLiteralNode* node) override; // Added
+    void visit(EnumTypeNode* node) override;
+    void visit(ConstantDeclarationNode* node) override;
+    void visit(PointerMemberAccessNode* node) override; // Added
     // Implement visit for any other concrete ASTNode types
 };
 
