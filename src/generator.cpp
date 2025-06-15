@@ -1,11 +1,15 @@
+// --- BEGINNING OF src/generator.cpp CONTENT ---
 #include "../include/generator.hpp"
 #include "../include/parser.hpp"      // For AST node concrete type details
-#include "../include/symbol_table.hpp" // Potentially for type lookups
+#include "../include/symbol_table.hpp" // For SymbolTable and SymbolInfo
 #include <iostream>
 #include <fstream>
 #include <stdexcept>
-#include <algorithm> // For std::transform or other utilities if needed
-#include <string>    // For std::to_string
+#include <algorithm>
+#include <string>
+#include <vector>
+#include <set> // Added for known_adt_modules if used locally
+#include <sstream> // Added for std::ostringstream
 
 // --- CodeGenerator Constructor ---
 CodeGenerator::CodeGenerator() : out_stream_ptr(nullptr), symbol_table_ptr(nullptr), current_indent_level(0) {}
@@ -13,16 +17,13 @@ CodeGenerator::CodeGenerator() : out_stream_ptr(nullptr), symbol_table_ptr(nullp
 // --- Main Generation Method ---
 void CodeGenerator::generate_c_code(const ProgramNode* program_root, const SymbolTable& populated_symbol_table, std::ostream& output_stream_ref) {
     if (!program_root) {
-        // Or handle error appropriately
         std::cerr << "Error: Program root is null." << std::endl;
         return;
     }
     this->out_stream_ptr = &output_stream_ref;
-    this->symbol_table_ptr = &populated_symbol_table; // Use the passed-in symbol table
+    this->symbol_table_ptr = &populated_symbol_table;
     this->current_indent_level = 0;
-    // No longer creating a new SymbolTable here: this->symbol_table = SymbolTable();
-
-    program_root->accept(this);
+    program_root->accept(this); // This call is now valid due to const accept and const ProgramNode*
 }
 
 // --- Helper Methods ---
@@ -51,55 +52,96 @@ std::string CodeGenerator::map_an_type_to_c(const std::string& an_type) {
     std::transform(lower_type.begin(), lower_type.end(), lower_type.begin(), ::tolower);
 
     if (lower_type == "integer") return "int";
-    if (lower_type == "real") return "double"; // Assuming 'real' maps to 'double'
+    if (lower_type == "real") return "double";
     if (lower_type == "boolean") return "bool";
-    if (lower_type == "string") return "char*"; // Simplified C-style string
+    if (lower_type == "string") return "char*";
     if (lower_type == "character") return "char";
-    if (lower_type == "void") return "void"; // For procedure return types
+    if (lower_type == "void") return "void";
 
-    // Default: return original type (could be a custom type name)
-    // In a more complex system, this might involve checking if an_type is a known struct/typedef
-    return an_type;
+    // Check if it's a known user-defined type (record/enum)
+    if (symbol_table_ptr) { // Ensure symbol_table_ptr is valid
+        const SymbolInfo* type_info = symbol_table_ptr->lookupSymbol(an_type); // lookupSymbol is const
+        if (type_info && (type_info->is_record_type || type_info->is_enum_type)) {
+            return an_type; // Return the type name itself (it's a typedef in C)
+        }
+    }
+    return an_type; // Fallback for unknown types, or if it's already a C type
+}
+
+void CodeGenerator::generate_expression_with_dereference_if_needed(const ExpressionNode* expr_node) {
+    if (!expr_node) {
+        write("/* NULL_EXPR */");
+        return;
+    }
+    const IdentifierNode* id_node = dynamic_cast<const IdentifierNode*>(expr_node);
+    if (id_node && symbol_table_ptr) {
+        const SymbolInfo* info = symbol_table_ptr->lookupSymbol(id_node->name);
+        if (info && info->kind == "parameter" && (info->param_mode == ParameterMode::OUT || info->param_mode == ParameterMode::IN_OUT)) {
+            // For string output params (char**), dereferencing once gives char*
+            // For other pointers (int*, double*, char* for IN_OUT string), dereferencing gives value type
+            write("(*");
+            // id_node->accept(this); // No, this would just print name again. We need the name.
+            write(id_node->name);
+            write(")");
+            return;
+        }
+    }
+    expr_node->accept(this);
 }
 
 // --- Visit Method Implementations ---
 
-void CodeGenerator::visit(ProgramNode* node) {
+void CodeGenerator::visit(const ProgramNode* node) {
     writeln("#include <stdio.h>");
-    writeln("#include <stdbool.h>"); // For bool type
-    writeln("#include <string.h>");  // For string operations if needed (e.g. strcpy for char*)
-    writeln("#include <stdlib.h>");  // For malloc/free if using dynamic char* for strings
-    writeln("#include <math.h>");    // Added for pow() function
+    writeln("#include <stdbool.h>");
+    writeln("#include <string.h>");
+    writeln("#include <stdlib.h>");
+    writeln("#include <math.h>");
+    writeln("");
 
-    // Forward declarations for functions (if any are in global_declarations or subprograms)
-    // This is a simplified approach. A more robust way is two passes or hoisting.
+    // Generate RecordTypeNode definitions first (structs)
     for (const auto& decl : node->global_declarations) {
-        if (dynamic_cast<FunctionPrototypeNode*>(decl.get())) { // Check if it's a function prototype
-            decl->accept(this); // This should generate the prototype
+        if (dynamic_cast<const RecordTypeNode*>(decl.get())) {
+            decl->accept(this);
         }
     }
-     for (const auto& subprogram : node->subprograms) {
-        subprogram->prototype->accept(this); // Generate prototype
+    // Generate EnumTypeNode definitions next (enums)
+    for (const auto& decl : node->global_declarations) {
+        if (dynamic_cast<const EnumTypeNode*>(decl.get())) {
+            decl->accept(this);
+        }
+    }
+    // Generate ConstantDeclarations next
+    for (const auto& decl : node->global_declarations) {
+        if (dynamic_cast<const ConstantDeclarationNode*>(decl.get())) {
+            decl->accept(this);
+        }
+    }
+    // Forward declarations for functions/procedures
+    for (const auto& decl : node->global_declarations) {
+        if (dynamic_cast<const FunctionPrototypeNode*>(decl.get())) {
+            decl->accept(this);
+        }
+    }
+    for (const auto& subprogram : node->subprograms) {
+        if (subprogram && subprogram->prototype) {
+            subprogram->prototype->accept(this);
+        }
     }
     writeln("");
 
-
-    writeln("int main() {");
+    writeln("int main(void) {"); // Changed to (void)
     current_indent_level++;
 
-    // Process global_declarations that are variables (KAMUS section for main)
-    // This assumes global_declarations might mix var decls and func prototypes.
-    // A clearer AST structure might separate these.
     bool has_main_kamus = false;
     for (const auto& decl : node->global_declarations) {
-        if (dynamic_cast<VariableDeclarationNode*>(decl.get())) {
+        if (dynamic_cast<const VariableDeclarationNode*>(decl.get())) {
             has_main_kamus = true;
             decl->accept(this);
         }
     }
-    if(has_main_kamus) writeln(""); // Add a newline after declarations if any
+    if(has_main_kamus) writeln("");
 
-    // Process main ALGORITMA block
     if (node->main_algoritma) {
         node->main_algoritma->accept(this);
     }
@@ -110,587 +152,374 @@ void CodeGenerator::visit(ProgramNode* node) {
     writeln("}");
     writeln("");
 
-    // Process Subprogram implementations
     for (const auto& subprogram : node->subprograms) {
         subprogram->accept(this);
-        writeln(""); // Add a newline between subprograms
+        writeln("");
     }
 }
 
-void CodeGenerator::visit(BlockNode* node) {
-    // For blocks not directly part of main or a function's immediate body,
-    // C requires them to be part of a statement (e.g. if, else, while blocks).
-    // The {} are typically handled by the visit methods for those statements.
-    // This visit(BlockNode*) is for sequences of statements.
+void CodeGenerator::visit(const BlockNode* node) {
     for (const auto& stmt : node->statements) {
         stmt->accept(this);
     }
 }
 
-void CodeGenerator::visit(VariableDeclarationNode* node) {
-    if (symbol_table_ptr) {
-        SymbolInfo* info = symbol_table_ptr->lookupSymbol(node->var_name);
-        if (info && info->is_array) {
-            std::string c_element_type = map_an_type_to_c(info->array_element_type);
-            long long size = info->array_max_bound - info->array_min_bound + 1;
-            if (size <= 0) {
-                // writeln("/* ERROR: Array '" + node->var_name + "' has invalid size (" + std::to_string(size) + "). Defaulting to size 1. */");
-                size = 1; // Fallback to avoid C error, though it's a semantic issue.
-            }
-            indent_spaces();
-            write(c_element_type + " " + node->var_name + "[" + std::to_string(size) + "];");
-            writeln(" /* AN: array [" + std::to_string(info->array_min_bound) + ".." + std::to_string(info->array_max_bound) + "] of " + info->array_element_type + " */");
+void CodeGenerator::visit(const VariableDeclarationNode* node) {
+    if (!symbol_table_ptr) { write("/* SYMBOL TABLE NOT AVAILABLE */\n"); return; }
+    const SymbolInfo* info = symbol_table_ptr->lookupSymbol(node->var_name);
+    if (!info) { writeln("/* SymbolInfo not found for " + node->var_name + " */"); return; }
 
-            // If it's an array of strings (char*), malloc might be needed for each element,
-            // but that's more complex than typical AN array declarations handled this way.
-            // Usually, char* arrays are arrays of pointers, each needing malloc.
-            // For now, this declares `char* arr_name[size];` which is an array of pointers.
-            // If AN implies `array of string` means `array of char[MAX_STR_LEN]`, C gen changes.
-            // The current `map_an_type_to_c("string")` returns "char*", so this is array of char pointers.
+    indent_spaces();
+    std::string c_type_str;
+    if (info->is_pointer_type) {
+        std::string base_type_name = info->pointed_type;
+        if (base_type_name == "string") {
+            c_type_str = "char**";
+        } else {
+            c_type_str = map_an_type_to_c(base_type_name) + "*";
+        }
+        write(c_type_str + " " + node->var_name + " = NULL;");
+    } else if (info->is_array) {
+        std::string c_element_type = map_an_type_to_c(info->array_element_type);
+        long long size = info->array_max_bound - info->array_min_bound + 1;
+        if (size <= 0) { size = 1; }
+        write(c_element_type + " " + node->var_name + "[" + std::to_string(size) + "];");
+        if (!info->array_element_type.empty()) {
+            write(" /* AN: array [" + std::to_string(info->array_min_bound) + ".." + std::to_string(info->array_max_bound) + "] of " + info->array_element_type + " */");
+        }
+    } else if (info->is_record_type || info->is_enum_type) {
+        c_type_str = info->type;
+        write(c_type_str + " " + node->var_name + ";");
+    } else {
+        c_type_str = map_an_type_to_c(info->type);
+        write(c_type_str + " " + node->var_name);
+        if (info->type == "string") {
+             write(" = NULL");
+        }
+        write(";");
+    }
+     if (info->is_pointer_type || info->is_array) writeln(); // only newline if it was a complex type not ending in ;
+     else writeln(); // Ensure simple types also get a newline if not already done by ;
+}
+
+
+void CodeGenerator::visit(const AssignmentNode* node) {
+    indent_spaces();
+    const IdentifierNode* target_id_node = dynamic_cast<const IdentifierNode*>(node->target.get());
+    const DereferenceNode* target_deref_node = dynamic_cast<const DereferenceNode*>(node->target.get()); // For dereference(p) <- value
+
+    if (target_id_node && symbol_table_ptr) {
+        const SymbolInfo* info = symbol_table_ptr->lookupSymbol(target_id_node->name);
+        if (info && info->kind == "parameter" &&
+            (info->param_mode == ParameterMode::OUT || info->param_mode == ParameterMode::IN_OUT) &&
+            info->type == "string") { // Special handling for string OUT or IN_OUT parameters (char**)
+
+            // Free existing string if any, then strdup new one
+            write("if (*" + target_id_node->name + ") free(*" + target_id_node->name + "); // Free old string if any\n");
+            indent_spaces();
+            write("*" + target_id_node->name + " = strdup(");
+            generate_expression_with_dereference_if_needed(node->value.get());
+            write(");");
+            writeln();
             return;
         }
     }
-    // Fallback to existing simple type declaration logic or if symbol_info not found
-    indent_spaces();
-    // node->var_type from VariableDeclarationNode might be "array of integer" or just "integer".
-    // If it's "array of ...", map_an_type_to_c might not handle it well.
-    // map_an_type_to_c expects basic AN types.
-    // The SymbolInfo lookup is the more reliable way to get base C type for arrays.
-    // If we reach here for an array, it means SymbolInfo lookup failed or it wasn't marked as array.
-    // For non-array types, node->var_type should be the simple AN type.
-    // This is now refined to handle pointer types explicitly.
-    SymbolInfo* info = nullptr; // Re-lookup, as the one in array block is out of scope
-    if (symbol_table_ptr) {
-        info = symbol_table_ptr->lookupSymbol(node->var_name);
-    }
 
-    if (info && info->is_pointer_type) {
-        std::string c_base_type = map_an_type_to_c(info->pointed_type);
-        indent_spaces();
-        if (info->pointed_type == "string") { // NOTAL: pointer to string -> C: char**
-            write("char* *" + node->var_name + "; /* pointer to string */");
-        } else {
-            write(c_base_type + "* " + node->var_name + "; /* pointer to " + info->pointed_type + " */");
-        }
-        writeln();
-    } else if (!(info && info->is_array)) { // If not a pointer and not an array (array handled above)
-        indent_spaces();
-        write(map_an_type_to_c(node->var_type) + " " + node->var_name);
-        writeln(";");
-    }
-    // Array case is already handled and returns earlier in the function.
-}
-
-void CodeGenerator::visit(AssignmentNode* node) {
-    indent_spaces();
-
-    if (auto* target_id_node = dynamic_cast<IdentifierNode*>(node->target.get())) {
-        SymbolInfo* target_sym_info = nullptr;
-        if (symbol_table_ptr) {
-            target_sym_info = symbol_table_ptr->lookupSymbol(target_id_node->name);
+    if (target_deref_node && symbol_table_ptr) {
+        const IdentifierNode* underlying_pointer_id_node = nullptr;
+        // Try to get the identifier of the pointer being dereferenced.
+        // This logic might need to be more robust for complex pointer expressions.
+        if (const IdentifierNode* id_in_deref = dynamic_cast<const IdentifierNode*>(target_deref_node->pointer_expr.get())) {
+            underlying_pointer_id_node = id_in_deref;
         }
 
-        if (target_sym_info && target_sym_info->kind == "parameter" &&
-            (target_sym_info->param_mode == ParameterMode::OUT || target_sym_info->param_mode == ParameterMode::IN_OUT)) {
-
-            if (target_sym_info->type == "string" && target_sym_info->param_mode == ParameterMode::OUT) {
-                // Special handling for: output string param (char**)
-                // if (*param_name) free(*param_name); *param_name = strdup(value_expr);
-                write("if (*");
-                target_id_node->accept(this); // Writes param_name
-                write(") free(*");
-                target_id_node->accept(this);
-                writeln(");");
-                indent_spaces(); // New line for the assignment part
-                write("*");
-                target_id_node->accept(this);
+        if (underlying_pointer_id_node) {
+            const SymbolInfo* ptr_info = symbol_table_ptr->lookupSymbol(underlying_pointer_id_node->name);
+            // If assigning to dereferenced 'pointer to string' (char** pStr; *pStr = "value")
+            if (ptr_info && ptr_info->is_pointer_type && ptr_info->pointed_type == "string") {
+                write("if (");
+                target_deref_node->accept(this); // Generates (*pStr)
+                write(") free(");
+                target_deref_node->accept(this); // Generates (*pStr)
+                write(");\n");
+                indent_spaces();
+                target_deref_node->accept(this); // Generates (*pStr)
                 write(" = strdup(");
-                node->value->accept(this); // Generate RHS (string expression)
-                write(")");
-            } else {
-                // Other pointer types (int*, double*, char* for IN_OUT string)
-                write("*");
-                target_id_node->accept(this); // Writes *param_name
-                write(" = ");
-                node->value->accept(this); // Generate RHS
+                generate_expression_with_dereference_if_needed(node->value.get()); // Value to assign
+                write(");");
+                writeln();
+                return;
             }
-        } else {
-            // Not an OUT/IN_OUT parameter, or symbol info not found
-            target_id_node->accept(this); // Writes param_name
-            write(" = ");
-            node->value->accept(this); // Generate RHS
         }
-    } else {
-        // Target is not a simple identifier (e.g., array access)
-        node->target->accept(this);
-        write(" = ");
-        node->value->accept(this);
     }
+
+    // Default assignment for other cases (simple variables, non-string OUT/IN_OUT params, array elements, etc.)
+    node->target->accept(this);
+    write(" = ");
+    generate_expression_with_dereference_if_needed(node->value.get());
     writeln(";");
 }
 
-void CodeGenerator::visit(IdentifierNode* node) {
-    // Default behavior: just write the name.
-    // Contextual dereferencing will be handled by parent nodes like BinaryOpNode, OutputNode, AssignmentNode (for RHS).
+void CodeGenerator::visit(const IdentifierNode* node) {
     write(node->name);
 }
-
-void CodeGenerator::visit(IntegerLiteralNode* node) {
-    write(std::to_string(node->value));
-}
-
-void CodeGenerator::visit(StringLiteralNode* node) {
-    // Basic C string literal. Need to handle escapes within node->value if complex.
-    write("\"" + node->value + "\"");
-}
-
-// Helper function for expression generation with potential dereference
-void CodeGenerator::generate_expression_with_dereference_if_needed(ExpressionNode* expr_node) {
-    if (auto* id_node = dynamic_cast<IdentifierNode*>(expr_node)) {
-        SymbolInfo* sym_info = nullptr;
-        if (symbol_table_ptr) {
-            sym_info = symbol_table_ptr->lookupSymbol(id_node->name);
-        }
-        if (sym_info && sym_info->kind == "parameter" &&
-            (sym_info->param_mode == ParameterMode::OUT || sym_info->param_mode == ParameterMode::IN_OUT)) {
-
-            if (sym_info->type == "string" && sym_info->param_mode == ParameterMode::OUT) {
-                write("(*"); // e.g. (*str_param_out)
-                id_node->accept(this);
-                write(")");
-            } else {
-                 write("(*"); // e.g. (*int_param)
-                id_node->accept(this);
-                write(")");
-            }
-            return;
-        }
+void CodeGenerator::visit(const IntegerLiteralNode* node) { write(std::to_string(node->value));}
+void CodeGenerator::visit(const StringLiteralNode* node) {
+    std::string escaped_val = "";
+    for (char c : node->value) {
+        if (c == '"') escaped_val += "\\\""; // Escape double quotes
+        else if (c == '\\') escaped_val += "\\\\"; // Escape backslashes
+        else escaped_val += c;
     }
-    // Default: visit the node as is
-    expr_node->accept(this);
+    write("\"" + escaped_val + "\"");
 }
+void CodeGenerator::visit(const NullLiteralNode* node) { (void)node; write("NULL"); }
 
-
-void CodeGenerator::visit(BinaryOpNode* node) {
-    // Simple binary operation: (left op right). Parentheses for safety.
+void CodeGenerator::visit(const BinaryOpNode* node) {
     write("(");
-    if (node->op == "^") {
+    generate_expression_with_dereference_if_needed(node->left.get());
+    std::string c_operator;
+    if (node->op == "^") { // Special case for power, map to pow()
+        write(", ");
+        generate_expression_with_dereference_if_needed(node->right.get());
+        // Need to adjust structure for pow: write("pow(left, right)")
+        // Re-arranging for pow:
+        std::string temp_out_str = "";
+        std::ostream* original_out_stream_ptr = out_stream_ptr;
+        std::ostringstream oss;
+        out_stream_ptr = &oss; // Capture left and right operands
+
         write("pow(");
         generate_expression_with_dereference_if_needed(node->left.get());
         write(", ");
         generate_expression_with_dereference_if_needed(node->right.get());
         write(")");
+
+        out_stream_ptr = original_out_stream_ptr; // Restore original stream
+        write(oss.str()); // Write captured pow expression
+
     } else {
-        generate_expression_with_dereference_if_needed(node->left.get());
-        std::string c_operator;
-        // Mapping AN operators to C operators
         if (node->op == "=") c_operator = " == ";
         else if (node->op == "<>") c_operator = " != ";
-        else if (node->op == "DIV") c_operator = " / ";    // Integer division
-        else if (node->op == "MOD") c_operator = " % ";    // Modulo
-        else if (node->op == "AND") c_operator = " && ";   // Logical AND
-        else if (node->op == "OR") c_operator = " || ";    // Logical OR
-        // NOT is a unary operator, would need a UnaryOpNode or special handling if represented in BinaryOpNode
-        // For direct C operators like +, -, *, /, <, >, <=, >=, they can be used if node->op stores them directly.
-        // Assuming the parser stores these common ones directly as C-compatible strings in node->op.
+        else if (node->op == "DIV") c_operator = " / ";
+        else if (node->op == "MOD") c_operator = " % ";
+        else if (node->op == "AND") c_operator = " && ";
+        else if (node->op == "OR") c_operator = " || ";
         else c_operator = " " + node->op + " ";
-
         write(c_operator);
-        node->right->accept(this);
+        generate_expression_with_dereference_if_needed(node->right.get());
     }
     write(")");
 }
 
-void CodeGenerator::visit(UnaryOpNode* node) {
+void CodeGenerator::visit(const UnaryOpNode* node) {
     if (node->op == "NOT") {
-        write("!("); // C logical NOT operator
-        if (node->operand) {
-            node->operand->accept(this);
-        } else {
-            write("/* ERROR: Missing operand for NOT */");
-        }
+        write("!(");
+        if (node->operand) generate_expression_with_dereference_if_needed(node->operand.get());
         write(")");
-    }
-    // Example for unary minus (if parser creates UnaryOpNode with "-" op)
-    // else if (node->op == "-") {
-    //     write("-(");
-    //     if (node->operand) {
-    //         node->operand->accept(this);
-    //     } else {
-    //         write("/* ERROR: Missing operand for unary - */");
-    //     }
-    //     write(")");
-    // }
-    else {
-        // Default or error for unknown unary operator
-        // Write the operator as is, then operand in parentheses for some safety
-        write(node->op + "(");
-        if (node->operand) {
-            node->operand->accept(this);
-        } else {
-            write("/* ERROR: Missing operand for unary op " + node->op + " */");
-        }
+    } else {
+        write(node->op + "("); // For potential future unary ops like '-'
+        if (node->operand) generate_expression_with_dereference_if_needed(node->operand.get());
         write(")");
     }
 }
 
-void CodeGenerator::visit(ArrayAccessNode* node) {
-    if (!node || !node->array_identifier || !node->index_expression) {
-        write("/* ERROR: Incomplete ArrayAccessNode */");
-        return;
-    }
+void CodeGenerator::visit(const ArrayAccessNode* node) {
+    if (!node || !node->array_identifier || !node->index_expression) { write("/* ERROR: Incomplete ArrayAccessNode */"); return; }
+    const SymbolInfo* info = nullptr;
+    if (symbol_table_ptr) info = symbol_table_ptr->lookupSymbol(node->array_identifier->name);
 
-    SymbolInfo* info = nullptr;
-    if (symbol_table_ptr) {
-        info = symbol_table_ptr->lookupSymbol(node->array_identifier->name);
-    }
-
-    node->array_identifier->accept(this); // Generates the array name
+    node->array_identifier->accept(this);
     write("[");
-    node->index_expression->accept(this); // Generates the AN index expression
-
+    generate_expression_with_dereference_if_needed(node->index_expression.get());
     if (info && info->is_array && info->array_min_bound != 0) {
-        // Apply index mapping to 0-based C array if AN min_bound is not 0
-        // E.g., if AN is array[1..10], accessing AN index 1 means C index (1 - 1) = 0
-        // E.g., if AN is array[5..10], accessing AN index 5 means C index (5 - 5) = 0
-        write(" - " + std::to_string(info->array_min_bound));
-    } else if (!info || !info->is_array) {
-        // If symbol info not found or it's not an array, generate a comment.
-        // This is likely a semantic error that should be caught earlier.
-        write(" /* WARN: Array '");
-        node->array_identifier->accept(this); // write name again for comment
-        write("' not found or not an array in symbol table. Indexing as is. */");
+        write(" - (" + std::to_string(info->array_min_bound) + ")"); // Parenthesize for safety
     }
-    // If info && info->is_array && info->array_min_bound == 0, no adjustment needed.
-
     write("]");
 }
 
-void CodeGenerator::visit(FunctionCallNode* node) {
-    if (!node || !node->function_name) {
-        write("/* ERROR: Invalid function call node */");
-        return;
-    }
-
-    SymbolInfo* func_sym_info = nullptr;
-    if (symbol_table_ptr) {
-        func_sym_info = symbol_table_ptr->lookupSymbol(node->function_name->name);
-    }
-
-    // TODO: This is where we *should* get parameter modes from func_sym_info->parameters
-    // As a workaround, we'll check if the argument itself is an OUT/IN_OUT param in the *current* scope.
-    // This is NOT fully correct but a placeholder for the complex inter-procedural analysis.
+void CodeGenerator::visit(const FunctionCallNode* node) {
+    if (!node || !node->function_name) { write("/* ERROR: Invalid function call node */"); return; }
+    const SymbolInfo* func_sym_info = nullptr;
+    if(symbol_table_ptr) func_sym_info = symbol_table_ptr->lookupSymbol(node->function_name->name);
 
     node->function_name->accept(this);
     write("(");
-    for (size_t i = 0; i < node->arguments.size(); ++i) {
-        ExpressionNode* arg_expr_node = node->arguments[i].get();
-        if (!arg_expr_node) {
-            write("/* ERROR: Null argument */");
-        } else {
-            bool pass_by_address = false;
-            // Simplified/heuristic check: if argument is an identifier that is an OUT/IN_OUT param
-            // of the *calling* function, pass its address. This is not using the *callee's* signature.
-            if (auto* id_arg = dynamic_cast<IdentifierNode*>(arg_expr_node)) {
-                SymbolInfo* arg_sym_info = nullptr;
-                if (symbol_table_ptr) {
-                    arg_sym_info = symbol_table_ptr->lookupSymbol(id_arg->name);
-                }
-                if (arg_sym_info && arg_sym_info->kind == "parameter" &&
-                    (arg_sym_info->param_mode == ParameterMode::OUT || arg_sym_info->param_mode == ParameterMode::IN_OUT)) {
 
-                    // This heuristic is problematic: if `P(output x)` calls `Q(y)`, and `y` is also `output`,
-                    // we'd pass `&(*y)` which is not what we want.
-                    // The correct logic relies on the CALLEE's parameter mode.
-                    // For now, let's assume if it's an IDENTIFIER, we check its mode.
-                    // This part needs the callee's signature for full correctness.
-                    // Let's assume for this subtask, we are primarily concerned with `&` for non-string OUT/IN_OUT.
-                    // If callee expects `int*` and we pass an `int` variable, we use `&var`.
-                    // If callee expects `char**` for `output string`, and we pass `char* s`, we use `&s`.
-                    // This is hard to do without callee info.
-
-                    // Tentative: if the argument is an IdentifierNode, and it's an OUT/IN_OUT parameter
-                    // of the *current* function, it's already a pointer. If the callee expects a pointer
-                    // to this (e.g. int** for int*), this simple '&' is not enough.
-                    // Given the constraints, this will be very simplified:
-                    // We'll rely on the argument types matching what the callee expects *after* potential '&'.
-                    // The proper solution for `FunctionCallNode` needs the callee's parameter modes.
-                    // For now, we'll assume the parser/user ensures type compatibility.
-                    // We will pass address for Identifiers that are not strings and are marked as OUT/IN_OUT
-                    // in the current scope (this is still not fully correct).
-                    // Or, more simply, always pass address if the callee's formal param (if known) is OUT/IN_OUT.
-                    // Since we don't have callee's formal param modes easily:
-                    // This is a placeholder for a more robust solution.
-                    // For now, we'll assume the subtask focuses on the *signature generation*
-                    // and basic use cases for assignment. Calls are harder.
-                    // Let's assume a simplified rule: if we pass an identifier that is not a string,
-                    // and we *assume* it's for an OUT/IN_OUT parameter of the callee, we'd pass `&`.
-                    // This is too speculative.
-                    // Sticking to the prompt: "If formal_param_sym_info->param_mode == OUT or IN_OUT: Prepend &"
-                    // This requires getting formal_param_sym_info. This is the part that's hard.
-
-                    // Fallback: No special handling for arguments in FunctionCallNode in this pass due to SymbolTable limitations for callee.
-                    // The user would have to write `P(&x)` in AN if `x` needs to be passed by address and `P` takes `int*`.
-                    // This is not ideal.
-                    // Let's try the prompt's request as best as possible, assuming we *could* get formal_param_sym_info.
-                    // Since we can't, the `&` will be applied based on the argument's own properties if it's an OUT/IN_OUT param.
-
-                    // If arg is an identifier that is an OUT/IN_OUT param of the current function,
-                    // it's already a pointer type (e.g. int*). If passed to another function
-                    // that expects int*, it's passed by value. If that function expects int**, then & is needed.
-                    // This is where the `SymbolInfo` for the *callee* is essential.
-                    // For now, let's try a simplified approach for call sites as requested by the prompt,
-                    // *pretending* we have formal_param_sym_info.
-                    // This part of the code will be non-functional without the actual callee's parameter modes.
-                    // I will make it so it only adds '&' if the argument is a plain variable, not already a pointer.
-
-                    // Simplified logic: If the argument is an identifier, and we assume it's being passed to an OUT/IN_OUT parameter
-                    // (and it's not a string being passed to char** OUT), then take its address.
-                    // This is still a guess. The most direct interpretation of the prompt is to assume we have formal_param_mode.
-                    // Lacking that, I will only add '&' if the argument is an IdentifierNode.
-                    // This is a known simplification due to SymbolTable structure.
-                    if (dynamic_cast<IdentifierNode*>(arg_expr_node) /* && formal_param_mode is OUT/IN_OUT for non-string */ ) {
-                         // This part cannot be fully implemented correctly without callee's parameter modes.
-                         // For now, we'll assume if it's an identifier, and the (hypothetical) formal param is by ref, we add &.
-                         // This is a placeholder for where the logic would go.
-                         // write("&"); // Tentatively, always pass address if it's an identifier to a procedure.
-                                      // This is a very broad assumption.
-                                      // Awaiting clarification or SymbolTable enhancement.
-                         // For now, let's proceed with the general structure and refine if FunctionCallNode is too complex.
-                         // The prompt implies we should try to implement it.
-                         // Let's assume we need to pass the address of identifiers for OUT/IN_OUT.
-                         // This is a common C pattern: procedure(&var);
-                         // We'll assume this for non-string types. Strings are already pointers.
-                        SymbolInfo* arg_info = symbol_table_ptr->lookupSymbol(static_cast<IdentifierNode*>(arg_expr_node)->name);
-                        if (arg_info && arg_info->type != "string") { // Simplistic: pass address of non-string identifiers for now
-                             // This is a placeholder for the logic that would use the *callee's* parameter mode.
-                             // As per prompt: "If formal_param_sym_info->param_mode == OUT or IN_OUT: Prepend &"
-                             // Since we cannot get formal_param_sym_info accurately, this is a HACK/SIMPLIFICATION.
-                             // Let's assume for now: if the argument is an identifier and the callee is a procedure,
-                             // and the type is not string, pass by address.
-                             if (func_sym_info && func_sym_info->type == "void") { // Heuristic: it's a procedure
-                                write("&");
-                             }
-                        }
-                    }
-                }
-            }
-            // Default generation for the argument
-            arg_expr_node->accept(this);
+    if (node->arguments.empty()) {
+        if (func_sym_info && func_sym_info->kind != "variable" && func_sym_info->param_modes_for_call_site.empty()) {
+             write("void"); // Explicitly pass void if function is known to take no arguments
         }
-        if (i < node->arguments.size() - 1) {
-            write(", ");
+    } else {
+        for (size_t i = 0; i < node->arguments.size(); ++i) {
+            bool passed_by_address = false;
+            if (func_sym_info && i < func_sym_info->param_modes_for_call_site.size()) {
+                 ParameterMode mode = func_sym_info->param_modes_for_call_site[i];
+                 if (mode == ParameterMode::OUT || mode == ParameterMode::IN_OUT) {
+                     if (dynamic_cast<const IdentifierNode*>(node->arguments[i].get()) ||
+                         dynamic_cast<const ArrayAccessNode*>(node->arguments[i].get()) ||
+                         dynamic_cast<const DereferenceNode*>(node->arguments[i].get()) ||
+                         dynamic_cast<const PointerMemberAccessNode*>(node->arguments[i].get())) {
+                         write("&");
+                         passed_by_address = true;
+                     } else {
+                         write("/* ERROR: Cannot pass non-addressable expr for OUT/IN_OUT param */ ");
+                     }
+                 }
+            }
+            if (!passed_by_address) {
+                 generate_expression_with_dereference_if_needed(node->arguments[i].get());
+            } else {
+                 node->arguments[i]->accept(this);
+            }
+            if (i < node->arguments.size() - 1) write(", ");
         }
     }
     write(")");
 }
 
-void CodeGenerator::visit(OutputNode* node) {
+void CodeGenerator::visit(const OutputNode* node) {
     indent_spaces();
-    write("printf(");
-
-    std::string format_string = "";
-    std::vector<ExpressionNode*> printf_args;
+    write("printf(\"");
+    std::string format_string_content = "";
+    std::vector<const ExpressionNode*> printf_args_expressions;
 
     for (size_t i = 0; i < node->expressions.size(); ++i) {
-        ExpressionNode* expr = node->expressions[i].get();
-        if (i > 0 && !format_string.empty() && format_string.back() != ' ') {
-            format_string += " ";
+        const ExpressionNode* current_expr = node->expressions[i].get();
+        if (i > 0 && !format_string_content.empty() && format_string_content.back() != ' ') {
+            format_string_content += " ";
         }
 
-        if (auto* str_lit = dynamic_cast<StringLiteralNode*>(expr)) {
-            std::string val = str_lit->value;
-            size_t pos = 0;
-            while ((pos = val.find('%', pos)) != std::string::npos) {
-                val.replace(pos, 1, "%%");
-                pos += 2; // Move past the "%%"
+        if (const StringLiteralNode* sl = dynamic_cast<const StringLiteralNode*>(current_expr)) {
+            std::string val = sl->value;
+            for (char c : val) { // More robustly escape %
+                if (c == '%') format_string_content += "%%";
+                else format_string_content += c;
             }
-            format_string += val;
         } else {
-            std::string val = str_lit->value;
-            size_t pos = 0;
-            while ((pos = val.find('%', pos)) != std::string::npos) {
-                val.replace(pos, 1, "%%");
-                pos += 2;
-            }
-            format_string += val;
-        } else {
-            std::string an_type = "integer";
-            bool is_dereferenced_param = false;
+            std::string an_type_for_format = "integer";
+            const SymbolInfo* expr_type_info = nullptr;
 
-            if (auto* ident_node = dynamic_cast<IdentifierNode*>(expr)) {
-                SymbolInfo* info = nullptr;
-                if (symbol_table_ptr) {
-                    info = symbol_table_ptr->lookupSymbol(ident_node->name);
-                }
-                if (info) {
-                    an_type = info->type;
-                    if (info->kind == "parameter" && (info->param_mode == ParameterMode::OUT || info->param_mode == ParameterMode::IN_OUT)) {
-                        is_dereferenced_param = true;
-                        if (info->type == "string" && info->param_mode == ParameterMode::OUT) {
-                            // This is char**, printf needs char*
-                            // format_string += "%s"; // Already handled by an_type = "string" below
-                        }
-                    }
+            if (const IdentifierNode* id_node = dynamic_cast<const IdentifierNode*>(current_expr)) {
+                if (symbol_table_ptr) expr_type_info = symbol_table_ptr->lookupSymbol(id_node->name);
+            }
+
+            if (expr_type_info) {
+                if (expr_type_info->kind == "parameter" && (expr_type_info->param_mode == ParameterMode::OUT || expr_type_info->param_mode == ParameterMode::IN_OUT)) {
+                    an_type_for_format = expr_type_info->type; // The base type of the parameter
+                } else if (expr_type_info->is_pointer_type) {
+                     an_type_for_format = expr_type_info->pointed_type.empty() ? "pointer_address" : expr_type_info->pointed_type;
+                } else if (expr_type_info->is_enum_type) {
+                    an_type_for_format = "integer";
                 } else {
-                    if (ident_node->name.rfind("r_", 0) == 0) an_type = "real";
-                    else if (ident_node->name.rfind("c_", 0) == 0) an_type = "character";
-                    else if (ident_node->name.rfind("b_", 0) == 0) an_type = "boolean";
-                    else if (ident_node->name.rfind("s_", 0) == 0) an_type = "string";
-                    else an_type = "integer"; // Default for other identifiers for now
+                    an_type_for_format = expr_type_info->type;
                 }
-            } else if (dynamic_cast<IntegerLiteralNode*>(expr)) {
-                an_type = "integer";
+            } else if (dynamic_cast<const IntegerLiteralNode*>(current_expr)) {
+                an_type_for_format = "integer";
+            } else if (dynamic_cast<const NullLiteralNode*>(current_expr)) {
+                an_type_for_format = "pointer_address";
             }
-            // Add RealLiteralNode, CharLiteralNode, BoolLiteralNode if they get created by parser
-            // else if (dynamic_cast<RealLiteralNode*>(expr)) an_type = "real";
-            // else if (dynamic_cast<CharLiteralNode*>(expr)) an_type = "character";
-            // else if (dynamic_cast<BooleanLiteralNode*>(expr)) an_type = "boolean";
-            else if (auto* bin_op_node = dynamic_cast<BinaryOpNode*>(expr)) {
-                // TODO: Type propagation for binary operations
-                // For now, make simple assumptions:
-                if (bin_op_node->op == "AND" || bin_op_node->op == "OR" ||
-                    bin_op_node->op == "=" || bin_op_node->op == "<>" ||
-                    bin_op_node->op == "<" || bin_op_node->op == "<=" ||
-                    bin_op_node->op == ">" || bin_op_node->op == ">=") {
-                    an_type = "boolean";
-                } else if (bin_op_node->op == "/" ) { // Real division
-                     an_type = "real"; // Assuming '/' is float division
-                }
-                 else { // Default to integer for other ops like +, -, *, DIV, MOD, ^
-                    an_type = "integer";
-                }
-                // writeln("/* BinaryOp: " + bin_op_node->op + ", Assumed AN Type: " + an_type + " */");
-            } else if (auto* unary_op_node = dynamic_cast<UnaryOpNode*>(expr)) {
-                // TODO: Type propagation for unary operations
-                if (unary_op_node->op == "NOT") {
-                    an_type = "boolean";
-                } else {
-                    an_type = "integer"; // Assuming unary minus results in integer/real
-                }
-                // writeln("/* UnaryOp: " + unary_op_node->op + ", Assumed AN Type: " + an_type + " */");
-            }
+            // TODO: Add more types: real, boolean, char literals etc. for non-identifier expressions
+            // For complex expressions (BinaryOpNode, etc.), type inference is needed.
+            // This simplified logic might default to %d for complex expressions.
 
+            std::string lower_an_type = an_type_for_format;
+            std::transform(lower_an_type.begin(), lower_an_type.end(), lower_an_type.begin(), ::tolower);
 
-            if (an_type == "real") format_string += "%lf"; // Use %lf for double precision for printf
-            else if (an_type == "character") format_string += "%c";
-            else if (an_type == "boolean") format_string += "%d";
-            else if (an_type == "string") format_string += "%s";
-            else format_string += "%d"; // Default for "integer"
+            if (lower_an_type == "real") format_string_content += "%f"; // %lf for scanf, %f for printf often works for double
+            else if (lower_an_type == "character") format_string_content += "%c";
+            else if (lower_an_type == "boolean") format_string_content += "%d";
+            else if (lower_an_type == "string") format_string_content += "%s";
+            else if (lower_an_type == "pointer_address") format_string_content += "%p";
+            else format_string_content += "%d";
 
-            printf_args.push_back(expr); // Store original expression node
+            printf_args_expressions.push_back(current_expr);
         }
     }
 
     if (!node->omit_newline) {
-        format_string += "\\n";
+        format_string_content += "\\n";
     }
+    write(format_string_content);
+    write("\"");
 
-    write("\"" + format_string + "\"");
-
-    for (ExpressionNode* arg_expr : printf_args) {
+    for (const ExpressionNode* arg_expr : printf_args_expressions) {
         write(", ");
-        // Use the helper for arguments to handle potential dereferences
         generate_expression_with_dereference_if_needed(arg_expr);
     }
     writeln(");");
 }
 
-void CodeGenerator::visit(InputNode* node) {
+void CodeGenerator::visit(const InputNode* node) {
     indent_spaces();
-    // For "input(var1, var2, ...)", we construct a single scanf call.
-    // scanf requires knowing the type of each variable to use the correct format specifier.
-
-    if (!node || node->variables.empty()) {
-        // Should not happen if parser validates, but good to be safe.
-        // writeln("/* INPUT node has no variables. */");
-        return;
-    }
-
+    if (!node || node->variables.empty()) { return; }
     std::string format_string = "";
     std::string scanf_args_string = "";
-
     for (size_t i = 0; i < node->variables.size(); ++i) {
-        const auto& var_ident_node = node->variables[i];
-        if (!var_ident_node) continue; // Should not happen
+        const auto& var_ident_node_ptr = node->variables[i];
+        if (!var_ident_node_ptr) continue;
+        const IdentifierNode& var_ident_node = *var_ident_node_ptr;
+        std::string var_name = var_ident_node.name;
+        std::string an_type_for_scanf = "integer";
+        const SymbolInfo* info = nullptr;
+        if (symbol_table_ptr) info = symbol_table_ptr->lookupSymbol(var_name);
 
-        std::string var_name = var_ident_node->name;
-        std::string an_type = "integer"; // Default if type not found or error
-        bool type_found = false;
-
-        if (symbol_table_ptr) {
-            SymbolInfo* info = symbol_table_ptr->lookupSymbol(var_name);
-            if (info) {
-                an_type = info->type;
-                type_found = true;
+        std::string address_prefix = "&";
+        if (info) {
+            if (info->is_pointer_type) {
+                an_type_for_scanf = info->pointed_type;
+                address_prefix = ""; // Read into *ptr, so pass ptr to scanf
+            } else {
+                an_type_for_scanf = info->type;
             }
-        }
-
-        if (!type_found) {
-            // Handle undeclared identifier for input - this is a semantic error.
-            // Generator might output a comment and assume a default or skip.
-            // For now, let's assume string input as a fallback and add a comment.
-            format_string += "%s /* UD_ID: " + var_name + " */";
-            scanf_args_string += ", " + var_name; // No & for string with %s
-            // Consider adding an error message to C output or via ErrorHandler if available
-            // write("/* Error: Undeclared identifier '" + var_name + "' used in INPUT. */ ");
-            continue;
-        }
-
-        // Add space between format specifiers if not the first one.
-        // scanf is generally robust with whitespace, but explicit spaces for multiple items are fine.
-        if (i > 0) {
-            format_string += " ";
-        }
-
-        if (an_type == "integer") {
-            format_string += "%d";
-            scanf_args_string += ", &" + var_name;
-        } else if (an_type == "real") {
-            format_string += "%lf"; // %lf for double with scanf
-            scanf_args_string += ", &" + var_name;
-        } else if (an_type == "character") {
-            format_string += " %c"; // Note the leading space to consume potential leftover newline
-            scanf_args_string += ", &" + var_name;
-        } else if (an_type == "string") {
-            // For reading strings with scanf, ensure buffer is large enough.
-            // Assuming char* variables are declared as arrays or malloc'd.
-            // Using %99s (or similar) is a common way to limit input to prevent overflow if buffer is fixed.
-            // This requires the C variable to be char var_name[100]; or similar.
-            format_string += "%99s"; // TODO: Add comment about pre-allocated buffer for string
-            scanf_args_string += ", " + var_name; // No & for char array/pointer with %s
-        } else if (an_type == "boolean") {
-            format_string += "%d"; // Read boolean as an integer (0 or 1)
-            scanf_args_string += ", &" + var_name; // TODO: Add comment assuming bool var handles int input
+            if (an_type_for_scanf == "string" && !info->is_pointer_type) { // s : string (char*), pass s
+                 address_prefix = "";
+            }
         } else {
-            // Fallback for unknown AN types - treat as string input for robustness
-            format_string += "%s /* UnknownType: " + an_type + " for " + var_name + " */";
-            scanf_args_string += ", " + var_name;
+            writeln("/* Warning: SymbolInfo not found for input var " + var_name + ". Assuming int*. */");
+        }
+
+        if (i > 0) format_string += " ";
+        std::string lower_type = an_type_for_scanf;
+        std::transform(lower_type.begin(), lower_type.end(), lower_type.begin(), ::tolower);
+
+        if (lower_type == "integer") { format_string += "%d"; scanf_args_string += ", " + address_prefix + var_name; }
+        else if (lower_type == "real") { format_string += "%lf"; scanf_args_string += ", " + address_prefix + var_name; }
+        else if (lower_type == "character") { format_string += " %c"; scanf_args_string += ", " + address_prefix + var_name; }
+        else if (lower_type == "string") {
+            format_string += "%99s";
+            // If original variable was `pointer to string` (char**), then reading into `*var_name` (a char*) is problematic
+            // as `*var_name` itself needs to be allocated. This requires `*var_name = malloc(...)` before scanf.
+            // This is a complex case for `input()`. For now, assume simple `char var[100]` or `char* var = malloc(100)`.
+            if (info && info->is_pointer_type && info->pointed_type == "string") { // p : pointer to string (char**)
+                 // This case is complex: input(p) implies *p should be a buffer.
+                 // For simplicity, assuming *p is already allocated, or this is an error.
+                 // write("/* Ensure *(" + var_name + ") is allocated before scanf */ ");
+                 scanf_args_string += ", *" + var_name; // scanf into the char* that the char** points to
+            } else { // s : string (char*)
+                 scanf_args_string += ", " + var_name;
+            }
+        } else if (lower_type == "boolean") {
+            format_string += "%d";
+            scanf_args_string += ", " + address_prefix + var_name;
+        } else {
+            format_string += "/* UNSUPPORTED_SCANF_TYPE(" + an_type_for_scanf + ") */";
         }
     }
-
     write("scanf(\"" + format_string + "\"" + scanf_args_string + ");");
-    writeln(""); // End the scanf line
-    // It's good practice to check scanf's return value in C to ensure all items were read.
-    // writeln("int items_read = scanf(...);");
-    // writeln("if (items_read != " + std::to_string(node->variables.size()) + ") { /* Handle input error */ }");
+    writeln("");
 }
 
-
-void CodeGenerator::visit(IfNode* node) {
+void CodeGenerator::visit(const IfNode* node) {
     indent_spaces();
     write("if (");
-    node->condition->accept(this);
+    generate_expression_with_dereference_if_needed(node->condition.get());
     writeln(") {");
-
     current_indent_level++;
-    if (node->then_block) {
-        node->then_block->accept(this);
-    }
+    if (node->then_block) node->then_block->accept(this);
     current_indent_level--;
     indent_spaces();
     writeln("}");
-
     if (node->else_block) {
         indent_spaces();
         writeln("else {");
@@ -702,13 +531,134 @@ void CodeGenerator::visit(IfNode* node) {
     }
 }
 
-void CodeGenerator::visit(WhileNode* node) {
+void CodeGenerator::visit(const WhileNode* node) {
     indent_spaces();
     write("while (");
-    node->condition->accept(this);
+    generate_expression_with_dereference_if_needed(node->condition.get());
     writeln(") {");
     current_indent_level++;
-    if (node->body) { // Ensure body is not null
+    if (node->body) node->body->accept(this);
+    current_indent_level--;
+    indent_spaces();
+    writeln("}");
+}
+
+void CodeGenerator::visit(const RepeatUntilNode* node) {
+    indent_spaces();
+    writeln("do {");
+    current_indent_level++;
+    if (node->body) node->body->accept(this);
+    current_indent_level--;
+    indent_spaces();
+    write("} while (!(");
+    generate_expression_with_dereference_if_needed(node->condition.get());
+    writeln("));");
+}
+
+void CodeGenerator::visit(const ForNode* node) {
+    indent_spaces();
+    write("for (");
+    node->loop_variable->accept(this);
+    write(" = ");
+    generate_expression_with_dereference_if_needed(node->start_value.get());
+    write("; ");
+    node->loop_variable->accept(this);
+    write(" <= ");
+    generate_expression_with_dereference_if_needed(node->end_value.get());
+    write("; ");
+    node->loop_variable->accept(this);
+    write("++) {");
+    writeln("");
+    current_indent_level++;
+    if (node->body) node->body->accept(this);
+    current_indent_level--;
+    indent_spaces();
+    writeln("}");
+}
+
+void CodeGenerator::visit(const DependOnNode* node) {
+    indent_spaces();
+    write("switch (");
+    if (node->control_variable) generate_expression_with_dereference_if_needed(node->control_variable.get());
+    writeln(") {");
+    current_indent_level++;
+    for (const auto& case_branch : node->cases) {
+        if (case_branch) case_branch->accept(this);
+    }
+    current_indent_level--;
+    indent_spaces();
+    writeln("}");
+}
+
+void CodeGenerator::visit(const CaseBranchNode* node) {
+    if (node->is_otherwise()) {
+        indent_spaces();
+        writeln("default:");
+    } else {
+        indent_spaces();
+        write("case ");
+        if (node->value) {
+            node->value->accept(this); // Case values are literals, no deref needed.
+        }
+        writeln(":");
+    }
+    current_indent_level++;
+    if (node->body) {
+        node->body->accept(this);
+    }
+    indent_spaces();
+    writeln("break;");
+    current_indent_level--;
+}
+
+
+void CodeGenerator::visit(const FunctionParameterNode* node) {
+    std::string c_type_str;
+    if (node->mode == ParameterMode::OUT || node->mode == ParameterMode::IN_OUT) {
+        if (node->param_type == "string") {
+            c_type_str = "char**";
+        } else {
+            c_type_str = map_an_type_to_c(node->param_type) + "*";
+        }
+    } else {
+        c_type_str = map_an_type_to_c(node->param_type);
+    }
+    write(c_type_str + " " + node->param_name);
+}
+
+void CodeGenerator::visit(const FunctionPrototypeNode* node) {
+    indent_spaces();
+    write(map_an_type_to_c(node->return_type) + " " + node->func_name + "(");
+    if (node->parameters.empty()) {
+        write("void");
+    } else {
+        for (size_t i = 0; i < node->parameters.size(); ++i) {
+            if (i > 0) write(", ");
+            if (node->parameters[i]) node->parameters[i]->accept(this);
+        }
+    }
+    writeln(");");
+}
+
+void CodeGenerator::visit(const SubprogramBodyNode* node) {
+    if (!node || !node->prototype) return;
+    indent_spaces();
+    write(map_an_type_to_c(node->prototype->return_type) + " " + node->prototype->func_name + "(");
+    if (node->prototype->parameters.empty()) {
+        write("void");
+    } else {
+        for (size_t i = 0; i < node->prototype->parameters.size(); ++i) {
+            if (i > 0) write(", ");
+            if (node->prototype->parameters[i]) node->prototype->parameters[i]->accept(this);
+        }
+    }
+    writeln(") {");
+    current_indent_level++;
+    for (const auto& decl : node->local_declarations) {
+        decl->accept(this);
+    }
+    if (!node->local_declarations.empty()) writeln("");
+    if (node->body) {
         node->body->accept(this);
     }
     current_indent_level--;
@@ -716,596 +666,126 @@ void CodeGenerator::visit(WhileNode* node) {
     writeln("}");
 }
 
-// New visit methods for pointer access, null, enum, constant
-void CodeGenerator::visit(PointerMemberAccessNode* node) {
-    write("(");
-    if (node->pointer_expr) {
-        node->pointer_expr->accept(this);
-    } else {
-        write("/* ERROR: NULL pointer_expr in PointerMemberAccessNode */");
-    }
-    write(")->");
-    if (node->member_name) {
-        node->member_name->accept(this); // This will just write the name
-    } else {
-        write("/* ERROR: NULL member_name in PointerMemberAccessNode */");
-    }
+void CodeGenerator::visit(const ReferenceNode* node) {
+    write("&(");
+    if(node->target_expr) node->target_expr->accept(this); // Target of & might not need deref helper
     write(")");
 }
 
-void CodeGenerator::visit(NullLiteralNode* node) {
-    // The NullLiteralNode itself doesn't carry a type, but the context might.
-    // For general C, NULL is often ((void*)0).
-    write("NULL");
+void CodeGenerator::visit(const DereferenceNode* node) {
+    write("(*");
+    if(node->pointer_expr) node->pointer_expr->accept(this);
+    write(")");
 }
 
-void CodeGenerator::visit(EnumTypeNode* node) {
+void CodeGenerator::visit(const AllocateNode* node) {
+    write("malloc(");
+    if(node->size_expr) generate_expression_with_dereference_if_needed(node->size_expr.get());
+    write(")");
+}
+
+void CodeGenerator::visit(const ReallocateNode* node) {
+    write("realloc(");
+    if(node->pointer_expr) generate_expression_with_dereference_if_needed(node->pointer_expr.get());
+    write(", ");
+    if(node->new_size_expr) generate_expression_with_dereference_if_needed(node->new_size_expr.get());
+    write(")");
+}
+
+void CodeGenerator::visit(const DeallocateNode* node) {
+    write("free(");
+    if(node->pointer_expr) generate_expression_with_dereference_if_needed(node->pointer_expr.get());
+    write(")");
+}
+
+void CodeGenerator::visit(const EnumTypeNode* node) {
     indent_spaces();
     write("typedef enum { ");
     for (size_t i = 0; i < node->values.size(); ++i) {
-        // It's good practice to prefix enum values in C to avoid name clashes,
-        // e.g., MyEnum_VAL1. For now, direct translation.
         write(node->values[i]);
         if (i < node->values.size() - 1) {
             write(", ");
         }
     }
     write(" } " + node->name + ";");
-    writeln();
-    writeln(); // Extra blank line for readability after type definition
+    writeln(); writeln();
 }
 
-void CodeGenerator::visit(ConstantDeclarationNode* node) {
-    SymbolInfo* info = nullptr;
-    if (symbol_table_ptr) {
-        info = symbol_table_ptr->lookupSymbol(node->name);
+void CodeGenerator::visit(const ConstantDeclarationNode* node) {
+    if (!symbol_table_ptr || !node || !node->value) return;
+    const SymbolInfo* info = symbol_table_ptr->lookupSymbol(node->name);
+    if (!info) { writeln("/* Error: Symbol info not found for constant: " + node->name + " */"); return; }
+
+    std::string c_type;
+    bool is_str_literal = dynamic_cast<const StringLiteralNode*>(node->value.get()) != nullptr;
+
+    if (info->is_pointer_type) {
+        if (dynamic_cast<const NullLiteralNode*>(node->value.get())) { // const X : pointer to Y = NULL
+            c_type = map_an_type_to_c(info->pointed_type) + "*";
+        } else { // e.g. const P : pointer to integer = reference(some_int_var) -> this is complex for const
+            c_type = map_an_type_to_c(info->pointed_type) + "*"; // Placeholder, actual init needs care
+        }
+    } else if (info->type == "string" && is_str_literal) {
+        c_type = "const char*"; // const MY_STR = "hello" -> const char* MY_STR = "hello"
+    } else {
+        c_type = map_an_type_to_c(info->type);
     }
 
-    if (!info) {
+    indent_spaces();
+    if (c_type != "const char*") write("const "); // Avoid "const const char*"
+    write(c_type + " " + node->name + " = ");
+    node->value->accept(this);
+    writeln(";");
+}
+
+void CodeGenerator::visit(const RecordTypeNode* node) {
+    if (!symbol_table_ptr) { writeln("/* Error: Symbol table unavailable for RecordTypeNode */"); return; }
+    const SymbolInfo* record_sym_info = symbol_table_ptr->lookupSymbol(node->name);
+    if (!record_sym_info || !record_sym_info->is_record_type) {
+        writeln("/* Error: Symbol info not found or not a record type for: " + node->name + " */");
+        return;
+    }
+
+    indent_spaces();
+    writeln("typedef struct " + node->name + " " + node->name + ";");
+    indent_spaces();
+    writeln("struct " + node->name + " {");
+    current_indent_level++;
+    for (const auto& field_detail : record_sym_info->record_fields) {
         indent_spaces();
-        // Fallback if symbol info not found, though parser should ensure this.
-        // Try to infer from AST node value if possible as a last resort, or default to "int".
-        std::string c_type = "int"; // Default fallback
-        if (dynamic_cast<StringLiteralNode*>(node->value.get())) {
-            c_type = "char*";
-        } else if (dynamic_cast<NullLiteralNode*>(node->value.get())) {
-            c_type = "void*"; // For NULL
-        }
-        // No good way to infer float/double without RealLiteralNode
-        writeln("/* WARNING: SymbolInfo not found for constant: " + node->name + ". Using guessed type " + c_type + ". */");
-        indent_spaces();
-        write("const " + c_type + " " + node->name + " = ");
-    } else {
-        std::string c_type;
-        if (info->is_pointer_type) {
-            if (!info->pointed_type.empty()) {
-                 if (info->pointed_type == "string") {
-                    // const pointer to string literal: const char* NAME = "value";
-                    // const pointer to char (if it's a pointer to a single char): const char* NAME = &char_var;
-                    // pointer to pointer to char: const char** NAME = ...;
-                    // If the constant itself is NULL and type is pointer to string: const char** NAME = NULL;
-                    // If the constant value is a string literal and type is pointer to string: (this is unusual for constants)
-                    // For `constant MY_PTR_STR : pointer to string = NULL` -> `const char** MY_PTR_STR = NULL;`
-                    // For `constant MY_STR_LIT_PTR : pointer to string = reference("some_global_string_literal_var")` -> `const char** ...`
-                    // The SymbolInfo.type for a constant NULL was set to "pointer" by parser.
-                    // If info.type is "pointer" and info.pointed_type is "string" -> char**
-                     c_type = map_an_type_to_c(info->pointed_type) + "*";
-                 } else { // pointer to non-string (e.g. integer, real)
-                    c_type = map_an_type_to_c(info->pointed_type) + "*";
-                 }
-            } else { // Generic pointer, e.g. from `MY_NULL = NULL` where type wasn't `pointer to X`
-                c_type = "void*"; // `const void* NAME = NULL;` is safe
+        std::string c_field_type_str;
+        const std::string pointer_prefix = "pointer to ";
+        if (field_detail.type_str.rfind(pointer_prefix, 0) == 0) {
+            std::string base_type = field_detail.type_str.substr(pointer_prefix.length());
+            if (base_type == node->name) {
+                c_field_type_str = node->name + "*";
+            } else if (base_type == "string") {
+                c_field_type_str = "char**";
+            } else {
+                c_field_type_str = map_an_type_to_c(base_type) + "*";
             }
-        } else if (info->type == "pointer") { // Case for `constant X = NULL` where type was inferred as "pointer"
-            c_type = "void*";
-        }
-         else { // Not a pointer type
-            c_type = map_an_type_to_c(info->type);
-            // If it's a string constant like `constant GREET = "Hello"`, c_type becomes "char*"
-            // So `const char* GREET = ...` is correct.
-        }
-        indent_spaces();
-        write("const " + c_type + " " + node->name + " = ");
-    }
-
-    if (node->value) {
-        node->value->accept(this);
-    } else {
-        // This case should ideally be prevented by the parser.
-        write("/* ERROR: NULL value_expr in ConstantDeclarationNode */");
-    }
-    write(";");
-    writeln();
-}
-
-// Visit methods for new AST Nodes (Pointers and Memory)
-void CodeGenerator::visit(ReferenceNode* node) {
-    write("&(");
-    if (node->target_expr) {
-        node->target_expr->accept(this);
-    } else {
-        write("/* ERROR: NULL target_expr in ReferenceNode */");
-    }
-    write(")");
-}
-
-void CodeGenerator::visit(DereferenceNode* node) {
-    write("(*(");
-    if (node->pointer_expr) {
-        node->pointer_expr->accept(this);
-    } else {
-        write("/* ERROR: NULL pointer_expr in DereferenceNode */");
-    }
-    write("))");
-}
-
-void CodeGenerator::visit(AllocateNode* node) {
-    // Assuming result needs a cast in C, e.g. (char*)malloc(size)
-    // For simplicity, omitting cast as C allows void* to any pointer.
-    // Type information for cast would ideally come from context or type inference.
-    write("malloc(");
-    if (node->size_expr) {
-        node->size_expr->accept(this);
-    } else {
-        write("/* ERROR: NULL size_expr in AllocateNode */");
-    }
-    write(")");
-}
-
-void CodeGenerator::visit(ReallocateNode* node) {
-    write("realloc(");
-    if (node->pointer_expr) {
-        node->pointer_expr->accept(this);
-    } else {
-        write("/* ERROR: NULL pointer_expr in ReallocateNode */");
-    }
-    write(", ");
-    if (node->new_size_expr) {
-        node->new_size_expr->accept(this);
-    } else {
-        write("/* ERROR: NULL new_size_expr in ReallocateNode */");
-    }
-    write(")");
-}
-
-void CodeGenerator::visit(DeallocateNode* node) {
-    write("free(");
-    if (node->pointer_expr) {
-        node->pointer_expr->accept(this);
-    } else {
-        write("/* ERROR: NULL pointer_expr in DeallocateNode */");
-    }
-    write(")");
-}
-
-void CodeGenerator::visit(RepeatUntilNode* node) {
-    indent_spaces();
-    writeln("do {");
-    current_indent_level++;
-    if (node->body) { // Ensure body is not null
-        node->body->accept(this);
-    }
-    current_indent_level--;
-    indent_spaces();
-    write("} while (!("); // AN 'until (condition)' translates to C 'while (!(condition))'
-    node->condition->accept(this);
-    writeln("));");
-}
-
-void CodeGenerator::visit(ForNode* node) {
-    indent_spaces();
-    write("for (");
-    // Assuming loop_variable is an IdentifierNode and its type is known (e.g., int)
-    // For C, the variable might need to be declared if not already.
-    // This basic version assumes it's an int and declared or usable in this scope.
-    // A full implementation would use symbol table to get type or declare it.
-
-    // Initializer part: e.g., i = start_value
-    // We need to ensure the type of the loop variable is correctly handled.
-    // For now, we don't explicitly declare it here, assuming it's declared in KAMUS.
-    // If the language requires declaration in for loop, this needs change.
-    // SymbolInfo* var_info = symbol_table_ptr->lookupSymbol(node->loop_variable->name); // Changed
-    // if (var_info) { write(map_an_type_to_c(var_info->type) + " "); } else { /* default to int or error */ write("int ");}
-
-    node->loop_variable->accept(this);
-    write(" = ");
-    node->start_value->accept(this);
-    write("; ");
-
-    // Condition part: e.g., i <= end_value
-    node->loop_variable->accept(this);
-    write(" <= "); // Assuming 'TO' means inclusive end
-    node->end_value->accept(this);
-    write("; ");
-
-    // Increment part: e.g., i++
-    node->loop_variable->accept(this);
-    write("++) {");
-    writeln(""); // Newline after opening brace
-
-    current_indent_level++;
-    if (node->body) { // Ensure body is not null
-        node->body->accept(this);
-    }
-    current_indent_level--;
-    indent_spaces();
-    writeln("}");
-}
-
-void CodeGenerator::visit(DependOnNode* node) {
-    indent_spaces();
-    write("switch (");
-    if (node->control_variable) {
-        node->control_variable->accept(this);
-    } else {
-        write("/* ERROR: Missing control variable for DEPEND ON */");
-    }
-    writeln(") {");
-    current_indent_level++;
-
-    for (const auto& case_branch : node->cases) {
-        if (case_branch) {
-            case_branch->accept(this);
-        }
-    }
-
-    current_indent_level--;
-    indent_spaces();
-    writeln("}");
-}
-
-void CodeGenerator::visit(CaseBranchNode* node) {
-    if (node->is_otherwise()) { // This is the 'otherwise' (default) case
-        indent_spaces();
-        writeln("default:");
-    } else { // This is a 'case value:'
-        indent_spaces();
-        write("case ");
-        if (node->value) {
-            node->value->accept(this);
         } else {
-            write("/* ERROR: Missing value for CASE */");
+            c_field_type_str = map_an_type_to_c(field_detail.type_str);
         }
-        writeln(":");
+        write(c_field_type_str + " " + field_detail.name + ";");
+        writeln();
     }
-
-    current_indent_level++;
-    if (node->body) {
-        node->body->accept(this);
-    }
-    // Add break statement, crucial for C switch-case behavior to mimic AN depend on
-    indent_spaces();
-    writeln("break;");
     current_indent_level--;
-}
-
-void CodeGenerator::visit(FunctionParameterNode* node) {
-    // This visitor is for the AST node. Symbol table should be primary source for type/mode.
-    SymbolInfo* sym_info = nullptr;
-    if (symbol_table_ptr) {
-        // Parameters are tricky for lookup here as scopes change.
-        // We rely on the mode stored in the FunctionParameterNode itself, set during parsing.
-        // sym_info = symbol_table_ptr->lookupSymbol(node->param_name); // Might not find it in current_scope if called for prototype
-    }
-
-    ParameterMode mode = node->mode; // Use mode from AST node
-    std::string an_type = node->param_type;
-    std::string c_type_str = map_an_type_to_c(an_type);
-
-    if (mode == ParameterMode::OUT || mode == ParameterMode::IN_OUT) {
-        if (an_type == "string") {
-            if (mode == ParameterMode::OUT) { // output string param_name -> char** param_name
-                write("char** " + node->param_name);
-            } else { // input/output string param_name -> char* param_name (managed by caller)
-                write("char* " + node->param_name);
-            }
-        } else { // int*, double*, bool*, char*
-            write(c_type_str + "* " + node->param_name);
-        }
-    } else { // ParameterMode::IN
-        write(c_type_str + " " + node->param_name);
-    }
-}
-
-void CodeGenerator::visit(FunctionPrototypeNode* node) {
     indent_spaces();
-    write(map_an_type_to_c(node->return_type) + " " + node->func_name + "(");
-    for (size_t i = 0; i < node->parameters.size(); ++i) {
-        if (i > 0) write(", ");
-        // The FunctionParameterNode's accept method is now responsible for generating its C representation
-        // including pointer syntax based on its mode.
-        node->parameters[i]->accept(this);
-    }
-    write(");");
+    writeln("};");
     writeln();
 }
 
-void CodeGenerator::visit(SubprogramBodyNode* node) {
-    indent_spaces();
-    write(map_an_type_to_c(node->prototype->return_type) + " " + node->prototype->func_name + "(");
-    for (size_t i = 0; i < node->prototype->parameters.size(); ++i) {
-        if (i > 0) write(", ");
-        node->prototype->parameters[i]->accept(this); // Relies on FunctionParameterNode::accept
-    }
-    writeln(") {");
-    current_indent_level++;
-
-    // Local declarations (KAMUS LOKAL)
-    for (const auto& decl : node->local_declarations) {
-        decl->accept(this);
-    }
-    if (!node->local_declarations.empty()) {
-        writeln(""); // Newline after local declarations
-    }
-
-    // Function body (ALGORITMA)
-    if (node->body) {
-        node->body->accept(this);
-    }
-
-    // Return statement for non-void functions if not explicitly handled by user code.
-    // This is a simplification. Real compilers do flow analysis to check for missing returns.
-    // if (map_an_type_to_c(node->prototype->return_type) != "void") {
-    //     // Could add a default return if no return statement was found in the block.
-    //     // indent_spaces(); writeln("return /* default value or error */;");
-    // }
-
-    current_indent_level--;
-    indent_spaces();
-    writeln("}");
-}
-                else if (ident_node->name.rfind("c_", 0) == 0) an_type = "character";
-                else if (ident_node->name.rfind("b_", 0) == 0) an_type = "boolean";
-                else if (ident_node->name.rfind("s_", 0) == 0) an_type = "string";
-                else an_type = "integer"; // Default for other identifiers for now
-                // writeln("/* Identifier: " + ident_node->name + ", Assumed AN Type: " + an_type + " */");
-            } else if (dynamic_cast<IntegerLiteralNode*>(expr)) {
-                an_type = "integer";
-            }
-            // Add RealLiteralNode, CharLiteralNode, BoolLiteralNode if they get created by parser
-            // else if (dynamic_cast<RealLiteralNode*>(expr)) an_type = "real";
-            // else if (dynamic_cast<CharLiteralNode*>(expr)) an_type = "character";
-            // else if (dynamic_cast<BooleanLiteralNode*>(expr)) an_type = "boolean";
-            else if (auto* bin_op_node = dynamic_cast<BinaryOpNode*>(expr)) {
-                // TODO: Type propagation for binary operations
-                // For now, make simple assumptions:
-                if (bin_op_node->op == "AND" || bin_op_node->op == "OR" ||
-                    bin_op_node->op == "=" || bin_op_node->op == "<>" ||
-                    bin_op_node->op == "<" || bin_op_node->op == "<=" ||
-                    bin_op_node->op == ">" || bin_op_node->op == ">=") {
-                    an_type = "boolean";
-                } else if (bin_op_node->op == "/" ) { // Real division
-                     an_type = "real"; // Assuming '/' is float division
-                }
-                 else { // Default to integer for other ops like +, -, *, DIV, MOD, ^
-                    an_type = "integer";
-                }
-                // writeln("/* BinaryOp: " + bin_op_node->op + ", Assumed AN Type: " + an_type + " */");
-            } else if (auto* unary_op_node = dynamic_cast<UnaryOpNode*>(expr)) {
-                // TODO: Type propagation for unary operations
-                if (unary_op_node->op == "NOT") {
-                    an_type = "boolean";
-                } else {
-                    an_type = "integer"; // Assuming unary minus results in integer/real
-                }
-                // writeln("/* UnaryOp: " + unary_op_node->op + ", Assumed AN Type: " + an_type + " */");
-            }
-
-
-            if (an_type == "real") format_string += "%f";
-            else if (an_type == "character") format_string += "%c";
-            else if (an_type == "boolean") format_string += "%d"; // Output bool as 0 or 1
-            else if (an_type == "string") format_string += "%s";
-            else format_string += "%d"; // Default for "integer" and others
-
-            printf_args.push_back(expr);
-        }
-    }
-    format_string += "\\n"; // Newline at the end of output
-
-    write("\"" + format_string + "\"");
-
-    for (ExpressionNode* arg_expr : printf_args) {
-        write(", ");
-        arg_expr->accept(this);
-    }
-    writeln(");");
+void CodeGenerator::visit(const PointerMemberAccessNode* node) {
+    write("(");
+    if (node->pointer_expr) generate_expression_with_dereference_if_needed(node->pointer_expr.get());
+    write(")->");
+    if (node->member_name) node->member_name->accept(this);
+    // Closing parenthesis removed as it's part of the expression context where this is used.
+    // E.g. ( (ptr)->member ) + 1 . The outer parentheses are handled by BinaryOpNode visitor.
 }
 
-
-void CodeGenerator::visit(IfNode* node) {
-    indent_spaces();
-    write("if (");
-    node->condition->accept(this);
-    writeln(") {");
-
-    current_indent_level++;
-    if (node->then_block) {
-        node->then_block->accept(this);
-    }
-    current_indent_level--;
-    indent_spaces();
-    writeln("}");
-
-    if (node->else_block) {
-        indent_spaces();
-        writeln("else {");
-        current_indent_level++;
-        node->else_block->accept(this);
-        current_indent_level--;
-        indent_spaces();
-        writeln("}");
-    }
+void CodeGenerator::visit(const FieldNode* node) {
+    (void)node; // Fields are typically handled by RecordTypeNode visitor.
 }
-
-void CodeGenerator::visit(WhileNode* node) {
-    indent_spaces();
-    write("while (");
-    node->condition->accept(this);
-    writeln(") {");
-    current_indent_level++;
-    if (node->body) { // Ensure body is not null
-        node->body->accept(this);
-    }
-    current_indent_level--;
-    indent_spaces();
-    writeln("}");
-}
-
-void CodeGenerator::visit(RepeatUntilNode* node) {
-    indent_spaces();
-    writeln("do {");
-    current_indent_level++;
-    if (node->body) { // Ensure body is not null
-        node->body->accept(this);
-    }
-    current_indent_level--;
-    indent_spaces();
-    write("} while (!("); // AN 'until (condition)' translates to C 'while (!(condition))'
-    node->condition->accept(this);
-    writeln("));");
-}
-
-void CodeGenerator::visit(ForNode* node) {
-    indent_spaces();
-    write("for (");
-    // Assuming loop_variable is an IdentifierNode and its type is known (e.g., int)
-    // For C, the variable might need to be declared if not already.
-    // This basic version assumes it's an int and declared or usable in this scope.
-    // A full implementation would use symbol table to get type or declare it.
-
-    // Initializer part: e.g., i = start_value
-    // We need to ensure the type of the loop variable is correctly handled.
-    // For now, we don't explicitly declare it here, assuming it's declared in KAMUS.
-    // If the language requires declaration in for loop, this needs change.
-    // SymbolInfo* var_info = symbol_table.lookupSymbol(node->loop_variable->name);
-    // if (var_info) { write(map_an_type_to_c(var_info->type) + " "); } else { /* default to int or error */ write("int ");}
-
-    node->loop_variable->accept(this);
-    write(" = ");
-    node->start_value->accept(this);
-    write("; ");
-
-    // Condition part: e.g., i <= end_value
-    node->loop_variable->accept(this);
-    write(" <= "); // Assuming 'TO' means inclusive end
-    node->end_value->accept(this);
-    write("; ");
-
-    // Increment part: e.g., i++
-    node->loop_variable->accept(this);
-    write("++) {");
-    writeln(""); // Newline after opening brace
-
-    current_indent_level++;
-    if (node->body) { // Ensure body is not null
-        node->body->accept(this);
-    }
-    current_indent_level--;
-    indent_spaces();
-    writeln("}");
-}
-
-void CodeGenerator::visit(DependOnNode* node) {
-    indent_spaces();
-    write("switch (");
-    if (node->control_variable) {
-        node->control_variable->accept(this);
-    } else {
-        write("/* ERROR: Missing control variable for DEPEND ON */");
-    }
-    writeln(") {");
-    current_indent_level++;
-
-    for (const auto& case_branch : node->cases) {
-        if (case_branch) {
-            case_branch->accept(this);
-        }
-    }
-
-    current_indent_level--;
-    indent_spaces();
-    writeln("}");
-}
-
-void CodeGenerator::visit(CaseBranchNode* node) {
-    if (node->is_otherwise()) { // This is the 'otherwise' (default) case
-        indent_spaces();
-        writeln("default:");
-    } else { // This is a 'case value:'
-        indent_spaces();
-        write("case ");
-        if (node->value) {
-            node->value->accept(this);
-        } else {
-            write("/* ERROR: Missing value for CASE */");
-        }
-        writeln(":");
-    }
-
-    current_indent_level++;
-    if (node->body) {
-        node->body->accept(this);
-    }
-    // Add break statement, crucial for C switch-case behavior to mimic AN depend on
-    indent_spaces();
-    writeln("break;");
-    current_indent_level--;
-}
-
-void CodeGenerator::visit(FunctionParameterNode* node) {
-    // Generates "type name" for parameter lists
-    write(map_an_type_to_c(node->param_type) + " " + node->param_name);
-}
-
-void CodeGenerator::visit(FunctionPrototypeNode* node) {
-    // Generates a function prototype (declaration)
-    indent_spaces(); // Usually prototypes are at global scope or in class defs, so indent might be 0
-    write(map_an_type_to_c(node->return_type) + " " + node->func_name + "(");
-    for (size_t i = 0; i < node->parameters.size(); ++i) {
-        if (i > 0) {
-            write(", ");
-        }
-        node->parameters[i]->accept(this);
-    }
-    write(");");
-    writeln(); // Newline after prototype
-}
-
-void CodeGenerator::visit(SubprogramBodyNode* node) {
-    // Generates a full function definition
-    indent_spaces(); // Function definitions are typically at global scope.
-    write(map_an_type_to_c(node->prototype->return_type) + " " + node->prototype->func_name + "(");
-    for (size_t i = 0; i < node->prototype->parameters.size(); ++i) {
-        if (i > 0) {
-            write(", ");
-        }
-        node->prototype->parameters[i]->accept(this);
-    }
-    writeln(") {");
-    current_indent_level++;
-
-    // Local declarations (KAMUS LOKAL)
-    for (const auto& decl : node->local_declarations) {
-        decl->accept(this);
-    }
-    if (!node->local_declarations.empty()) {
-        writeln(""); // Newline after local declarations
-    }
-
-    // Function body (ALGORITMA)
-    if (node->body) {
-        node->body->accept(this);
-    }
-
-    // Return statement for non-void functions if not explicitly handled by user code.
-    // This is a simplification. Real compilers do flow analysis to check for missing returns.
-    // if (map_an_type_to_c(node->prototype->return_type) != "void") {
-    //     // Could add a default return if no return statement was found in the block.
-    //     // indent_spaces(); writeln("return /* default value or error */;");
-    // }
-
-    current_indent_level--;
-    indent_spaces();
-    writeln("}");
-}
+// --- END OF src/generator.cpp CONTENT ---

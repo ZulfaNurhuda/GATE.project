@@ -39,41 +39,8 @@ static const std::unordered_map<std::string, TokenType> keywords = {
     {"constant", TokenType::CONSTANT_KW}  // Added CONSTANT keyword
 };
 
-// Helper function to calculate leading spaces
-static int calculate_leading_spaces(const std::string& line_content) {
-    int count = 0;
-    for (char ch : line_content) {
-        if (ch == ' ') {
-            count++;
-        } else if (ch == '\t') {
-            // ErrorHandler::report("Tabs are not allowed for indentation.", 0,0); // Line/col info needs to be passed
-            // Or convert tabs to spaces, e.g., count += 4;
-            // For now, let's treat tabs as an error or simply count them as 1 space (less ideal)
-            // This example will assume tabs are not used or an error is reported elsewhere.
-            // A robust lexer might convert tabs to a fixed number of spaces.
-            // Here, we'll just count them as single characters if not ' '.
-            // A better approach is to disallow tabs or convert them based on a fixed width.
-            // For this implementation, we will stick to spaces only.
-            // If a tab is encountered, it breaks the space counting.
-            break;
-        } else {
-            break; // Non-whitespace character
-        }
-    }
-    return count;
-}
-
-// Helper function to check if a line is blank or only contains a comment
-static bool is_blank_or_comment_only(const std::string& line_content, size_t code_start_pos) {
-    if (code_start_pos == std::string::npos) return true; // Entirely whitespace or empty
-
-    for (size_t i = code_start_pos; i < line_content.length(); ++i) {
-        if (line_content[i] == '{') return true; // Start of block comment, rest of line is effectively comment
-        if (!std::isspace(line_content[i])) return false; // Found non-whitespace, non-comment character
-    }
-    return true; // Only whitespace after code_start_pos
-}
-
+// Unused helper function calculate_leading_spaces removed.
+// Unused helper function is_blank_or_comment_only removed.
 
 std::vector<Token> Lexer::tokenize(const std::string &source_code) {
     std::vector<Token> tokens;
@@ -159,7 +126,7 @@ std::vector<Token> Lexer::tokenize(const std::string &source_code) {
 
             // Block Comments { ... }
             if (current_char == '{') {
-                size_t comment_start_pos = current_pos;
+                // size_t comment_start_pos = current_pos; // Unused variable
                 while (current_pos < source_code.size() && source_code[current_pos] != '}') {
                     if (source_code[current_pos] == '\n') {
                         // This would mean a multi-line comment; the outer loop handles line-by-line.

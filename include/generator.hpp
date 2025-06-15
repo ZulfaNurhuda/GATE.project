@@ -41,44 +41,47 @@ class DeallocateNode;
 class NullLiteralNode; // Added
 class EnumTypeNode;
 class ConstantDeclarationNode;
-class PointerMemberAccessNode; // Added
+class PointerMemberAccessNode;
+class RecordTypeNode; // Added
 // ExpressionNode, StatementNode, DeclarationNode are abstract, so no visit for them directly.
 
 class ASTVisitor {
 public:
     virtual ~ASTVisitor() = default;
 
-    virtual void visit(ProgramNode* node) = 0;
-    virtual void visit(IdentifierNode* node) = 0;
-    virtual void visit(IntegerLiteralNode* node) = 0;
-    virtual void visit(StringLiteralNode* node) = 0;
-    virtual void visit(BinaryOpNode* node) = 0;
-    virtual void visit(AssignmentNode* node) = 0;
-    virtual void visit(BlockNode* node) = 0;
-    virtual void visit(IfNode* node) = 0;
-    virtual void visit(OutputNode* node) = 0;
-    virtual void visit(VariableDeclarationNode* node) = 0;
-    virtual void visit(FunctionParameterNode* node) = 0;
-    virtual void visit(FunctionPrototypeNode* node) = 0;
-    virtual void visit(SubprogramBodyNode* node) = 0;
-    virtual void visit(WhileNode* node) = 0;
-    virtual void visit(RepeatUntilNode* node) = 0;
-    virtual void visit(ForNode* node) = 0;
-    virtual void visit(DependOnNode* node) = 0;
-    virtual void visit(CaseBranchNode* node) = 0;
-    virtual void visit(UnaryOpNode* node) = 0;
-    virtual void visit(InputNode* node) = 0;
-    virtual void visit(ArrayAccessNode* node) = 0;
-    virtual void visit(FunctionCallNode* node) = 0;
-    virtual void visit(ReferenceNode* node) = 0;
-    virtual void visit(DereferenceNode* node) = 0;
-    virtual void visit(AllocateNode* node) = 0;
-    virtual void visit(ReallocateNode* node) = 0;
-    virtual void visit(DeallocateNode* node) = 0;
-    virtual void visit(NullLiteralNode* node) = 0; // Added
-    virtual void visit(EnumTypeNode* node) = 0;
-    virtual void visit(ConstantDeclarationNode* node) = 0;
-    virtual void visit(PointerMemberAccessNode* node) = 0; // Added
+    virtual void visit(const ProgramNode* node) = 0;
+    virtual void visit(const IdentifierNode* node) = 0;
+    virtual void visit(const IntegerLiteralNode* node) = 0;
+    virtual void visit(const StringLiteralNode* node) = 0;
+    virtual void visit(const BinaryOpNode* node) = 0;
+    virtual void visit(const AssignmentNode* node) = 0;
+    virtual void visit(const BlockNode* node) = 0;
+    virtual void visit(const IfNode* node) = 0;
+    virtual void visit(const OutputNode* node) = 0;
+    virtual void visit(const VariableDeclarationNode* node) = 0;
+    virtual void visit(const FunctionParameterNode* node) = 0;
+    virtual void visit(const FunctionPrototypeNode* node) = 0;
+    virtual void visit(const SubprogramBodyNode* node) = 0;
+    virtual void visit(const WhileNode* node) = 0;
+    virtual void visit(const RepeatUntilNode* node) = 0;
+    virtual void visit(const ForNode* node) = 0;
+    virtual void visit(const DependOnNode* node) = 0;
+    virtual void visit(const CaseBranchNode* node) = 0;
+    virtual void visit(const UnaryOpNode* node) = 0;
+    virtual void visit(const InputNode* node) = 0;
+    virtual void visit(const ArrayAccessNode* node) = 0;
+    virtual void visit(const FunctionCallNode* node) = 0;
+    virtual void visit(const ReferenceNode* node) = 0;
+    virtual void visit(const DereferenceNode* node) = 0;
+    virtual void visit(const AllocateNode* node) = 0;
+    virtual void visit(const ReallocateNode* node) = 0;
+    virtual void visit(const DeallocateNode* node) = 0;
+    virtual void visit(const NullLiteralNode* node) = 0; // Added
+    virtual void visit(const EnumTypeNode* node) = 0;
+    virtual void visit(const ConstantDeclarationNode* node) = 0;
+    virtual void visit(const PointerMemberAccessNode* node) = 0;
+    virtual void visit(const RecordTypeNode* node) = 0; // Added
+    virtual void visit(const FieldNode* node) = 0; // Added for FieldNode
     // Add any other concrete ASTNode types here
 };
 
@@ -94,6 +97,7 @@ private:
     void write(const std::string& str);
     void writeln(const std::string& str = "");
     std::string map_an_type_to_c(const std::string& an_type); // Maps AN internal types to C types
+    void generate_expression_with_dereference_if_needed(const ExpressionNode* expr_node); // Added declaration, changed to const
 
 public:
     CodeGenerator(); // Constructor updated to initialize symbol_table_ptr to nullptr
@@ -102,37 +106,39 @@ public:
     void generate_c_code(const ProgramNode* program_root, const SymbolTable& populated_symbol_table, std::ostream& output_stream_ref);
 
     // Overridden visit methods from ASTVisitor
-    void visit(ProgramNode* node) override;
-    void visit(IdentifierNode* node) override;
-    void visit(IntegerLiteralNode* node) override;
-    void visit(StringLiteralNode* node) override;
-    void visit(BinaryOpNode* node) override;
-    void visit(AssignmentNode* node) override;
-    void visit(BlockNode* node) override;
-    void visit(IfNode* node) override;
-    void visit(OutputNode* node) override;
-    void visit(VariableDeclarationNode* node) override;
-    void visit(FunctionParameterNode* node) override;
-    void visit(FunctionPrototypeNode* node) override;
-    void visit(SubprogramBodyNode* node) override;
-    void visit(WhileNode* node) override;
-    void visit(RepeatUntilNode* node) override;
-    void visit(ForNode* node) override;
-    void visit(DependOnNode* node) override;
-    void visit(CaseBranchNode* node) override;
-    void visit(UnaryOpNode* node) override;
-    void visit(InputNode* node) override;
-    void visit(ArrayAccessNode* node) override;
-    void visit(FunctionCallNode* node) override;
-    void visit(ReferenceNode* node) override;
-    void visit(DereferenceNode* node) override;
-    void visit(AllocateNode* node) override;
-    void visit(ReallocateNode* node) override;
-    void visit(DeallocateNode* node) override;
-    void visit(NullLiteralNode* node) override; // Added
-    void visit(EnumTypeNode* node) override;
-    void visit(ConstantDeclarationNode* node) override;
-    void visit(PointerMemberAccessNode* node) override; // Added
+    void visit(const ProgramNode* node) override;
+    void visit(const IdentifierNode* node) override;
+    void visit(const IntegerLiteralNode* node) override;
+    void visit(const StringLiteralNode* node) override;
+    void visit(const BinaryOpNode* node) override;
+    void visit(const AssignmentNode* node) override;
+    void visit(const BlockNode* node) override;
+    void visit(const IfNode* node) override;
+    void visit(const OutputNode* node) override;
+    void visit(const VariableDeclarationNode* node) override;
+    void visit(const FunctionParameterNode* node) override;
+    void visit(const FunctionPrototypeNode* node) override;
+    void visit(const SubprogramBodyNode* node) override;
+    void visit(const WhileNode* node) override;
+    void visit(const RepeatUntilNode* node) override;
+    void visit(const ForNode* node) override;
+    void visit(const DependOnNode* node) override;
+    void visit(const CaseBranchNode* node) override;
+    void visit(const UnaryOpNode* node) override;
+    void visit(const InputNode* node) override;
+    void visit(const ArrayAccessNode* node) override;
+    void visit(const FunctionCallNode* node) override;
+    void visit(const ReferenceNode* node) override;
+    void visit(const DereferenceNode* node) override;
+    void visit(const AllocateNode* node) override;
+    void visit(const ReallocateNode* node) override;
+    void visit(const DeallocateNode* node) override;
+    void visit(const NullLiteralNode* node) override; // Added
+    void visit(const EnumTypeNode* node) override;
+    void visit(const ConstantDeclarationNode* node) override;
+    void visit(const PointerMemberAccessNode* node) override;
+    void visit(const RecordTypeNode* node) override; // Added
+    void visit(const FieldNode* node) override; // Added for FieldNode
     // Implement visit for any other concrete ASTNode types
 };
 
