@@ -13,12 +13,12 @@ class ASTVisitor;
 // Forward declaration for ProgramNode, used in ParseResult
 class ProgramNode;
 
-// Enum for parameter passing modes
-enum class ParameterMode {
-    IN,    // Default, or explicitly 'input'
-    OUT,   // Explicitly 'output'
-    IN_OUT // Explicitly 'input/output'
-};
+// ParameterMode is now defined in symbol_table.hpp and included.
+// enum class ParameterMode {
+//     IN,    // Default, or explicitly 'input'
+//     OUT,   // Explicitly 'output'
+//     IN_OUT // Explicitly 'input/output'
+// };
 
 // Structure to hold the results of parsing
 struct ParseResult {

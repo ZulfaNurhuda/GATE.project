@@ -6,41 +6,12 @@
 #include <unordered_map>
 #include <optional>
 
-// Forward declare ParameterMode or include parser.hpp if ParameterMode is defined there.
-// Assuming ParameterMode is an enum class defined in parser.hpp, and parser.hpp is lightweight enough
-// or ParameterMode is moved to a common header. For now, to use it as a member,
-// its definition must be known. If parser.hpp includes symbol_table.hpp, this creates a circular dependency.
-// Best: Move ParameterMode to its own header or this header if it's fundamental.
-// Workaround: If parser.hpp is not too heavy, include it.
-// Alternative: Forward declare `enum class ParameterMode;` if it's only used by pointer/reference here.
-// Since it will be a direct member, definition is needed.
-// Let's assume parser.hpp can be included, or ParameterMode is moved.
-// For this exercise, we will assume ParameterMode is accessible.
-// If #include "parser.hpp" is added, it needs to be done carefully.
-// A common approach is to put such enums in a dedicated types header.
-
-// Let's try forward declaration first, as it's less invasive.
-// However, member `ParameterMode param_mode;` needs full definition.
-// So, we must ensure ParameterMode is defined.
-// The prompt stated "assume ParameterMode is accessible".
-// This typically means its definition is visible.
-// This might imply including "parser.hpp" or that ParameterMode was moved.
-// Let's assume "parser.hpp" is light or ParameterMode is in a shared header.
-// For now, to make this self-contained for the tool, I'll define it here then reconcile later if it's a duplicate.
-// This is a common problem in C++ header management.
-// The prompt says: "assume ParameterMode (from parser.hpp) is not already accessible here... ensure it is."
-// This implies we should add the include if necessary.
-// However, including parser.hpp in symbol_table.hpp is risky for circular dependencies.
-// The safest is to define ParameterMode in a more fundamental header or here.
-// Given the context, I will add a definition here, assuming it matches the one in parser.hpp.
-// This is non-ideal but works for the tool's constraints.
-// A better solution in a real project: #include "parameter_mode.hpp"
-
+// Definition of ParameterMode, used by SymbolInfo and parser.hpp (which includes this file)
 enum class ParameterMode {
     IN,
     OUT,
     IN_OUT,
-    NONE // Added for non-parameter symbols or unknown cases
+    NONE // For non-parameter symbols or uninitialized state
 };
 
 // Definition for SymbolInfo

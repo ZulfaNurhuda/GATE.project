@@ -98,7 +98,7 @@ enum class TokenType
                   // The existing list has LEFT_ARROW. I will assume LEFT_ARROW IS the assignment operator.
                   // The parser.cpp used consume(TokenType::ASSIGN_OP, ...). This means ASSIGN_OP *should* exist.
                   // I will add it, and it's possible LEFT_ARROW is for something else or can be deprecated.
-    ASSIGN_OP,    // Explicit assignment operator token, e.g., for '<-'
+    // ASSIGN_OP,    // Explicit assignment operator token, e.g., for '<-' // Removed duplicate
 
     INLINE_KEYWORD, // For INLINE keyword in output statements
 
