@@ -23,7 +23,7 @@ int main()
     // ALGORITMA: The main logic starts here
     for (i = 1; i <= 3; i++)
     {
-        printf("Masukkan Nama Mahasiswa ke-%d: \n", i);
+        printf("Masukkan Nama Mahasiswa ke-%d: ", i);
 
         Mhs1.Nama = (char *)malloc(100 * sizeof(char));
         if (Mhs1.Nama == NULL)
@@ -33,7 +33,7 @@ int main()
         }
         scanf("%99s", Mhs1.Nama);
 
-        printf("Masukkan Nilai %s: \n", Mhs1.Nama);
+        printf("Masukkan Nilai %s: ", Mhs1.Nama);
         scanf("%d", &Mhs1.Nilai);
 
         // Function call inside the if condition

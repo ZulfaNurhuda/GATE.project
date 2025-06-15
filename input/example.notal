@@ -16,10 +16,10 @@ KAMUS
 ALGORITMA
     { Main program logic }
     for i <- 1 to 3 do
-        output("Masukkan Nama Mahasiswa ke-", i, ": ")
+        output("Masukkan Nama Mahasiswa ke-", i, ": ", INLINE)
         input(Mhs1.Nama)
         
-        output("Masukkan Nilai ", Mhs1.Nama, ": ")
+        output("Masukkan Nilai ", Mhs1.Nama, ": ", INLINE)
         input(Mhs1.Nilai)
         
         { Call the function and check the boolean result directly }

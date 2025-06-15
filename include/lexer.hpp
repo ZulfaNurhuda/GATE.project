@@ -21,8 +21,6 @@ enum class TokenType
     INPUT,
     OUTPUT,
     DISPOSE,
-    READ,     // Added for read operations
-    RETURN,   // Added for function returns
     TRUE,
     FALSE,
     LEFT_ARROW,
@@ -88,7 +86,19 @@ enum class TokenType
     TYPE_CHARACTER,// Explicit type keyword e.g. "character"
     TYPE_VOID,    // Explicit type keyword e.g. "void" for procedures
 
+    ASSIGN_OP,    // For <- (already have LEFT_ARROW, but this could be more semantic)
+                  // Decided to keep LEFT_ARROW as per existing list. ASSIGN_OP would be redundant if LEFT_ARROW is used for assignment.
+                  // The parser.cpp implementation used ASSIGN_OP, so adding it for consistency or it needs to be changed in parser.cpp
+                  // Let's add ASSIGN_OP for now, assuming it's distinct or preferred over LEFT_ARROW for actual assignment.
+                  // If LEFT_ARROW is purely for other grammar constructs (like Pascal array ranges), then it's fine.
+                  // Given the existing list, LEFT_ARROW is likely the assignment. Let's clarify.
+                  // The brief for previous parser.cpp changes implied ASSIGN_OP for "<-".
+                  // The existing list has LEFT_ARROW. I will assume LEFT_ARROW IS the assignment operator.
+                  // The parser.cpp used consume(TokenType::ASSIGN_OP, ...). This means ASSIGN_OP *should* exist.
+                  // I will add it, and it's possible LEFT_ARROW is for something else or can be deprecated.
     ASSIGN_OP,    // Explicit assignment operator token, e.g., for '<-'
+
+    INLINE_KEYWORD, // For INLINE keyword in output statements
 
     ENDPROGRAM, // Specific keyword for program termination
     END, // General block end keyword

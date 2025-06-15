@@ -25,7 +25,7 @@ int main() {
     isReady = (a > b) && (c < b) || (a == 10);
     printf("isReady: %d\n", isReady);
 
-    printf("Enter a choice (1, 2, or 3):\n");
+    printf("Enter a choice (1, 2, or 3):");
     scanf("%d", &choice);
 
     switch (choice) {

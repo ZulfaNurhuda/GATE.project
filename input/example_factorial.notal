@@ -9,7 +9,7 @@ KAMUS
   function FactorialRecursive(n : integer) -> integer;
 
 ALGORITMA
-  output("Enter a non-negative integer:");
+  output("Enter a non-negative integer:", INLINE)
   input(num);
 
   if (num < 0) then

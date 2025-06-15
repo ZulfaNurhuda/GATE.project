@@ -23,17 +23,18 @@ static const std::unordered_map<std::string, TokenType> keywords = {
     {"boolean", TokenType::TYPE_BOOLEAN}, {"string", TokenType::TYPE_STRING},
     {"character", TokenType::TYPE_CHARACTER}, {"void", TokenType::TYPE_VOID},
     {"type", TokenType::TYPE}, // Generic "type" keyword if still used for user-defined types
+    {"inline", TokenType::INLINE_KEYWORD}, // Added INLINE keyword
     {"endprogram", TokenType::ENDPROGRAM}, {"end", TokenType::END}
 };
 
 std::vector<Token> Lexer::tokenize(const std::string &source_code) {
     std::vector<Token> tokens;
     size_t pos = 0;
-    int line = 1, col = 1; // Declare and initialize col
+    int line = 1, current_col_start = 1;
 
     while (pos < source_code.size()) {
         char current_char = source_code[pos];
-        // current_col_start removed
+        current_col_start = col; // Keep track of column at the start of a token
 
         // 1. Whitespace
         if (std::isspace(current_char)) {
@@ -49,7 +50,6 @@ std::vector<Token> Lexer::tokenize(const std::string &source_code) {
 
         // 2. Block Comments { ... }
         if (current_char == '{') {
-            int token_col_lbrace = col; // Capture column for the '{'
             pos++; col++;
             while (pos < source_code.size() && source_code[pos] != '}') {
                 if (source_code[pos] == '\n') {
@@ -63,8 +63,9 @@ std::vector<Token> Lexer::tokenize(const std::string &source_code) {
                 pos++; col++;
             } else {
                 // Unterminated comment, report error or handle as per language spec
-                tokens.push_back({TokenType::UNKNOWN, "{", line, token_col_lbrace}); // Use captured column for '{'
-                // ErrorHandler::report("Unterminated block comment", line, token_col_lbrace);
+                // For now, just add an UNKNOWN token for the opening '{'
+                tokens.push_back({TokenType::UNKNOWN, "{", line, current_col_start});
+                // ErrorHandler::report("Unterminated block comment", line, current_col_start);
             }
             continue;
         }
@@ -113,7 +114,7 @@ std::vector<Token> Lexer::tokenize(const std::string &source_code) {
             int token_col = col;
             pos++; col++; // Consume opening quote
             while (pos < source_code.size() && source_code[pos] != '"') {
-                // Handle escape sequences if necessary, e.g., \" or a backslash
+                // Handle escape sequences if necessary, e.g., \" or \\
                 str_val += source_code[pos];
                 if (source_code[pos] == '\n') { // String literal containing newline - usually an error or needs special handling
                     line++; col = 1;

@@ -18,6 +18,8 @@ ALGORITMA
   endfor
 
   // Test input to an array element
-  output("Enter a new value for element 3:");
+  output("Enter a new value for element 3:", INLINE)
   input(myNumbers[3]);
   output("New element 3 is: ", myNumbers[3]);
+
+END.

@@ -1,34 +1,32 @@
 #include "../include/parser.hpp"
 #include "../include/error_handler.hpp" // For error reporting
-#include "../include/generator.hpp"    // For ASTVisitor full definition
 #include <stdexcept> // For std::runtime_error
-#include <algorithm> // For std::any_of
 
 // --- ASTNode accept method implementations ---
 // These methods allow the Visitor to dispatch to the correct visit method.
 
-void IdentifierNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
-void IntegerLiteralNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
-void StringLiteralNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
-void BinaryOpNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
-void AssignmentNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
-void BlockNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
-void IfNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
-void OutputNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
-void VariableDeclarationNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
-void FunctionParameterNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
-void FunctionPrototypeNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
-void SubprogramBodyNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
-void ProgramNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
-void WhileNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
-void RepeatUntilNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
-void ForNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
-void DependOnNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
-void CaseBranchNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
-void UnaryOpNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
-void InputNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
-void ArrayAccessNode::accept(ASTVisitor* visitor) const { visitor->visit(this); } // Already present, ensure it's correct
-void FunctionCallNode::accept(ASTVisitor* visitor) const { visitor->visit(this); }
+void IdentifierNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void IntegerLiteralNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void StringLiteralNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void BinaryOpNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void AssignmentNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void BlockNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void IfNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void OutputNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void VariableDeclarationNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void FunctionParameterNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void FunctionPrototypeNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void SubprogramBodyNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void ProgramNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void WhileNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void RepeatUntilNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void ForNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void DependOnNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void CaseBranchNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void UnaryOpNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void InputNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void ArrayAccessNode::accept(ASTVisitor* visitor) { visitor->visit(this); } // Already present, ensure it's correct
+void FunctionCallNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
 
 // Base classes still need a definition for accept if they are not purely abstract
 // with respect to accept, or if direct instantiation was possible (which it isn't here).
@@ -37,7 +35,8 @@ void FunctionCallNode::accept(ASTVisitor* visitor) const { visitor->visit(this);
 
 // --- Parser Implementation ---
 
-// Helper enum for operator associativity (MOVED TO PARSER.HPP)
+// Helper enum for operator associativity
+enum class Associativity { LEFT, RIGHT, NONE };
 
 // Helper function to get operator precedence
 int Parser::getOperatorPrecedence(TokenType type) {
@@ -69,7 +68,7 @@ int Parser::getOperatorPrecedence(TokenType type) {
 }
 
 // Helper function to get operator associativity
-Parser::Associativity Parser::getOperatorAssociativity(TokenType type) {
+Associativity Parser::getOperatorAssociativity(TokenType type) {
     switch (type) {
         case TokenType::CARET: // Power is often right-associative
             return Associativity::RIGHT;
@@ -150,9 +149,7 @@ ParseResult Parser::parse(const std::vector<Token>& input_tokens) { // Updated r
     current_token_idx = 0;
     current_token_cache = tokens[current_token_idx]; // Initialize cache
 
-    std::unique_ptr<ProgramNode> program_ast_root = parseProgram();
-    // After parseProgram, symbol_table_ptr is populated.
-    return {std::move(program_ast_root), std::move(this->symbol_table_ptr)};
+    return parseProgram();
 }
 
 std::unique_ptr<ProgramNode> Parser::parseProgram() {
@@ -196,21 +193,19 @@ std::unique_ptr<ProgramNode> Parser::parseProgram() {
     }
 
     // Optional: Expect a final token like "ENDPROGRAM." or just EOF
-    /*
     if (check(TokenType::ENDPROGRAM)) { // Assuming ENDPROGRAM is a token
         consume(TokenType::ENDPROGRAM, "Expected 'ENDPROGRAM' keyword.");
         if(check(TokenType::DOT)) consume(TokenType::DOT, "Expected '.' after ENDPROGRAM.");
     } else if (check(TokenType::DOT) && previous_token().type == TokenType::END) { // e.g. END. for main block
          consume(TokenType::DOT, "Expected '.' at the end of the program main block.");
     }
-    */
 
 
     if (!check(TokenType::EOF_TOKEN)) {
          ErrorHandler::report(ErrorCode::SYNTAX_MISSING_EXPECTED_TOKEN, current_token_cache.line, current_token_cache.col, "Expected EOF after program.");
     }
 
-    return program_node; // Return just the ProgramNode unique_ptr
+    return {std::move(program_node), std::move(this->symbol_table_ptr)}; // Return ParseResult
 }
 
 
@@ -240,8 +235,8 @@ std::unique_ptr<StringLiteralNode> Parser::parseStringLiteral() {
 std::unique_ptr<ExpressionNode> Parser::parsePrimaryExpression() {
     if (check(TokenType::IDENTIFIER)) {
         auto ident_node_ptr = parseIdentifier(); // This is std::unique_ptr<IdentifierNode>
-        // int line = ident_node_ptr->line; // Unused
-        // int col = ident_node_ptr->col; // Unused
+        int line = ident_node_ptr->line;
+        int col = ident_node_ptr->col;
 
         // Check for postfix operations (function call or array access)
         // This loop allows for chained operations like foo(x)[y] if grammar supports it,
@@ -384,7 +379,7 @@ std::unique_ptr<StatementNode> Parser::parseAssignmentStatement(std::unique_ptr<
 
 std::unique_ptr<OutputNode> Parser::parseOutputStatement() {
     Token output_kw = consume(TokenType::OUTPUT, "Expected 'OUTPUT' keyword."); // Or CETAK, PRINT
-    auto output_node = std::make_unique<OutputNode>(output_kw.line, output_kw.col);
+    bool omit_newline_flag = false;
 
     // Assuming output can take multiple comma-separated expressions, e.g., OUTPUT expr1, expr2
     // Or a single expression, or parenthesized list. For now, let's assume one or more.
@@ -396,14 +391,41 @@ std::unique_ptr<OutputNode> Parser::parseOutputStatement() {
         consume(TokenType::LPAREN, "Expected '(' after OUTPUT if not directly followed by expression.");
     }
 
-    output_node->expressions.push_back(parseExpression());
+    // Create a temporary vector to store expressions before creating the node
+    std::vector<std::unique_ptr<ExpressionNode>> expressions;
+
+    expressions.push_back(parseExpression()); // Parse the first expression
     while (match(TokenType::COMMA)) {
-        output_node->expressions.push_back(parseExpression());
+        // Before parsing the next expression, check if INLINE keyword is next.
+        // If so, it means the expression list has ended, and INLINE follows.
+        if (check(TokenType::INLINE_KEYWORD)) {
+            break; // Exit loop to handle INLINE keyword
+        }
+        expressions.push_back(parseExpression());
     }
+
+    // After parsing all expressions (or expressions before INLINE), check for the INLINE keyword
+    if (check(TokenType::INLINE_KEYWORD)) {
+        consume(TokenType::INLINE_KEYWORD, "Expected INLINE keyword.");
+        omit_newline_flag = true;
+    }
+
+    // Now create the OutputNode with the collected expressions and the omit_newline_flag
+    auto output_node = std::make_unique<OutputNode>(output_kw.line, output_kw.col, omit_newline_flag);
+    output_node->expressions = std::move(expressions);
 
     if(expect_paren) {
         consume(TokenType::RPAREN, "Expected ')' after OUTPUT expressions.");
     }
+
+    // If INLINE was present, it should have been consumed before the semicolon.
+    // If INLINE was after parenthesis (if any) and before semicolon.
+    // Example: output(x,y) INLINE;
+    // Example: output x,y INLINE;
+
+    // Re-check for INLINE if it wasn't caught after expressions (e.g. if no parens and INLINE is last before ';')
+    // The current placement of INLINE check (after expression loop, before closing paren/semicolon) is correct.
+
     consume(TokenType::SEMICOLON, "Expected ';' after output statement.");
     return output_node;
 }
@@ -564,22 +586,6 @@ std::unique_ptr<StatementNode> Parser::parseDependOnStatement() {
     return depend_on_node;
 }
 
-std::unique_ptr<StatementNode> Parser::parseInputStatement() {
-    Token input_tok = consume(TokenType::INPUT, "Expected 'INPUT' keyword.");
-    auto input_node = std::make_unique<InputNode>(input_tok.line, input_tok.col);
-
-    consume(TokenType::LPAREN, "Expected '(' after INPUT keyword.");
-    if (!check(TokenType::RPAREN)) { // Check if there are any variables
-        do {
-            input_node->variables.push_back(parseIdentifier());
-        } while (match(TokenType::COMMA));
-    }
-    consume(TokenType::RPAREN, "Expected ')' after input variables.");
-    consume(TokenType::SEMICOLON, "Expected ';' after INPUT statement.");
-
-    return input_node;
-}
-
 
 std::unique_ptr<BlockNode> Parser::parseBlock() {
     // A block is a sequence of statements.
@@ -708,7 +714,7 @@ std::unique_ptr<VariableDeclarationNode> Parser::parseVariableDeclaration() {
                              info.declaration_line, info.declaration_col,
                              "Variable '" + var_name_node->name + "' already declared in this scope.");
     }
-    return std::make_unique<VariableDeclarationNode>(var_name_node->line, var_name_node->col, var_name_node->name, node_var_type_string);
+    return std::make_unique<VariableDeclarationNode>(var_name_token.line, var_name_token.col, var_name_node->name, node_var_type_string);
 }
 
 
@@ -787,17 +793,50 @@ std::unique_ptr<FunctionPrototypeNode> Parser::parseFunctionPrototype() {
     }
     consume(TokenType::SEMICOLON, "Expected ';' after function/procedure prototype.");
 
-    // The function symbol is not added by this function.
-    // Parameters are added to the current scope (which this function entered).
-    // The caller (parseSubprogramBody) is responsible for exiting the parameter scope.
+    // Add function/procedure symbol to the parent scope (the one active before parameter scope)
+    // Need to determine the correct scope level for this.
+    // If parsing global functions, current scope *before* enterScope for params was global.
+    // If parsing nested functions, it would be the outer function's scope.
+    // SymbolTable's current_scope_level is now for parameters. So parent is current_scope_level - 1.
+    SymbolInfo func_info;
+    func_info.type = proto_node->return_type; // Already determined
+    func_info.kind = (func_proc_kw.type == TokenType::FUNCTION) ? "function" : "procedure";
+    func_info.scope_level = symbol_table_ptr->getCurrentScopeLevel() -1; // Added to parent scope
+    func_info.declaration_line = func_name_tok.line;
+    func_info.declaration_col = func_name_tok.col;
+    // TODO: Store parameter types in func_info if SymbolInfo supports it.
+
+    // Temporarily exit to parent scope to add the function symbol, then re-enter for subsequent parsing if necessary.
+    // This is a bit tricky. A better way might be to pass the target symbol table and scope level to addSymbol.
+    // Or, collect all info and add it after all scopes are exited.
+    // For simplicity, let's assume addSymbol can handle adding to a specific scope or we adjust.
+    // The current SymbolTable addSymbol adds to current scope.
+    // So, we'd need to add it *before* entering param scope, or have a way to add to outer scope.
+
+    // Let's assume we add the function symbol to the scope that was active *before* parameters.
+    // This means we should construct func_info and add it *before* symbol_table_ptr->enterScope();
+    // This part of the logic needs careful review with the SymbolTable implementation.
+    // For now, the SymbolInfo is created, but adding it to the correct scope is deferred or needs symbol_table enhancement.
+    // The provided solution for SymbolTable adds to scope_stack[current_scope_level].
+    // So, to add to parent, we'd need to do it before `enterScope` for params.
+
+    // The current structure of parseFunctionPrototype and parseSubprogramBody implies
+    // that parseFunctionPrototype is called, then parameter scope is entered,
+    // then local kamus scope is entered, then exited, then parameter scope is exited.
+    // The function symbol itself should be added to the scope *containing* the function.
+
+    // Simplification: Add function symbol to the scope active when `parseFunctionPrototype` was called.
+    // This is complex because `current_scope_level` changes.
+    // A common approach: `parseFunctionPrototype` returns all info, and `parseSubprogramBody` adds it.
+    // For now, the SymbolInfo for the function itself is not added here due to scope complexity.
+    // This will be addressed by adding it in `parseSubprogramBody` before parameter scope is entered.
+
     return proto_node;
 }
 
 std::unique_ptr<SubprogramBodyNode> Parser::parseSubprogramBody() {
     // Function/Procedure keyword already consumed by lookahead in parseProgram or similar dispatcher
-    // Token func_proc_start_token = previous_token(); // This was incorrect.
-    // func_proc_start_token needs to be based on current_token_cache BEFORE calling parseFunctionPrototype
-    Token func_proc_type_token = current_token_cache; // Peek: FUNCTION or PROCEDURE
+    Token func_proc_start_token = previous_token(); // FUNCTION or PROCEDURE token, captured before calling parseFunctionPrototype
 
     // Add function/procedure symbol to the current scope (e.g., global, or outer function scope)
     // This must happen *before* entering scope for parameters.
@@ -816,28 +855,26 @@ std::unique_ptr<SubprogramBodyNode> Parser::parseSubprogramBody() {
     // Now, add the function/procedure symbol itself to the scope where it's defined.
     SymbolInfo func_sym_info;
     func_sym_info.type = prototype_node->return_type;
-    func_sym_info.kind = (func_proc_type_token.type == TokenType::FUNCTION) ? "function" : "procedure";
+    func_sym_info.kind = (func_proc_start_token.type == TokenType::FUNCTION) ? "function" : "procedure";
     func_sym_info.scope_level = function_definition_scope_level;
     func_sym_info.declaration_line = prototype_node->line; // Use line/col from prototype node
     func_sym_info.declaration_col = prototype_node->col;
     // TODO: Populate parameter list in func_sym_info if SymbolInfo supports it.
 
-    // The call to parseFunctionPrototype() above has already advanced current_scope_level
-    // to be the parameter scope. We need to add the function symbol to the
-    // function_definition_scope_level (the parent scope).
-    symbol_table_ptr->exitScope(); // Momentarily exit parameter scope to be in function_definition_scope
-
-    // Note: prototype_node has been moved into subprogram_node at this point if we create subprogram_node earlier.
-    // Let's create subprogram_node after adding the symbol.
-    // So, use prototype_node directly here.
+    // Add to the original scope (parent of parameter scope)
+    // This requires a way to add to a specific scope index or temporarily revert scope.
+    // Current `addSymbol` adds to `scope_stack[current_scope_level]`.
+    // `current_scope_level` is now the parameter scope.
+    // This is a known challenge. For now, we'll try to add to the parent scope by index if possible,
+    // or acknowledge this needs a SymbolTable enhancement or different call order.
+    // Quick fix: Temporarily decrement, add, then increment. (This is a hack)
+    symbol_table_ptr->current_scope_level--; // HACK: go to parent scope
     if (!symbol_table_ptr->addSymbol(prototype_node->func_name, func_sym_info)) {
         ErrorHandler::report(ErrorCode::SEMANTIC_REDEFINITION_IDENTIFIER,
                              func_sym_info.declaration_line, func_sym_info.declaration_col,
                              "Subprogram '" + prototype_node->func_name + "' already declared in this scope.");
-        // Consider how to handle this error, e.g., by not proceeding or returning nullptr
     }
-
-    symbol_table_ptr->enterScope(); // Re-enter parameter scope
+    symbol_table_ptr->current_scope_level++; // HACK: restore to parameter scope
 
     // Line/col for SubprogramBodyNode can be from the prototype
     auto subprogram_node = std::make_unique<SubprogramBodyNode>(prototype_node->line, prototype_node->col, std::move(prototype_node), nullptr);
