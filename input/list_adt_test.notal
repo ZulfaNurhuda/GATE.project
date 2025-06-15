@@ -1,0 +1,62 @@
+Program TestUserDefinedList
+
+KAMUS
+    // User defines the List ADT structure
+    type List < value: integer,
+                next: pointer to List >; // Semicolon terminates type declaration
+
+    // Declare variables of the List type and pointers to List
+    myListHead : pointer to List;
+    newNode : pointer to List;
+    tempPtr : pointer to List;
+    i : integer;
+    // NULL is assumed to be a recognized keyword/literal for null pointers.
+
+ALGORITMA
+    output("--- User-Defined List ADT Test ---")
+
+    // Initialize list head to NULL
+    myListHead <- NULL;
+
+    // Create and prepend two nodes: (20) -> (10) -> NULL
+    for i <- 1 to 2 do // Creates 10, then 20, prepending each
+        newNode <- allocate(16) // Placeholder size for a List node (e.g., int + pointer)
+                                // In a real scenario, sizeof(List) would be better if available
+        if newNode = NULL then
+            output("Memory allocation failed for newNode!")
+            // In a real scenario, might exit or handle error
+        else
+            if i = 1 then // First node (value 10)
+                dereference(newNode).value <- 10
+            else // Second node (value 20)
+                dereference(newNode).value <- 20
+            // endif (no endif due to indentation)
+            dereference(newNode).next <- myListHead // Point to current head
+            myListHead <- newNode                 // New node becomes the head
+        // endif (no endif due to indentation)
+    // endfor (no endfor due to indentation)
+
+    // Traverse and print the list
+    output("List content (should be 20 -> 10):")
+    tempPtr <- myListHead
+    while tempPtr <> NULL do
+        output("Value: ", tempPtr^.value) // Using ^. to access member
+        tempPtr <- tempPtr^.next          // Move to next node
+    // end while (dedent)
+
+    // Deallocate list nodes (manual memory management)
+    output("Deallocating list...")
+    tempPtr <- myListHead
+    while tempPtr <> NULL do
+        // KAMUS LOKAL (Conceptual for this loop iteration)
+        declare nodeToFree : pointer to List // NOTAL doesn't have block-local declares like this
+                                            // Transpiler would hoist this to current KAMUS scope
+        nodeToFree <- tempPtr
+        tempPtr <- tempPtr^.next
+        deallocate(nodeToFree)
+    // end while (dedent)
+    myListHead <- NULL // Important after deallocating all nodes
+
+    output("List deallocated.")
+    output("--- Test Complete ---")
+END.

@@ -36,6 +36,8 @@ void NullLiteralNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
 void EnumTypeNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
 void ConstantDeclarationNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
 void PointerMemberAccessNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void RecordTypeNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+// FieldNode does not need an accept method as it's a data structure part of RecordTypeNode
 
 // Base classes still need a definition for accept if they are not purely abstract
 // with respect to accept, or if direct instantiation was possible (which it isn't here).
@@ -1086,17 +1088,10 @@ std::unique_ptr<DeclarationNode> Parser::parseTypeDefinition() {
     Token type_name_tok = consume(TokenType::IDENTIFIER, "Expected type name identifier.");
     consume(TokenType::COLON, "Expected ':' after type name.");
 
-    if (check(TokenType::LPAREN)) { // Enum: type MyEnum : (VAL1, VAL2)
-        // parseEnumTypeDefinitionBody now returns EnumTypeNode and handles symbol table addition for type and values
+    if (check(TokenType::LPAREN)) {
         return parseEnumTypeDefinitionBody(type_name_tok);
-    } else if (check(TokenType::LESS)) { // Record: type MyRecord : < ... >
-        // For now, placeholder, as record parsing is assumed to exist or be separate
-        // Example: return parseRecordTypeDefinitionBody(type_name_tok);
-        ErrorHandler::report(ErrorCode::NOT_IMPLEMENTED_ERROR, current_token_cache.line, current_token_cache.col, "Record type definitions not fully implemented in this path yet.");
-        // Skip to a semicolon to allow further parsing attempts
-        while(!check(TokenType::SEMICOLON) && !check(TokenType::EOF_TOKEN)) advance();
-        match(TokenType::SEMICOLON);
-        return nullptr; // Or a generic placeholder node
+    } else if (check(TokenType::LESS)) {
+        return parseRecordTypeDefinitionBody(type_name_tok);
     } else {
         ErrorHandler::report(ErrorCode::SYNTAX_UNEXPECTED_TOKEN, current_token_cache.line, current_token_cache.col, "Expected '(' for enum or '<' for record type definition.");
         throw std::runtime_error("Parser error: Invalid type definition structure.");

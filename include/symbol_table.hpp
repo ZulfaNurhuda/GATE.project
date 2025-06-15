@@ -14,10 +14,21 @@ enum class ParameterMode {
     NONE // For non-parameter symbols or uninitialized state
 };
 
+// Struct to detail fields within a record/struct type
+struct FieldDetail {
+    std::string name;           // Field name
+    std::string type_str;       // Full type string, e.g., "integer", "pointer to MyRecord"
+    bool is_self_pointer = false; // True if this field is a pointer to its parent record type
+    // Add line/col if needed, though errors are usually reported at record definition level
+
+    FieldDetail(std::string n = "", std::string ts = "")
+        : name(std::move(n)), type_str(std::move(ts)), is_self_pointer(false) {}
+};
+
 // Definition for SymbolInfo
 struct SymbolInfo {
-    std::string type;           // Data type or return type
-    std::string kind;           // "variable", "function", "parameter", etc.
+    std::string type;           // Data type or return type (e.g. "integer", "MyRecord", "pointer")
+    std::string kind;           // "variable", "function", "parameter", "type", "constant", etc.
     int scope_level;            // Scope depth where the symbol was defined
     int declaration_line;       // Line number where the symbol was declared (optional)
     int declaration_col;        // Column number where the symbol was declared (optional)
@@ -58,6 +69,10 @@ struct SymbolInfo {
     bool is_enum_value;
     std::string enum_parent_type_name; // For enum value, stores its enum type name
 
+    // Record type information
+    bool is_record_type;
+    std::vector<FieldDetail> record_fields; // For record types, lists their fields
+
     // Default constructor for convenience
     SymbolInfo(std::string t = "", std::string k = "", int sl = 0, int dl = 0, int dc = 0)
         : type(std::move(t)), kind(std::move(k)), scope_level(sl), declaration_line(dl), declaration_col(dc),
@@ -66,7 +81,8 @@ struct SymbolInfo {
           is_pointer_type(false), pointed_type(""),
           is_constant(false),
           is_enum_type(false), /* enum_values_list is default-constructed to empty */
-          is_enum_value(false), enum_parent_type_name("")
+          is_enum_value(false), enum_parent_type_name(""),
+          is_record_type(false) /* record_fields is default-constructed to empty */
           {}
 };
 

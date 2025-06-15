@@ -181,6 +181,26 @@ public:
 };
 
 // --- New Declaration Nodes ---
+
+class FieldNode : public ASTNode {
+public:
+    std::string field_name;
+    std::string type_name_str;
+    FieldNode(int l, int c, std::string name, std::string type_str)
+        : ASTNode(l, c), field_name(std::move(name)), type_name_str(std::move(type_str)) {}
+    // No accept method needed if RecordTypeNode's visitor handles fields directly
+};
+
+class RecordTypeNode : public DeclarationNode {
+public:
+    std::string name;
+    std::vector<std::unique_ptr<FieldNode>> fields;
+
+    RecordTypeNode(int l, int c, std::string record_name, std::vector<std::unique_ptr<FieldNode>> field_nodes)
+        : DeclarationNode(l, c), name(std::move(record_name)), fields(std::move(field_nodes)) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
 class EnumTypeNode : public DeclarationNode {
 public:
     std::string name;
@@ -400,8 +420,9 @@ private:
     std::unique_ptr<FunctionPrototypeNode> parseFunctionPrototype();
     std::unique_ptr<SubprogramBodyNode> parseSubprogramBody();
     std::unique_ptr<ConstantDeclarationNode> parseConstantDeclaration(); // New
-    std::unique_ptr<DeclarationNode> parseTypeDefinition();            // New (can return EnumTypeNode or RecordTypeNode)
-    std::unique_ptr<EnumTypeNode> parseEnumTypeDefinitionBody(Token type_name_token); // New Helper
+    std::unique_ptr<DeclarationNode> parseTypeDefinition();
+    std::unique_ptr<EnumTypeNode> parseEnumTypeDefinitionBody(Token type_name_token);
+    std::unique_ptr<RecordTypeNode> parseRecordTypeDefinitionBody(Token type_name_token); // New Helper
     // ... other parsing helpers for different node types
     // Helper function to get operator precedence - declaration
     int getOperatorPrecedence(TokenType type);

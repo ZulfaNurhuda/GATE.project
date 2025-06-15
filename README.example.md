@@ -248,6 +248,31 @@ This section details additional language features, including those for more adva
     *   Multiple assignment statements can be written on a single line at the beginning of an `ALGORITMA` block, separated by semicolons.
     *   Example: `ALGORITMA \n    a <- 1; b <- 2; c <- "test"`
 
+*   **Defining Linked Data Structures (e.g., Linked Lists):**
+    - Users can define recursive data structures like linked lists using records that contain pointers to their own type.
+    - The `pointer to <RecordName>` syntax within a field definition allows for self-referential structures.
+    - The code generator ensures that C `struct`s are defined with appropriate forward `typedef`s to handle such self-references.
+
+    **Example: Linked List Node (`input/list_adt_test.notal`)**
+    ```notal
+    KAMUS
+        type List < value: integer,
+                    next: pointer to List >;
+        myListHead : pointer to List
+    ```
+
+    **Generated C (`output/list_adt_test.c`):**
+    ```c
+    typedef struct List List; // Forward declaration for typedef name
+    struct List {
+        int value;
+        List* next; // Self-referential pointer
+    };
+
+    List* myListHead = NULL;
+    ```
+    - This allows manual creation and manipulation of linked lists, as demonstrated in `input/list_adt_test.notal` using `allocate`, `dereference`, and `^.` for node operations.
+
 ### Example: Advanced Features (`input/advanced_features_test.notal`)
 ```notal
 Program TestAdvancedFeatures
