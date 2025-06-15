@@ -176,7 +176,21 @@ std::vector<Token> Lexer::tokenize(const std::string &source_code) {
                 continue; // Done with this comment block on this line
             }
 
-            // Identifiers and Keywords
+            // Check for "input/output" keyword (case-insensitive)
+            // This needs to be checked before general identifiers and before single '/' operator
+            if ((current_char == 'i' || current_char == 'I') && current_pos + 11 <= line_end_pos) { // "input/output" is 12 chars
+                std::string potential_kw = source_code.substr(current_pos, 12);
+                std::string lower_kw = potential_kw;
+                std::transform(lower_kw.begin(), lower_kw.end(), lower_kw.begin(), ::tolower);
+                if (lower_kw == "input/output") {
+                    tokens.push_back({TokenType::INPUTOUTPUT_KEYWORD, potential_kw, current_line_num, token_start_col});
+                    current_pos += 12;
+                    current_col_num += 12;
+                    continue;
+                }
+            }
+
+            // Identifiers and Keywords (including "input" and "output" separately)
             if (std::isalpha(current_char) || current_char == '_') {
                 std::string word;
                 while (current_pos < line_end_pos && (std::isalnum(source_code[current_pos]) || source_code[current_pos] == '_')) {

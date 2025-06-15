@@ -210,6 +210,47 @@ bool IsLulus(int N) {
     *   `procedure <Name>(<params>)`
     *   Parameter passing (default `input` mode).
     *   Return mechanism: `-> value` at end of function or `return` keyword within the body.
+    *   **Procedure Parameter Modifiers:** NOTAL procedures support `input`, `output`, and `input/output` modifiers for parameters to control how data is passed and modified.
+        *   `input`: (Default) Parameter is pass-by-value. The procedure receives a copy of the argument. Changes inside the procedure do not affect the caller's variable. C equivalent: `T param_name`.
+        *   `output`: Parameter is pass-by-reference. The procedure is expected to provide a value for this parameter. The caller's variable will be updated. C equivalent: `T* param_name` for most types; `char** param_name` for `string` type, where the procedure is responsible for allocating memory for the string (e.g., using `strdup`).
+        *   `input/output`: Parameter is pass-by-reference. The caller provides an initial value, and the procedure can modify it, with changes reflected back to the caller. C equivalent: `T* param_name` for most types; `char** param_name` for `string` type, allowing the procedure to reallocate or repoint the string. The caller's string variable should typically be heap-allocated (e.g. via `strdup` or other means) to allow the procedure to safely `free` and reassign it.
+
+        **Example (`input/procedure_params_test.notal`):**
+        ```notal
+        procedure ProcessNumbers(input a: integer, output b: integer, input/output c: integer)
+        ALGORITMA
+            b <- a * 2;
+            c <- c * 2;
+
+        procedure ProcessStrings(input s1: string, output s2: string, input/output s3: string)
+        ALGORITMA
+            s2 <- "processed_output";
+            s3 <- "modified_io";
+        ```
+
+        **Generated C Snippet (from `output/procedure_params_test.c`):**
+        ```c
+        // Forward declarations
+        void ProcessNumbers(int a, int* b, int* c);
+        void ProcessStrings(char* s1, char** s2, char** s3);
+
+        // In main:
+        // ProcessNumbers(num_in, &num_out, &num_io);
+        // ProcessStrings(str_in, &str_out, &str_io); // Assuming str_io was strdup'd
+
+        void ProcessNumbers(int a, int* b, int* c) {
+            *b = a * 2;
+            *c = *c * 2;
+        }
+
+        void ProcessStrings(char* s1, char** s2, char** s3) {
+            if (*s2) free(*s2);
+            *s2 = strdup("processed_output");
+
+            if (*s3) free(*s3);
+            *s3 = strdup("modified_io");
+        }
+        ```
 *   **Abstract Data Types (ADTs):**
     *   Support for `List`, `Stack`, `Tree` etc. (if headers are provided).
     *   Generates `#include "adt_list.h"` etc., when ADT types are used.

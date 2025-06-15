@@ -739,19 +739,29 @@ std::unique_ptr<VariableDeclarationNode> Parser::parseVariableDeclaration() {
 
 
 std::unique_ptr<FunctionParameterNode> Parser::parseFunctionParameter() {
-    // Example: `x : integer` or `INPUT x : integer` or `OUTPUT y : string`
-    // This needs to be adapted to the specific language's parameter syntax.
-    // For now, let's assume `var_name : type_name`
+    ParameterMode current_mode = ParameterMode::IN; // Default mode
+
+    // Check for explicit mode specifiers
+    if (match(TokenType::OUTPUT)) {
+        current_mode = ParameterMode::OUT;
+    } else if (match(TokenType::INPUTOUTPUT_KEYWORD)) {
+        current_mode = ParameterMode::IN_OUT;
+    } else if (match(TokenType::INPUT)) {
+        current_mode = ParameterMode::IN;
+    }
+    // If none of these are matched, it defaults to ParameterMode::IN as initialized.
+
     Token param_name_tok = consume(TokenType::IDENTIFIER, "Expected parameter name.");
     consume(TokenType::COLON, "Expected ':' after parameter name.");
     Token param_type_tok = current_token_cache;
+
     if (param_type_tok.type == TokenType::TYPE_INTEGER || param_type_tok.type == TokenType::TYPE_STRING ||
-        param_type_tok.type == TokenType::TYPE_BOOLEAN || param_type_tok.type == TokenType::TYPE_CHARACTER || // Added
-        param_type_tok.type == TokenType::TYPE_REAL    || // Added
-        param_type_tok.type == TokenType::IDENTIFIER) {
-        advance(); // Consume type
+        param_type_tok.type == TokenType::TYPE_BOOLEAN || param_type_tok.type == TokenType::TYPE_CHARACTER ||
+        param_type_tok.type == TokenType::TYPE_REAL    ||
+        param_type_tok.type == TokenType::IDENTIFIER) { // IDENTIFIER for custom types
+        advance(); // Consume type token
     } else {
-        ErrorHandler::report(ErrorCode::SYNTAX_INVALID_EXPRESSION, param_type_tok.line, param_type_tok.col, "Expected type for parameter " + param_name_tok.value);
+        ErrorHandler::report(ErrorCode::SYNTAX_MISSING_EXPECTED_TOKEN, param_type_tok.line, param_type_tok.col, "Expected type for parameter '" + param_name_tok.value + "'.");
         throw std::runtime_error("Parser error: Invalid type in parameter declaration.");
     }
 
@@ -761,14 +771,16 @@ std::unique_ptr<FunctionParameterNode> Parser::parseFunctionParameter() {
     param_info.scope_level = symbol_table_ptr->getCurrentScopeLevel();
     param_info.declaration_line = param_name_tok.line;
     param_info.declaration_col = param_name_tok.col;
+    param_info.param_mode = current_mode; // Set the parameter mode in SymbolInfo
 
     if (!symbol_table_ptr->addSymbol(param_name_tok.value, param_info)) {
         ErrorHandler::report(ErrorCode::SEMANTIC_REDEFINITION_IDENTIFIER,
                              param_info.declaration_line, param_info.declaration_col,
                              "Parameter '" + param_name_tok.value + "' already declared in this function/procedure scope.");
-        // Error or throw
+        // Consider if this should throw or just report and continue for robustness
     }
-    return std::make_unique<FunctionParameterNode>(param_name_tok.line, param_name_tok.col, param_name_tok.value, param_type_tok.value);
+
+    return std::make_unique<FunctionParameterNode>(param_name_tok.line, param_name_tok.col, param_name_tok.value, param_type_tok.value, current_mode);
 }
 
 

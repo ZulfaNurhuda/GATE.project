@@ -13,6 +13,13 @@ class ASTVisitor;
 // Forward declaration for ProgramNode, used in ParseResult
 class ProgramNode;
 
+// Enum for parameter passing modes
+enum class ParameterMode {
+    IN,    // Default, or explicitly 'input'
+    OUT,   // Explicitly 'output'
+    IN_OUT // Explicitly 'input/output'
+};
+
 // Structure to hold the results of parsing
 struct ParseResult {
     std::unique_ptr<ProgramNode> ast_root;
@@ -248,10 +255,11 @@ class FunctionParameterNode : public ASTNode { // Or inherit DeclarationNode
 public:
     std::string param_name;
     std::string param_type;
+    ParameterMode mode;
     // bool is_reference; // Or some other way to denote pass-by-value/reference if needed
 
-    FunctionParameterNode(int l, int c, std::string name, std::string type)
-        : ASTNode(l, c), param_name(std::move(name)), param_type(std::move(type)) {}
+    FunctionParameterNode(int l, int c, std::string name, std::string type, ParameterMode p_mode = ParameterMode::IN)
+        : ASTNode(l, c), param_name(std::move(name)), param_type(std::move(type)), mode(p_mode) {}
     void accept(ASTVisitor* visitor) override;
 };
 
@@ -311,6 +319,7 @@ private:
     std::unique_ptr<BlockNode> parseBlock();
     std::unique_ptr<IdentifierNode> parseIdentifier();
     std::unique_ptr<VariableDeclarationNode> parseVariableDeclaration();
+    std::unique_ptr<FunctionParameterNode> parseFunctionParameter(); // Added declaration
     std::unique_ptr<FunctionPrototypeNode> parseFunctionPrototype();
     std::unique_ptr<SubprogramBodyNode> parseSubprogramBody();
     // ... other parsing helpers for different node types

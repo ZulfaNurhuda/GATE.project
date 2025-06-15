@@ -69,6 +69,8 @@ enum class TokenType
     OTHERWISE,
     // ENDDEPENDON, // Removed for indentation-based parsing
 
+    INPUTOUTPUT_KEYWORD, // For 'input/output' parameter modifier
+
     // Subprogram Keywords
     PROCEDURE,
     RIGHT_ARROW, // For '->' in function returns and return type declaration
