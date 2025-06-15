@@ -347,14 +347,14 @@ void CodeGenerator::visit(const FunctionCallNode* node) {
     write("(");
 
     if (node->arguments.empty()) {
-        if (func_sym_info && func_sym_info->kind != "variable" && func_sym_info->param_modes_for_call_site.empty()) {
+        if (func_sym_info && func_sym_info->kind != "variable" && func_sym_info->parameters.empty()) {
              write("void"); // Explicitly pass void if function is known to take no arguments
         }
     } else {
         for (size_t i = 0; i < node->arguments.size(); ++i) {
             bool passed_by_address = false;
-            if (func_sym_info && i < func_sym_info->param_modes_for_call_site.size()) {
-                 ParameterMode mode = func_sym_info->param_modes_for_call_site[i];
+            if (func_sym_info && i < func_sym_info->parameters.size()) {
+                 ParameterMode mode = func_sym_info->parameters[i].param_mode;
                  if (mode == ParameterMode::OUT || mode == ParameterMode::IN_OUT) {
                      if (dynamic_cast<const IdentifierNode*>(node->arguments[i].get()) ||
                          dynamic_cast<const ArrayAccessNode*>(node->arguments[i].get()) ||
