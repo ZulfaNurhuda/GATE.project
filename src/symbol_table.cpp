@@ -74,7 +74,7 @@ SymbolInfo* SymbolTable::lookupSymbol(const std::string& name) const { // Added 
 
 // Looks up a symbol only in the current (innermost) scope.
 // Returns a pointer to SymbolInfo if found, otherwise nullptr.
-SymbolInfo* SymbolTable::lookupSymbolInCurrentScope(const std::string& name) const { // Added const
+const SymbolInfo* SymbolTable::lookupSymbolInCurrentScope(const std::string& name) const { // Added const
     if (current_scope_level < 0 || static_cast<size_t>(current_scope_level) >= scope_stack.size()) {
         // Invalid state (no active scope or current_scope_level out of sync)
         return nullptr;
@@ -83,9 +83,8 @@ SymbolInfo* SymbolTable::lookupSymbolInCurrentScope(const std::string& name) con
     const std::unordered_map<std::string, SymbolInfo>& current_map = scope_stack[current_scope_level]; // Use const&
     auto it = current_map.find(name);
     if (it != current_map.end()) {
-        // Returning a non-const pointer from a const method to a member is unsafe.
-        // Using const_cast to match the original non-const return type.
-        return const_cast<SymbolInfo*>(&(it->second));
+        // Correctly returning const SymbolInfo*
+        return &(it->second);
     }
 
     return nullptr; // Symbol not found in the current scope

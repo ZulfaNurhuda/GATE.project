@@ -2,6 +2,7 @@
 #include "../include/error_handler.hpp" // For error reporting
 #include "../include/generator.hpp"      // Added for ASTVisitor full definition
 #include <stdexcept> // For std::runtime_error
+#include <algorithm> // Required for std::any_of
 
 // --- ASTNode accept method implementations ---
 // These methods allow the Visitor to dispatch to the correct visit method.
@@ -250,8 +251,6 @@ std::unique_ptr<StringLiteralNode> Parser::parseStringLiteral() {
 std::unique_ptr<ExpressionNode> Parser::parsePrimaryExpression() {
     if (check(TokenType::IDENTIFIER)) {
         auto ident_node_ptr = parseIdentifier(); // This is std::unique_ptr<IdentifierNode>
-        int line = ident_node_ptr->line;
-        int col = ident_node_ptr->col;
 
         // Check for postfix operations (function call or array access)
         // This loop allows for chained operations like foo(x)[y] if grammar supports it,
@@ -839,8 +838,57 @@ std::unique_ptr<ConstantDeclarationNode> Parser::parseConstantDeclaration() {
     // Validate that value_expr is indeed a literal type
     if (!dynamic_cast<IntegerLiteralNode*>(value_expr.get()) &&
         !dynamic_cast<StringLiteralNode*>(value_expr.get()) && // Assuming real literals would be another node type
-        !dynamic_cast<NullLiteralNode*>(value_expr.get()) && // Assuming boolean true/false are identifiers that map to some literal-like node or are handled
-        !(dynamic_cast<IdentifierNode*>(value_expr.get()) && (value_expr->to_string() == "true" || value_expr->to_string() == "false")) // Hacky check for true/false as identifiers
+        !dynamic_cast<NullLiteralNode*>(value_expr.get())) { // Assuming boolean true/false are identifiers that map to some literal-like node or are handled
+        // Check for true/false as identifiers separately
+        IdentifierNode* id_node = dynamic_cast<IdentifierNode*>(value_expr.get());
+        if (!id_node || (id_node->name != "true" && id_node->name != "false")) {
+            // TODO: Add check for RealLiteralNode if/when it exists
+            ErrorHandler::report(ErrorCode::SYNTAX_ERROR, previous_token().line, previous_token().col, "Constant value must be a literal (integer, string, boolean, NULL) or recognized identifier (true/false).");
+        }
+    }
+    // The previous complex conditional was split for clarity and correctness.
+    // The original logic was:
+    // if (!isInteger && !isString && !isNull && !(isIdentifier && (isTrue || isFalse)))
+    // This means if it's none of the direct literals, AND it's not (Identifier AND (true or false)), then error.
+    // The corrected logic above first checks direct literals. If none match, it then checks if it's an identifier
+    // and if that identifier is NOT true/false. If both these conditions are met (not a literal, AND (not an identifier OR (identifier IS NOT true/false) ) )
+    // then it reports an error. This is slightly different from the original but more robust.
+    // A simpler way to write the condition for error:
+    // bool is_literal = dynamic_cast<IntegerLiteralNode*>(value_expr.get()) ||
+    //                   dynamic_cast<StringLiteralNode*>(value_expr.get()) ||
+    //                   dynamic_cast<NullLiteralNode*>(value_expr.get());
+    // IdentifierNode* id_node_for_bool_check = dynamic_cast<IdentifierNode*>(value_expr.get());
+    // bool is_boolean_identifier = id_node_for_bool_check && (id_node_for_bool_check->name == "true" || id_node_for_bool_check->name == "false");
+    // if (!is_literal && !is_boolean_identifier) {
+    //    ErrorHandler::report(ErrorCode::SYNTAX_ERROR, previous_token().line, previous_token().col, "Constant value must be a literal (integer, string, boolean, NULL).");
+    // }
+    // The code block above this comment implements this logic.
+
+    // The following is an attempt to match the original single-line if condition's structure more closely,
+    // which was !(A || B || C || (D && (E || F)))
+    // This becomes !A && !B && !C && !(D && (E || F))
+    // Let's use the clearer split logic implemented above.
+    // The code was:
+    // if (!dyn_cast<Int>(...) && !dyn_cast<Str>(...) && !dyn_cast<Null>(...) &&
+    //     !( (id_node = dyn_cast<Id>(...)) && (id_node->name == "true" || id_node->name == "false") )
+    //   ) { ErrorHandler::report(...) }
+    // This structure is what the new code with the explicit id_node check aims to achieve.
+    // The existing code block will be:
+    //    IdentifierNode* id_node = dynamic_cast<IdentifierNode*>(value_expr.get());
+    //    if (!dynamic_cast<IntegerLiteralNode*>(value_expr.get()) &&
+    //        !dynamic_cast<StringLiteralNode*>(value_expr.get()) &&
+    //        !dynamic_cast<NullLiteralNode*>(value_expr.get()) &&
+    //        (!id_node || (id_node->name != "true" && id_node->name != "false"))
+    //        // TODO: Add check for RealLiteralNode if/when it exists
+    //        ) {
+    //        ErrorHandler::report(ErrorCode::SYNTAX_ERROR, previous_token().line, previous_token().col, "Constant value must be a literal (integer, string, boolean, NULL).");
+    //    }
+    // This is better. Let's use this corrected single if.
+    IdentifierNode* id_node_for_const_val_check = dynamic_cast<IdentifierNode*>(value_expr.get());
+    if (!dynamic_cast<IntegerLiteralNode*>(value_expr.get()) &&
+        !dynamic_cast<StringLiteralNode*>(value_expr.get()) &&
+        !dynamic_cast<NullLiteralNode*>(value_expr.get()) &&
+        (!id_node_for_const_val_check || (id_node_for_const_val_check->name != "true" && id_node_for_const_val_check->name != "false"))
         // TODO: Add check for RealLiteralNode if/when it exists
         ) {
         ErrorHandler::report(ErrorCode::SYNTAX_ERROR, previous_token().line, previous_token().col, "Constant value must be a literal (integer, string, boolean, NULL).");
@@ -1164,6 +1212,28 @@ std::unique_ptr<SubprogramBodyNode> Parser::parseSubprogramBody() {
     symbol_table_ptr->exitScope(); // Exit parameter scope
 
     return subprogram_node;
+}
+
+std::unique_ptr<InputNode> Parser::parseInputStatement() {
+    Token input_tok = current_token_cache; // For line/col info
+    ErrorHandler::report(ErrorCode::NOT_IMPLEMENTED_ERROR, input_tok.line, input_tok.col, "Parsing for 'INPUT' statements is not yet implemented.");
+    throw std::runtime_error("Parser error: parseInputStatement not implemented.");
+    // To make it link, one might consume tokens expected for a basic input statement
+    // For example: consume(TokenType::INPUT); consume(TokenType::LPAREN); ... consume(TokenType::SEMICOLON);
+    // And return a dummy InputNode:
+    // return std::make_unique<InputNode>(input_tok.line, input_tok.col);
+    return nullptr;
+}
+
+std::unique_ptr<RecordTypeNode> Parser::parseRecordTypeDefinitionBody(Token type_name_token) {
+    ErrorHandler::report(ErrorCode::NOT_IMPLEMENTED_ERROR, type_name_token.line, type_name_token.col, "Parsing for Record Type (struct) definitions is not yet implemented.");
+    throw std::runtime_error("Parser error: parseRecordTypeDefinitionBody not implemented.");
+    // To make it link, one might consume tokens expected for a basic record definition
+    // For example: consume(TokenType::LESS); ... consume(TokenType::GREATER); consume(TokenType::SEMICOLON);
+    // And return a dummy RecordTypeNode:
+    // std::vector<std::unique_ptr<FieldNode>> fields; // Empty fields
+    // return std::make_unique<RecordTypeNode>(type_name_token.line, type_name_token.col, type_name_token.value, std::move(fields));
+    return nullptr;
 }
 
 // Placeholder for ASTVisitor visit methods (should be in a visitor implementation file)
