@@ -1,0 +1,20 @@
+# Ignore the build directory
+build/
+
+# Ignore the executable
+*.exe
+
+# Ignore the object files
+*.o
+
+# Ignore the log files
+*.log
+
+# Ignore the temporary files
+*.tmp
+
+# Ignore the output files
+*.out
+
+# Ignore the executable (Linux)
+gate
