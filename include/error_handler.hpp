@@ -12,6 +12,7 @@ enum class ErrorCode {
     LEXICAL_INVALID_STRING_LITERAL,
     LEXICAL_UNTERMINATED_COMMENT,
     LEXICAL_INVALID_NUMBER_FORMAT,
+    LEXICAL_INDENTATION_ERROR,     // New error code for indentation issues
 
     // Syntax/Parsing Errors
     SYNTAX_ERROR, // Generic syntax error
