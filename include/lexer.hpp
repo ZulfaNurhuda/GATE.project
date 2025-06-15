@@ -14,10 +14,10 @@ enum class TokenType
     IF,
     THEN,
     ELSE,
-    ENDIF,
+    // ENDIF, // Removed for indentation-based parsing
     FOR,
     TO,
-    ENDFOR,
+    // ENDFOR, // Removed for indentation-based parsing
     INPUT,
     OUTPUT,
     DISPOSE,
@@ -60,14 +60,14 @@ enum class TokenType
     // Control Flow Keywords
     WHILE,
     DO,
-    ENDWHILE,
+    // ENDWHILE, // Removed for indentation-based parsing
     REPEAT,
     UNTIL,
     DEPEND,   // For 'depend on'
     ON,       // For 'depend on'
     CASE,
     OTHERWISE,
-    ENDDEPENDON,
+    // ENDDEPENDON, // Removed for indentation-based parsing
 
     // Subprogram Keywords
     PROCEDURE,
@@ -102,6 +102,10 @@ enum class TokenType
 
     ENDPROGRAM, // Specific keyword for program termination
     END, // General block end keyword
+
+    // Indentation tokens
+    INDENT,
+    DEDENT,
 
     // Utility tokens
     UNKNOWN,   // For unrecognized tokens

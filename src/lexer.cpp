@@ -8,12 +8,12 @@
 static const std::unordered_map<std::string, TokenType> keywords = {
     {"program", TokenType::PROGRAM}, {"kamus", TokenType::KAMUS}, {"algoritma", TokenType::ALGORITMA},
     {"function", TokenType::FUNCTION}, {"procedure", TokenType::PROCEDURE},
-    {"if", TokenType::IF}, {"then", TokenType::THEN}, {"else", TokenType::ELSE}, {"endif", TokenType::ENDIF},
-    {"for", TokenType::FOR}, {"to", TokenType::TO}, {"endfor", TokenType::ENDFOR},
-    {"while", TokenType::WHILE}, {"do", TokenType::DO}, {"endwhile", TokenType::ENDWHILE},
+    {"if", TokenType::IF}, {"then", TokenType::THEN}, {"else", TokenType::ELSE}, /* {"endif", TokenType::ENDIF}, */ // Removed
+    {"for", TokenType::FOR}, {"to", TokenType::TO}, /* {"endfor", TokenType::ENDFOR}, */ // Removed
+    {"while", TokenType::WHILE}, {"do", TokenType::DO}, /* {"endwhile", TokenType::ENDWHILE}, */ // Removed
     {"repeat", TokenType::REPEAT}, {"until", TokenType::UNTIL},
     {"depend", TokenType::DEPEND}, {"on", TokenType::ON}, {"case", TokenType::CASE},
-    {"otherwise", TokenType::OTHERWISE}, {"enddependon", TokenType::ENDDEPENDON},
+    {"otherwise", TokenType::OTHERWISE}, /* {"enddependon", TokenType::ENDDEPENDON}, */ // Removed
     {"input", TokenType::INPUT}, {"output", TokenType::OUTPUT}, {"dispose", TokenType::DISPOSE},
     {"true", TokenType::TRUE}, {"false", TokenType::FALSE},
     {"array", TokenType::ARRAY}, {"of", TokenType::OF},
@@ -27,183 +27,254 @@ static const std::unordered_map<std::string, TokenType> keywords = {
     {"endprogram", TokenType::ENDPROGRAM}, {"end", TokenType::END}
 };
 
-std::vector<Token> Lexer::tokenize(const std::string &source_code) {
-    std::vector<Token> tokens;
-    size_t pos = 0;
-    int line = 1, current_col_start = 1;
-
-    while (pos < source_code.size()) {
-        char current_char = source_code[pos];
-        current_col_start = col; // Keep track of column at the start of a token
-
-        // 1. Whitespace
-        if (std::isspace(current_char)) {
-            if (current_char == '\n') {
-                line++;
-                col = 1;
-            } else {
-                col++;
-            }
-            pos++;
-            continue;
-        }
-
-        // 2. Block Comments { ... }
-        if (current_char == '{') {
-            pos++; col++;
-            while (pos < source_code.size() && source_code[pos] != '}') {
-                if (source_code[pos] == '\n') {
-                    line++; col = 1;
-                } else {
-                    col++;
-                }
-                pos++;
-            }
-            if (pos < source_code.size() && source_code[pos] == '}') { // Found closing '}'
-                pos++; col++;
-            } else {
-                // Unterminated comment, report error or handle as per language spec
-                // For now, just add an UNKNOWN token for the opening '{'
-                tokens.push_back({TokenType::UNKNOWN, "{", line, current_col_start});
-                // ErrorHandler::report("Unterminated block comment", line, current_col_start);
-            }
-            continue;
-        }
-
-        // 3. Identifiers and Keywords
-        if (std::isalpha(current_char) || current_char == '_') {
-            std::string word;
-            int token_line = line;
-            int token_col = col;
-            while (pos < source_code.size() && (std::isalnum(source_code[pos]) || source_code[pos] == '_')) {
-                word += source_code[pos];
-                pos++;
-                col++;
-            }
-            std::string lower_word = word;
-            std::transform(lower_word.begin(), lower_word.end(), lower_word.begin(), ::tolower);
-
-            auto keyword_it = keywords.find(lower_word);
-            if (keyword_it != keywords.end()) {
-                tokens.push_back({keyword_it->second, word, token_line, token_col});
-            } else {
-                tokens.push_back({TokenType::IDENTIFIER, word, token_line, token_col});
-            }
-            continue;
-        }
-
-        // 4. Integer Literals
-        if (std::isdigit(current_char)) {
-            std::string num_str;
-            int token_line = line;
-            int token_col = col;
-            while (pos < source_code.size() && std::isdigit(source_code[pos])) {
-                num_str += source_code[pos];
-                pos++;
-                col++;
-            }
-            // Could add floating point support here if needed
-            tokens.push_back({TokenType::INTEGER_LITERAL, num_str, token_line, token_col});
-            continue;
-        }
-
-        // 5. String Literals "..."
-        if (current_char == '"') {
-            std::string str_val;
-            int token_line = line;
-            int token_col = col;
-            pos++; col++; // Consume opening quote
-            while (pos < source_code.size() && source_code[pos] != '"') {
-                // Handle escape sequences if necessary, e.g., \" or \\
-                str_val += source_code[pos];
-                if (source_code[pos] == '\n') { // String literal containing newline - usually an error or needs special handling
-                    line++; col = 1;
-                } else {
-                    col++;
-                }
-                pos++;
-            }
-            if (pos < source_code.size() && source_code[pos] == '"') { // Found closing quote
-                pos++; col++;
-                tokens.push_back({TokenType::STRING_LITERAL, str_val, token_line, token_col});
-            } else { // Unterminated string
-                tokens.push_back({TokenType::UNKNOWN, "\"", token_line, token_col}); // Tokenize the opening quote as unknown
-                // ErrorHandler::report("Unterminated string literal", token_line, token_col);
-            }
-            continue;
-        }
-
-        // 6. Operators and Punctuation
-        int token_line = line;
-        int token_col = col;
-
-        // Try 2-character tokens first
-        if (pos + 1 < source_code.size()) {
-            char next_char = source_code[pos+1];
-            if (current_char == '<') {
-                if (next_char == '-') { // Assignment: <-
-                    tokens.push_back({TokenType::ASSIGN_OP, "<-", token_line, token_col});
-                    pos += 2; col += 2; continue;
-                } else if (next_char == '=') { // Less or Equal: <=
-                    tokens.push_back({TokenType::LESSEQUAL, "<=", token_line, token_col});
-                    pos += 2; col += 2; continue;
-                } else if (next_char == '>') { // Not Equal: <>
-                    tokens.push_back({TokenType::NOTEQUAL, "<>", token_line, token_col});
-                    pos += 2; col += 2; continue;
-                }
-            } else if (current_char == '>') {
-                if (next_char == '=') { // Greater or Equal: >=
-                    tokens.push_back({TokenType::GREATEREQUAL, ">=", token_line, token_col});
-                    pos += 2; col += 2; continue;
-                }
-            } else if (current_char == '-') {
-                if (next_char == '>') { // Right Arrow: ->
-                    tokens.push_back({TokenType::RIGHT_ARROW, "->", token_line, token_col});
-                    pos += 2; col += 2; continue;
-                }
-            } else if (current_char == '.') {
-                if (next_char == '.') { // Dot Dot: ..
-                    tokens.push_back({TokenType::DOTDOT, "..", token_line, token_col});
-                    pos += 2; col += 2; continue;
-                }
-            }
-            // LEFT_ARROW ('←') is not handled here as it's a single Unicode char,
-            // assuming assignment is '<-' as per ASSIGN_OP.
-            // If '←' needs to be supported, it would be a single char case.
-        }
-
-        // Try 1-character tokens
-        switch (current_char) {
-            case ':': tokens.push_back({TokenType::COLON, ":", token_line, token_col}); pos++; col++; continue;
-            case ';': tokens.push_back({TokenType::SEMICOLON, ";", token_line, token_col}); pos++; col++; continue;
-            case ',': tokens.push_back({TokenType::COMMA, ",", token_line, token_col}); pos++; col++; continue;
-            case '.': tokens.push_back({TokenType::DOT, ".", token_line, token_col}); pos++; col++; continue;
-            case '(': tokens.push_back({TokenType::LPAREN, "(", token_line, token_col}); pos++; col++; continue;
-            case ')': tokens.push_back({TokenType::RPAREN, ")", token_line, token_col}); pos++; col++; continue;
-            case '[': tokens.push_back({TokenType::LBRACKET, "[", token_line, token_col}); pos++; col++; continue;
-            case ']': tokens.push_back({TokenType::RBRACKET, "]", token_line, token_col}); pos++; col++; continue;
-            case '+': tokens.push_back({TokenType::PLUS, "+", token_line, token_col}); pos++; col++; continue;
-            case '-': tokens.push_back({TokenType::MINUS, "-", token_line, token_col}); pos++; col++; continue;
-            case '*': tokens.push_back({TokenType::STAR, "*", token_line, token_col}); pos++; col++; continue;
-            case '/': tokens.push_back({TokenType::SLASH, "/", token_line, token_col}); pos++; col++; continue;
-            case '=': tokens.push_back({TokenType::EQUAL, "=", token_line, token_col}); pos++; col++; continue;
-            case '<': tokens.push_back({TokenType::LESS, "<", token_line, token_col}); pos++; col++; continue;
-            case '>': tokens.push_back({TokenType::GREATER, ">", token_line, token_col}); pos++; col++; continue;
-            case '^': tokens.push_back({TokenType::CARET, "^", token_line, token_col}); pos++; col++; continue;
-            // The Unicode '←' for LEFT_ARROW is not standard on keyboards.
-            // If it must be supported:
-            // case '←': tokens.push_back({TokenType::ASSIGN_OP /* or LEFT_ARROW if distinct */, "←", token_line, token_col}); pos++; col++; continue;
-            default:
-                // 7. Unknown token
-                tokens.push_back({TokenType::UNKNOWN, std::string(1, current_char), token_line, token_col});
-                // ErrorHandler::report("Unknown character: " + std::string(1, current_char), token_line, token_col);
-                pos++;
-                col++;
-                continue;
+// Helper function to calculate leading spaces
+static int calculate_leading_spaces(const std::string& line_content) {
+    int count = 0;
+    for (char ch : line_content) {
+        if (ch == ' ') {
+            count++;
+        } else if (ch == '\t') {
+            // ErrorHandler::report("Tabs are not allowed for indentation.", 0,0); // Line/col info needs to be passed
+            // Or convert tabs to spaces, e.g., count += 4;
+            // For now, let's treat tabs as an error or simply count them as 1 space (less ideal)
+            // This example will assume tabs are not used or an error is reported elsewhere.
+            // A robust lexer might convert tabs to a fixed number of spaces.
+            // Here, we'll just count them as single characters if not ' '.
+            // A better approach is to disallow tabs or convert them based on a fixed width.
+            // For this implementation, we will stick to spaces only.
+            // If a tab is encountered, it breaks the space counting.
+            break;
+        } else {
+            break; // Non-whitespace character
         }
     }
+    return count;
+}
 
-    // 8. Add EOF token
-    tokens.push_back({TokenType::EOF_TOKEN, "", line, col});
+// Helper function to check if a line is blank or only contains a comment
+static bool is_blank_or_comment_only(const std::string& line_content, size_t code_start_pos) {
+    if (code_start_pos == std::string::npos) return true; // Entirely whitespace or empty
+
+    for (size_t i = code_start_pos; i < line_content.length(); ++i) {
+        if (line_content[i] == '{') return true; // Start of block comment, rest of line is effectively comment
+        if (!std::isspace(line_content[i])) return false; // Found non-whitespace, non-comment character
+    }
+    return true; // Only whitespace after code_start_pos
+}
+
+
+std::vector<Token> Lexer::tokenize(const std::string &source_code) {
+    std::vector<Token> tokens;
+    size_t current_pos = 0;
+    int current_line_num = 1;
+    int current_col_num = 1; // Tracks column for tokens on the current line
+
+    std::vector<int> indent_stack;
+    indent_stack.push_back(0); // Initial indentation level
+
+    size_t line_start_pos = 0;
+
+    while (line_start_pos < source_code.size()) {
+        size_t line_end_pos = source_code.find('\n', line_start_pos);
+        if (line_end_pos == std::string::npos) {
+            line_end_pos = source_code.size();
+        }
+        std::string line_content = source_code.substr(line_start_pos, line_end_pos - line_start_pos);
+
+        // Calculate current indentation
+        current_pos = line_start_pos; // Reset current_pos to start of line for token processing
+        current_col_num = 1;    // Reset column for the new line
+
+        int leading_spaces = 0;
+        size_t first_char_pos = 0;
+        while(first_char_pos < line_content.length() && line_content[first_char_pos] == ' ') {
+            leading_spaces++;
+            first_char_pos++;
+        }
+        // Check for tabs, ideally ErrorHandler should be used.
+        if (first_char_pos < line_content.length() && line_content[first_char_pos] == '\t') {
+             ErrorHandler::report(ErrorCode::LEXICAL_ERROR, current_line_num, first_char_pos + 1, "Tabs are not allowed for indentation. Please use spaces.");
+             // Skip processing this line further or attempt recovery if desired
+             line_start_pos = line_end_pos + 1;
+             current_line_num++;
+             continue;
+        }
+
+
+        // Skip blank lines or lines with only comments for indentation logic
+        bool line_is_significant = false;
+        size_t actual_code_start_idx_in_line = first_char_pos;
+        while(actual_code_start_idx_in_line < line_content.length() && std::isspace(line_content[actual_code_start_idx_in_line])) {
+            actual_code_start_idx_in_line++; // Skip any further spaces/tabs if mixed (though tabs are errors)
+        }
+        if (actual_code_start_idx_in_line < line_content.length() && line_content[actual_code_start_idx_in_line] != '{') {
+             line_is_significant = true; // Line has non-comment code
+        }
+
+
+        if (line_is_significant) {
+            if (leading_spaces > indent_stack.back()) {
+                indent_stack.push_back(leading_spaces);
+                tokens.push_back({TokenType::INDENT, "", current_line_num, 1}); // Indent token at start of line
+            } else if (leading_spaces < indent_stack.back()) {
+                while (leading_spaces < indent_stack.back()) {
+                    indent_stack.pop_back();
+                    tokens.push_back({TokenType::DEDENT, "", current_line_num, 1}); // Dedent token at start of line
+                }
+                if (leading_spaces != indent_stack.back()) {
+                    // Error: Inconsistent dedentation
+                    ErrorHandler::report(ErrorCode::LEXICAL_INDENTATION_ERROR, current_line_num, leading_spaces + 1, "Inconsistent dedentation level.");
+                    // Potentially skip this line or try to recover
+                }
+            }
+        }
+
+        // Process tokens on the current line
+        current_pos = line_start_pos + actual_code_start_idx_in_line; // Start tokenizing from the first non-space char
+        current_col_num = actual_code_start_idx_in_line + 1;
+
+
+        while (current_pos < line_end_pos) {
+            char current_char = source_code[current_pos];
+            int token_start_col = current_col_num;
+
+            // Skip spaces within the line (already handled leading spaces for indentation)
+            if (std::isspace(current_char)) {
+                current_pos++;
+                current_col_num++;
+                continue;
+            }
+
+            // Block Comments { ... }
+            if (current_char == '{') {
+                size_t comment_start_pos = current_pos;
+                while (current_pos < source_code.size() && source_code[current_pos] != '}') {
+                    if (source_code[current_pos] == '\n') {
+                        // This would mean a multi-line comment; the outer loop handles line-by-line.
+                        // For simplicity here, assume comments don't cross lines handled by this inner loop.
+                        // Or, adjust to consume until '}' across lines.
+                        // Current line-by-line processing means this handles comments on a single line
+                        // or the start of a multi-line comment.
+                        // If it's the start of a multi-line comment, the rest of the line might be consumed here.
+                        break; // Let outer loop handle newline and next line's indentation
+                    }
+                    current_pos++;
+                    current_col_num++;
+                }
+                if (current_pos < source_code.size() && source_code[current_pos] == '}') { // Found closing '}'
+                    current_pos++; current_col_num++;
+                } else {
+                    // Unterminated comment on this line, or it spans multiple lines.
+                    // If it spans, the outer loop will pick up next line.
+                    // If it's unclosed at EOF, that's an error handled at the end or by parser.
+                    // For now, consider content from '{' to end of line as part of comment.
+                    // tokens.push_back({TokenType::UNKNOWN, line_content.substr(source_code[comment_start_pos - line_start_pos]), current_line_num, token_start_col});
+                    // ErrorHandler::report("Unterminated block comment", current_line_num, token_start_col);
+                    // Simplification: skip to end of line if '}' not on this line.
+                    current_pos = line_end_pos;
+                }
+                continue; // Done with this comment block on this line
+            }
+
+            // Identifiers and Keywords
+            if (std::isalpha(current_char) || current_char == '_') {
+                std::string word;
+                while (current_pos < line_end_pos && (std::isalnum(source_code[current_pos]) || source_code[current_pos] == '_')) {
+                    word += source_code[current_pos];
+                    current_pos++;
+                    current_col_num++;
+                }
+                std::string lower_word = word;
+                std::transform(lower_word.begin(), lower_word.end(), lower_word.begin(), ::tolower);
+                auto keyword_it = keywords.find(lower_word);
+                if (keyword_it != keywords.end()) {
+                    tokens.push_back({keyword_it->second, word, current_line_num, token_start_col});
+                } else {
+                    tokens.push_back({TokenType::IDENTIFIER, word, current_line_num, token_start_col});
+                }
+                continue; // Back to while(current_pos < line_end_pos)
+            }
+
+            // Integer Literals
+            if (std::isdigit(current_char)) {
+                std::string num_str;
+                while (current_pos < line_end_pos && std::isdigit(source_code[current_pos])) {
+                    num_str += source_code[current_pos];
+                    current_pos++;
+                    current_col_num++;
+                }
+                tokens.push_back({TokenType::INTEGER_LITERAL, num_str, current_line_num, token_start_col});
+                continue;
+            }
+
+            // String Literals "..."
+            if (current_char == '"') {
+                std::string str_val;
+                current_pos++; current_col_num++; // Consume opening quote
+                while (current_pos < line_end_pos && source_code[current_pos] != '"') {
+                    str_val += source_code[current_pos];
+                    current_pos++; current_col_num++;
+                }
+                if (current_pos < line_end_pos && source_code[current_pos] == '"') { // Found closing quote
+                    current_pos++; current_col_num++;
+                    tokens.push_back({TokenType::STRING_LITERAL, str_val, current_line_num, token_start_col});
+                } else { // Unterminated string on this line
+                    tokens.push_back({TokenType::UNKNOWN, "\"", current_line_num, token_start_col});
+                    ErrorHandler::report(ErrorCode::LEXICAL_ERROR, current_line_num, token_start_col, "Unterminated string literal on line.");
+                }
+                continue;
+            }
+
+            // Operators and Punctuation
+            // Try 2-character tokens first
+            if (current_pos + 1 < line_end_pos) { // Ensure next char is on the same line
+                char next_char = source_code[current_pos + 1];
+                std::string two_char_op = std::string(1, current_char) + next_char;
+                if (two_char_op == "<-") { tokens.push_back({TokenType::ASSIGN_OP, "<-", current_line_num, token_start_col}); current_pos+=2; current_col_num+=2; continue;}
+                else if (two_char_op == "<=") { tokens.push_back({TokenType::LESSEQUAL, "<=", current_line_num, token_start_col}); current_pos+=2; current_col_num+=2; continue;}
+                else if (two_char_op == "<>") { tokens.push_back({TokenType::NOTEQUAL, "<>", current_line_num, token_start_col}); current_pos+=2; current_col_num+=2; continue;}
+                else if (two_char_op == ">=") { tokens.push_back({TokenType::GREATEREQUAL, ">=", current_line_num, token_start_col}); current_pos+=2; current_col_num+=2; continue;}
+                else if (two_char_op == "->") { tokens.push_back({TokenType::RIGHT_ARROW, "->", current_line_num, token_start_col}); current_pos+=2; current_col_num+=2; continue;}
+                else if (two_char_op == "..") { tokens.push_back({TokenType::DOTDOT, "..", current_line_num, token_start_col}); current_pos+=2; current_col_num+=2; continue;}
+            }
+
+            // Try 1-character tokens
+            switch (current_char) {
+                case ':': tokens.push_back({TokenType::COLON, ":", current_line_num, token_start_col}); break;
+                case ';': tokens.push_back({TokenType::SEMICOLON, ";", current_line_num, token_start_col}); break;
+                case ',': tokens.push_back({TokenType::COMMA, ",", current_line_num, token_start_col}); break;
+                case '.': tokens.push_back({TokenType::DOT, ".", current_line_num, token_start_col}); break;
+                case '(': tokens.push_back({TokenType::LPAREN, "(", current_line_num, token_start_col}); break;
+                case ')': tokens.push_back({TokenType::RPAREN, ")", current_line_num, token_start_col}); break;
+                case '[': tokens.push_back({TokenType::LBRACKET, "[", current_line_num, token_start_col}); break;
+                case ']': tokens.push_back({TokenType::RBRACKET, "]", current_line_num, token_start_col}); break;
+                case '+': tokens.push_back({TokenType::PLUS, "+", current_line_num, token_start_col}); break;
+                case '-': tokens.push_back({TokenType::MINUS, "-", current_line_num, token_start_col}); break;
+                case '*': tokens.push_back({TokenType::STAR, "*", current_line_num, token_start_col}); break;
+                case '/': tokens.push_back({TokenType::SLASH, "/", current_line_num, token_start_col}); break;
+                case '=': tokens.push_back({TokenType::EQUAL, "=", current_line_num, token_start_col}); break;
+                case '<': tokens.push_back({TokenType::LESS, "<", current_line_num, token_start_col}); break;
+                case '>': tokens.push_back({TokenType::GREATER, ">", current_line_num, token_start_col}); break;
+                case '^': tokens.push_back({TokenType::CARET, "^", current_line_num, token_start_col}); break;
+                default:
+                    tokens.push_back({TokenType::UNKNOWN, std::string(1, current_char), current_line_num, token_start_col});
+                    ErrorHandler::report(ErrorCode::LEXICAL_ERROR, current_line_num, token_start_col, "Unknown character: " + std::string(1, current_char));
+                    break;
+            }
+            current_pos++;
+            current_col_num++;
+        }
+        line_start_pos = line_end_pos + 1; // Move to the start of the next line
+        current_line_num++;
+    }
+
+    // Emit DEDENT tokens for any remaining indentation levels
+    while (indent_stack.back() > 0) {
+        indent_stack.pop_back();
+        // DEDENTs at EOF should point to the last line, or last line + 1, with column 1
+        tokens.push_back({TokenType::DEDENT, "", current_line_num, 1});
+    }
+
+    tokens.push_back({TokenType::EOF_TOKEN, "", current_line_num, 1}); // Use current_line_num for EOF
     return tokens;
 }

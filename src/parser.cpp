@@ -185,7 +185,9 @@ std::unique_ptr<ProgramNode> Parser::parseProgram() {
 
     // Parse Main ALGORITMA
     consume(TokenType::ALGORITMA, "Expected 'ALGORITMA' keyword.");
+    consume(TokenType::INDENT, "Expected indented block for main ALGORITMA.");
     program_node->main_algoritma = parseBlock(); // Main algorithm is a block of statements
+    consume(TokenType::DEDENT, "Expected dedent after main ALGORITMA.");
 
     // Parse Subprograms (Functions/Procedures) - Simplified
     while (check(TokenType::FUNCTION) || check(TokenType::PROCEDURE)) {
@@ -435,15 +437,17 @@ std::unique_ptr<IfNode> Parser::parseIfStatement() {
     auto condition = parseExpression();
     consume(TokenType::THEN, "Expected 'THEN' after IF condition.");
 
-    auto then_block = parseBlock(); // then_block could be single statement or block
+    consume(TokenType::INDENT, "Expected indented block for IF true branch.");
+    auto then_block = parseBlock();
+    consume(TokenType::DEDENT, "Expected dedent after IF true branch.");
 
     std::unique_ptr<BlockNode> else_block = nullptr;
     if (match(TokenType::ELSE)) {
-        else_block = parseBlock(); // else_block could also be single statement or block
+        consume(TokenType::INDENT, "Expected indented block for ELSE branch.");
+        else_block = parseBlock();
+        consume(TokenType::DEDENT, "Expected dedent after ELSE branch.");
     }
-    // Optional: consume ENDIF if your language uses it
-    // match(TokenType::ENDIF);
-    // consume(TokenType::SEMICOLON, "Expected ';' after IF statement or ENDIF."); // Depending on language
+    // ENDIF is no longer used.
 
     return std::make_unique<IfNode>(if_tok.line, if_tok.col, std::move(condition), std::move(then_block), std::move(else_block));
 }
@@ -493,9 +497,11 @@ std::unique_ptr<StatementNode> Parser::parseWhileStatement() {
     consume(TokenType::LPAREN, "Expected '(' after WHILE.");
     auto condition = parseExpression();
     consume(TokenType::RPAREN, "Expected ')' after WHILE condition.");
-    consume(TokenType::DO, "Expected 'DO' after WHILE condition."); // Assuming AN grammar might use DO here
-    auto body = parseBlock(); // Assumes parseBlock handles statements until ENDWHILE or similar
-    consume(TokenType::ENDWHILE, "Expected 'ENDWHILE' to close WHILE loop.");
+    consume(TokenType::DO, "Expected 'DO' after WHILE condition.");
+    consume(TokenType::INDENT, "Expected indented block for WHILE loop body.");
+    auto body = parseBlock();
+    consume(TokenType::DEDENT, "Expected dedent after WHILE loop body.");
+    // ENDWHILE is no longer used.
     return std::make_unique<WhileNode>(while_tok.line, while_tok.col, std::move(condition), std::move(body));
 }
 
@@ -523,8 +529,10 @@ std::unique_ptr<StatementNode> Parser::parseForStatement() {
     consume(TokenType::TO, "Expected 'TO' keyword in FOR loop.");
     auto end_value = parseExpression();
     consume(TokenType::DO, "Expected 'DO' keyword in FOR loop.");
-    auto body = parseBlock(); // Assumes parseBlock handles statements until ENDFOR
-    consume(TokenType::ENDFOR, "Expected 'ENDFOR' to close FOR loop.");
+    consume(TokenType::INDENT, "Expected indented block for FOR loop body.");
+    auto body = parseBlock();
+    consume(TokenType::DEDENT, "Expected dedent after FOR loop body.");
+    // ENDFOR is no longer used.
     return std::make_unique<ForNode>(for_tok.line, for_tok.col, std::move(loop_var), std::move(start_value), std::move(end_value), std::move(body));
 }
 
@@ -533,15 +541,24 @@ std::unique_ptr<CaseBranchNode> Parser::parseCaseBranch() {
     Token case_branch_start_tok = current_token_cache; // For line/col info
 
     if (match(TokenType::CASE)) {
-        auto case_value = parseExpression(); // Assuming case value is an expression
+        auto case_value = parseExpression();
         consume(TokenType::COLON, "Expected ':' after CASE value.");
-        auto body = parseBlock(); // Or parseStatementsUntil another CASE/OTHERWISE/ENDDEPENDON
-        consume(TokenType::SEMICOLON, "Expected ';' after statements in CASE branch."); // Assuming typical AN statement termination
+        consume(TokenType::INDENT, "Expected indented block for CASE branch.");
+        auto body = parseBlock();
+        consume(TokenType::DEDENT, "Expected dedent after CASE branch.");
+        // SEMICOLON after block is not typical for indentation-based languages, usually handled by statement terminator within block
+        // For now, keeping semicolon consumption if it was part of original grammar for case body statements.
+        // However, if parseBlock correctly parses statements ending in semicolons, this outer semicolon might be redundant or an error.
+        // Let's assume individual statements within the block are semicolon-terminated as per parseStatement.
+        // The block itself is defined by INDENT/DEDENT.
+        // consume(TokenType::SEMICOLON, "Expected ';' after statements in CASE branch."); // Re-evaluating this
         return std::make_unique<CaseBranchNode>(case_branch_start_tok.line, case_branch_start_tok.col, std::move(case_value), std::move(body));
     } else if (match(TokenType::OTHERWISE)) {
         consume(TokenType::COLON, "Expected ':' after OTHERWISE.");
+        consume(TokenType::INDENT, "Expected indented block for OTHERWISE branch.");
         auto body = parseBlock();
-        consume(TokenType::SEMICOLON, "Expected ';' after statements in OTHERWISE branch."); // Assuming typical AN statement termination
+        consume(TokenType::DEDENT, "Expected dedent after OTHERWISE branch.");
+        // consume(TokenType::SEMICOLON, "Expected ';' after statements in OTHERWISE branch."); // Re-evaluating this
         return std::make_unique<CaseBranchNode>(case_branch_start_tok.line, case_branch_start_tok.col, std::move(body));
     } else {
         ErrorHandler::report(ErrorCode::SYNTAX_UNEXPECTED_TOKEN, case_branch_start_tok.line, case_branch_start_tok.col, "Expected 'CASE' or 'OTHERWISE'.");
@@ -581,8 +598,10 @@ std::unique_ptr<StatementNode> Parser::parseDependOnStatement() {
         throw std::runtime_error("Parser error: Empty DEPEND ON statement.");
     }
 
-    consume(TokenType::ENDDEPENDON, "Expected 'ENDDEPENDON' to close DEPEND ON statement.");
-    consume(TokenType::SEMICOLON, "Expected ';' after ENDDEPENDON."); // Assuming typical AN statement termination
+    // ENDDEPENDON is no longer used. The end of cases and final DEDENT (if depend on was in an indented block) marks its end.
+    // consume(TokenType::ENDDEPENDON, "Expected 'ENDDEPENDON' to close DEPEND ON statement.");
+    // The SEMICOLON after ENDDEPENDON is also likely removed if ENDDEPENDON is removed.
+    // consume(TokenType::SEMICOLON, "Expected ';' after ENDDEPENDON.");
     return depend_on_node;
 }
 
@@ -598,32 +617,33 @@ std::unique_ptr<BlockNode> Parser::parseBlock() {
     Token block_start_tok = current_token_cache; // For line/col info of the block itself
     auto block_node = std::make_unique<BlockNode>(block_start_tok.line, block_start_tok.col);
 
-    // Example: A block ends if we see ELSE, ENDIF, ENDWHILE, FUNCTION, PROCEDURE, EOF, END (for main block)
-    // This list needs to be context-dependent.
-    while (!check(TokenType::END) &&         // General END keyword (e.g. for main block)
-           !check(TokenType::ELSE) &&        // For IF statements
-           !check(TokenType::ENDIF) &&       // If ENDIF is a keyword
-           !check(TokenType::ENDWHILE) &&    // If ENDWHILE is a keyword
-           !check(TokenType::ENDFOR) &&      // If ENDFOR is a keyword
-           !check(TokenType::FUNCTION) &&    // Start of a new subprogram
-           !check(TokenType::PROCEDURE) &&   // Start of a new subprogram
-           !check(TokenType::EOF_TOKEN) &&
-           !check(TokenType::ENDPROGRAM) &&  // End of the whole program
-           !check(TokenType::UNTIL)          // For REPEAT..UNTIL loops
-           /* other stoppers */ ) {
+    // A block is a sequence of statements until a DEDENT token is encountered (or EOF).
+    // The DEDENT token itself is not consumed by parseBlock.
+    Token block_start_tok = current_token_cache;
+    auto block_node = std::make_unique<BlockNode>(block_start_tok.line, block_start_tok.col);
 
-        // Check if the current token can start a statement
-        // This is a simplified check. A real parser might need more lookahead or specific BEGIN/END for blocks.
-        if (check(TokenType::IDENTIFIER) || check(TokenType::OUTPUT) || check(TokenType::IF) ||
-            check(TokenType::WHILE) || check(TokenType::FOR) || check(TokenType::READ) || check(TokenType::RETURN)
-            /* other statement starters */) {
-            block_node->statements.push_back(parseStatement());
-        } else {
-            // If it's not a statement starter and not an end-of-block token, it might be an error
-            // or the end of an implicit block. For now, we break.
+    while (!check(TokenType::DEDENT) && !check(TokenType::EOF_TOKEN)) {
+        // Check for other potential block terminators if necessary (e.g. specific keywords that might end a list of statements
+        // even before a DEDENT in some grammar variations, though pure indentation shouldn't need this).
+        // Example: Python's `elif` or `else` would terminate the previous `if` block's statements before the DEDENT.
+        // For this grammar, assuming simple statement list until DEDENT.
+        // Also, need to ensure we don't loop infinitely if parseStatement fails to consume tokens.
+        if ( check(TokenType::ELSE) || // ELSE will be handled by ifStatement, not as part of then_block's statements.
+             check(TokenType::CASE) || check(TokenType::OTHERWISE) || // these start new branches in dependon
+             check(TokenType::UNTIL) // UNTIL terminates a REPEAT block's statements
+           ) {
             break;
         }
+
+        // Heuristic: if current token cannot start a statement, break to avoid infinite loop on errors.
+        // This check should be more robust based on what parseStatement expects.
+        // For now, assume parseStatement will throw if it finds an invalid start.
+        // If parseStatement *can* return nullptr or not advance, this loop needs more care.
+        // Given parseStatement throws on error, this direct call is okay.
+
+        block_node->statements.push_back(parseStatement());
     }
+    // The DEDENT is consumed by the caller.
     return block_node;
 }
 
@@ -892,7 +912,9 @@ std::unique_ptr<SubprogramBodyNode> Parser::parseSubprogramBody() {
 
     // ALGORITMA (Subprogram Body)
     consume(TokenType::ALGORITMA, "Expected 'ALGORITMA' for subprogram body.");
-    subprogram_node->body = parseBlock(); // Body is parsed in the local (or parameter) scope
+    consume(TokenType::INDENT, "Expected indented block for subprogram ALGORITMA.");
+    subprogram_node->body = parseBlock();
+    consume(TokenType::DEDENT, "Expected dedent after subprogram ALGORITMA.");
 
     // Exit scopes
     if (local_scope_entered) {

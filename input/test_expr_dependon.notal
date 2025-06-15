@@ -29,6 +29,5 @@ ALGORITMA
       output("You chose three, result is now: ", result);
     otherwise :
       output("Invalid choice.");
-  enddependon
 
 END.
