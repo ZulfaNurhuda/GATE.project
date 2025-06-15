@@ -9,12 +9,13 @@ static const std::unordered_map<std::string, TokenType> keywords = {
     {"program", TokenType::PROGRAM}, {"kamus", TokenType::KAMUS}, {"algoritma", TokenType::ALGORITMA},
     {"function", TokenType::FUNCTION}, {"procedure", TokenType::PROCEDURE},
     {"if", TokenType::IF}, {"then", TokenType::THEN}, {"else", TokenType::ELSE}, /* {"endif", TokenType::ENDIF}, */ // Removed
-    {"for", TokenType::FOR}, {"to", TokenType::TO}, /* {"endfor", TokenType::ENDFOR}, */ // Removed
+    {"for", TokenType::FOR}, /* {"to", TokenType::TO}, */ /* Replaced by TO_KW */
     {"while", TokenType::WHILE}, {"do", TokenType::DO}, /* {"endwhile", TokenType::ENDWHILE}, */ // Removed
     {"repeat", TokenType::REPEAT}, {"until", TokenType::UNTIL},
     {"depend", TokenType::DEPEND}, {"on", TokenType::ON}, {"case", TokenType::CASE},
     {"otherwise", TokenType::OTHERWISE}, /* {"enddependon", TokenType::ENDDEPENDON}, */ // Removed
-    {"input", TokenType::INPUT}, {"output", TokenType::OUTPUT}, {"dispose", TokenType::DISPOSE},
+    {"input", TokenType::INPUT}, {"output", TokenType::OUTPUT},
+    // {"dispose", TokenType::DISPOSE}, // Removed, "dispose" maps to DEALLOCATE_KW
     {"true", TokenType::TRUE}, {"false", TokenType::FALSE},
     {"array", TokenType::ARRAY}, {"of", TokenType::OF},
     {"div", TokenType::DIV}, {"mod", TokenType::MOD},
@@ -23,8 +24,18 @@ static const std::unordered_map<std::string, TokenType> keywords = {
     {"boolean", TokenType::TYPE_BOOLEAN}, {"string", TokenType::TYPE_STRING},
     {"character", TokenType::TYPE_CHARACTER}, {"void", TokenType::TYPE_VOID},
     {"type", TokenType::TYPE}, // Generic "type" keyword if still used for user-defined types
-    {"inline", TokenType::INLINE_KEYWORD}, // Added INLINE keyword
-    {"endprogram", TokenType::ENDPROGRAM}, {"end", TokenType::END}
+    {"inline", TokenType::INLINE_KEYWORD},
+    {"endprogram", TokenType::ENDPROGRAM}, {"end", TokenType::END},
+    // New keywords for pointers and memory management
+    {"pointer", TokenType::POINTER_KW},
+    {"to", TokenType::TO_KW}, // "to" now maps to TO_KW
+    {"reference", TokenType::REFERENCE_KW},
+    {"dereference", TokenType::DEREFERENCE_KW},
+    {"allocate", TokenType::ALLOCATE_KW},
+    {"reallocate", TokenType::REALLOCATE_KW},
+    {"deallocate", TokenType::DEALLOCATE_KW},
+    {"dispose", TokenType::DEALLOCATE_KW}, // "dispose" also maps to DEALLOCATE_KW
+    {"null", TokenType::NULL_KW}          // Added NULL keyword
 };
 
 // Helper function to calculate leading spaces

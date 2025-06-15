@@ -270,3 +270,123 @@ This project has benefited from the contributions and insights of:
 
 *   [Zulfa Nurhuda](https://github.com/ZulfaNurhuda)
 *   [Anisa Alhaqi](https://github.com/anisaalhaqi)
+
+---
+## Pointers and Memory Management
+
+NOTAL now supports basic pointer types and memory management operations, translating to their C equivalents.
+
+*   **Pointer Declaration:** Variables can be declared as pointers to other types using the syntax:
+    `var_name : pointer to <base_type>`
+    This translates to `base_type* var_name;` in C. For `pointer to string`, it becomes `char** var_name;` in C, allowing modification of the string pointer itself.
+
+*   **Reference Operator (`reference`):**
+    - Syntax: `reference(variable)`
+    - Returns the memory address of `variable`.
+    - Translates to `&variable` in C.
+    - Example: `pNum <- reference(num)` (where `num` is `integer`, `pNum` is `pointer to integer`) becomes `pNum = &num;` in C.
+
+*   **Dereference Operator (`dereference`):**
+    - Syntax: `dereference(pointer_variable)`
+    - Accesses the value pointed to by `pointer_variable`.
+    - Can be used on both the left-hand side (LHS) of an assignment to change the pointed-to value, and on the right-hand side (RHS) or in expressions to read the value.
+    - Translates to `(*pointer_variable)` in C.
+    - Example (RHS): `val <- dereference(pNum)` becomes `val = (*pNum);`
+    - Example (LHS): `dereference(pNum) <- 20` becomes `(*pNum) = 20;`
+
+*   **Dynamic Memory Allocation:**
+    - `allocate(size_expression)`:
+        - Dynamically allocates a block of memory of `size_expression` bytes.
+        - Translates to `malloc(size_expression)` in C. The result is typically assigned to a pointer variable.
+        - Example: `pData <- allocate(100)` becomes `pData = malloc(100);` (casting to specific pointer type like `(int*)malloc(100)` is often done by the C code generator for type safety, though C allows direct assignment from `void*`).
+    - `reallocate(pointer_variable, new_size_expression)`:
+        - Changes the size of the memory block pointed to by `pointer_variable` to `new_size_expression` bytes.
+        - Translates to `realloc(pointer_variable, new_size_expression)` in C.
+        - (Full example usage in `input/pointers_memory_test.notal` is commented out for this iteration but feature is parsed).
+    - `deallocate(pointer_variable)` and `dispose(pointer_variable)`:
+        - Frees the dynamically allocated memory block pointed to by `pointer_variable`.
+        - Both keywords translate to `free(pointer_variable)` in C.
+        - It's good practice to set the pointer to `NULL` after deallocation to prevent dangling pointers.
+
+*   **Null Pointer (`NULL`):**
+    - NOTAL uses `NULL` to represent a null pointer value.
+    - This is typically used to check if an allocation was successful or to initialize/reset pointers.
+    - Translates directly to `NULL` in C (from `<stdlib.h>`).
+    - Example: `if pAllocated = NULL then ...` becomes `if (pAllocated == NULL) { ... }`.
+
+### Example: Pointers and Memory (`input/pointers_memory_test.notal`)
+```notal
+Program TestPointersMemory
+KAMUS
+    num : integer
+    pNum : pointer to integer
+    pAllocatedNum : pointer to integer
+ALGORITMA
+    output("--- Basic Pointer Test ---")
+    num <- 10
+    pNum <- reference(num)
+    output("Value via pNum: ", dereference(pNum))
+    dereference(pNum) <- 20
+    output("num after update: ", num)
+
+    output("--- Dynamic Allocation Test ---")
+    pAllocatedNum <- allocate(4) // Assuming size of integer
+    if pAllocatedNum = NULL then
+        output("Allocation failed!")
+    else
+        dereference(pAllocatedNum) <- 123
+        output("Allocated value: ", dereference(pAllocatedNum))
+        deallocate(pAllocatedNum)
+        pAllocatedNum <- NULL
+    output("---")
+END.
+```
+
+### Generated C Snippet (from `output/pointers_memory_test.c`):
+```c
+#include <stdio.h>
+#include <stdlib.h> // For malloc, free, NULL
+
+int main() {
+    int num;
+    int* pNum = NULL;
+    int* pAllocatedNum = NULL;
+
+    printf("--- Basic Pointer Test ---\n");
+    num = 10;
+    pNum = &num;
+    printf("Value via pNum: %d\n", (*pNum));
+    (*pNum) = 20;
+    printf("num after update: %d\n", num);
+
+    printf("--- Dynamic Allocation Test ---\n");
+    pAllocatedNum = (int*)malloc(4);
+    if (pAllocatedNum == NULL) {
+        printf("Allocation failed!\n");
+    } else {
+        (*(pAllocatedNum)) = 123;
+        printf("Allocated value: %d\n", (*(pAllocatedNum)));
+        free(pAllocatedNum);
+        pAllocatedNum = NULL;
+    }
+    printf("---\n");
+    return 0;
+}
+```
+
+## 11. Limitations / Future Work (Renumbered)
+*   **Error Recovery:** The parser uses basic error reporting and may not recover gracefully from all syntax errors. Indentation errors might be particularly sensitive.
+*   **Semantic Analysis:** Type checking is primarily done during code generation for I/O. A dedicated semantic analysis phase could provide more comprehensive static checks.
+*   **String Memory Management:** While `dispose` maps to `free`, the NOTAL code must correctly manage string allocation. The C `input` for strings assumes a buffer is ready (example shows `malloc`). For `pointer to string`, careful management of `char**` is needed.
+*   **ADT Memory Management:** The C ADT implementations use `void*` and manual memory management.
+*   **Optimization:** The generated C code is a direct translation and not optimized.
+*   **Indentation Style:** The current indentation parser assumes consistent use of spaces per level. Handling mixed tabs/spaces or variable spaces per level robustly could be enhanced.
+*   **Pointer Arithmetic:** Not explicitly supported in NOTAL syntax (e.g. `p + 1` on a pointer to step by type size).
+*   **Type Casting for `allocate`:** `allocate` returns a generic pointer; explicit casting if needed would be a NOTAL language feature or a more advanced generator task. Current C output relies on implicit `void*` conversion or adds a basic cast.
+
+## 12. Contributors (Renumbered)
+
+This project has benefited from the contributions and insights of:
+
+*   [Zulfa Nurhuda](https://github.com/ZulfaNurhuda)
+*   [Anisa Alhaqi](https://github.com/anisaalhaqi)

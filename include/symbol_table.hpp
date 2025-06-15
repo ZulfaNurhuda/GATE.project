@@ -71,12 +71,17 @@ struct SymbolInfo {
 
     ParameterMode param_mode;   // Mode for parameters (IN, OUT, IN_OUT)
 
+    // Pointer type information
+    bool is_pointer_type;
+    std::string pointed_type;   // Base type if is_pointer_type is true
+
     // Default constructor for convenience
     SymbolInfo(std::string t = "", std::string k = "", int sl = 0, int dl = 0, int dc = 0)
         : type(std::move(t)), kind(std::move(k)), scope_level(sl), declaration_line(dl), declaration_col(dc),
           is_array(false), array_element_type(""), array_min_bound(0), array_max_bound(0),
           // Initialize param_mode: if kind is "parameter", default to IN, otherwise NONE.
-          param_mode(k == "parameter" ? ParameterMode::IN : ParameterMode::NONE)
+          param_mode(k == "parameter" ? ParameterMode::IN : ParameterMode::NONE),
+          is_pointer_type(false), pointed_type("") // Initialize pointer fields
           {}
 };
 

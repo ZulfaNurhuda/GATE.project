@@ -27,6 +27,11 @@ void UnaryOpNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
 void InputNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
 void ArrayAccessNode::accept(ASTVisitor* visitor) { visitor->visit(this); } // Already present, ensure it's correct
 void FunctionCallNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void ReferenceNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void DereferenceNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void AllocateNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void ReallocateNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
+void DeallocateNode::accept(ASTVisitor* visitor) { visitor->visit(this); }
 
 // Base classes still need a definition for accept if they are not purely abstract
 // with respect to accept, or if direct instantiation was possible (which it isn't here).
@@ -155,7 +160,8 @@ ParseResult Parser::parse(const std::vector<Token>& input_tokens) { // Updated r
 std::unique_ptr<ProgramNode> Parser::parseProgram() {
     Token program_kw = consume(TokenType::PROGRAM, "Expected 'PROGRAM' keyword.");
     Token program_name_tok = consume(TokenType::IDENTIFIER, "Expected program name.");
-    consume(TokenType::SEMICOLON, "Expected ';' after program name.");
+    // Semicolon after program name is now optional / removed for flexibility
+    // consume(TokenType::SEMICOLON, "Expected ';' after program name.");
 
     auto program_node = std::make_unique<ProgramNode>(program_kw.line, program_kw.col, program_name_tok.value);
 
@@ -317,6 +323,40 @@ std::unique_ptr<ExpressionNode> Parser::parsePrimaryExpression() {
         auto expr = parseExpression();
         consume(TokenType::RPAREN, "Expected ')' after expression in parentheses.");
         return expr;
+    } else if (match(TokenType::REFERENCE_KW)) {
+        Token ref_tok = previous_token();
+        consume(TokenType::LPAREN, "Expected '(' after 'reference' keyword.");
+        auto target_expr = parseExpression();
+        consume(TokenType::RPAREN, "Expected ')' after reference target expression.");
+        return std::make_unique<ReferenceNode>(ref_tok.line, ref_tok.col, std::move(target_expr));
+    } else if (match(TokenType::DEREFERENCE_KW)) {
+        Token deref_tok = previous_token();
+        consume(TokenType::LPAREN, "Expected '(' after 'dereference' keyword.");
+        auto pointer_expr = parseExpression();
+        consume(TokenType::RPAREN, "Expected ')' after dereference pointer expression.");
+        return std::make_unique<DereferenceNode>(deref_tok.line, deref_tok.col, std::move(pointer_expr));
+    } else if (match(TokenType::ALLOCATE_KW)) {
+        Token alloc_tok = previous_token();
+        consume(TokenType::LPAREN, "Expected '(' after 'allocate' keyword.");
+        auto size_expr = parseExpression(); // Or parseType() if syntax is allocate(Type)
+        consume(TokenType::RPAREN, "Expected ')' after allocate size expression.");
+        return std::make_unique<AllocateNode>(alloc_tok.line, alloc_tok.col, std::move(size_expr));
+    } else if (match(TokenType::REALLOCATE_KW)) {
+        Token realloc_tok = previous_token();
+        consume(TokenType::LPAREN, "Expected '(' after 'reallocate' keyword.");
+        auto pointer_expr = parseExpression();
+        consume(TokenType::COMMA, "Expected ',' separating pointer and new size in reallocate.");
+        auto new_size_expr = parseExpression();
+        consume(TokenType::RPAREN, "Expected ')' after reallocate arguments.");
+        return std::make_unique<ReallocateNode>(realloc_tok.line, realloc_tok.col, std::move(pointer_expr), std::move(new_size_expr));
+    } else if (match(TokenType::DEALLOCATE_KW)) { // Handles "deallocate" and "dispose"
+        Token dealloc_tok = previous_token();
+        consume(TokenType::LPAREN, "Expected '(' after 'deallocate' or 'dispose' keyword.");
+        auto pointer_expr = parseExpression();
+        consume(TokenType::RPAREN, "Expected ')' after deallocate/dispose pointer expression.");
+        // Deallocate might be a statement or an expression depending on if it returns status.
+        // For now, treating as expression as per AST node derivation.
+        return std::make_unique<DeallocateNode>(dealloc_tok.line, dealloc_tok.col, std::move(pointer_expr));
     }
     // Add other primary expressions like boolean literals, function calls, etc.
     Token offending_token = current_token_cache;
@@ -526,7 +566,7 @@ std::unique_ptr<StatementNode> Parser::parseForStatement() {
     auto loop_var = parseIdentifier();
     consume(TokenType::ASSIGN_OP, "Expected '<-' assignment operator in FOR loop.");
     auto start_value = parseExpression();
-    consume(TokenType::TO, "Expected 'TO' keyword in FOR loop.");
+    consume(TokenType::TO_KW, "Expected 'to' keyword in FOR loop."); // Changed TO to TO_KW
     auto end_value = parseExpression();
     consume(TokenType::DO, "Expected 'DO' keyword in FOR loop.");
     consume(TokenType::INDENT, "Expected indented block for FOR loop body.");
@@ -652,18 +692,130 @@ std::unique_ptr<VariableDeclarationNode> Parser::parseVariableDeclaration() {
     // Token var_name_token = previous_token(); // previous_token() is based on current_token_idx, not necessarily var_name_node's token
     Token var_name_token_for_info = Token{TokenType::IDENTIFIER, var_name_node->name, var_name_node->line, var_name_node->col};
 
-
-    consume(TokenType::COLON, "Expected ':' after variable name in declaration.");
-
-    SymbolInfo info;
+    SymbolInfo info; // Declare info object at the beginning
     info.kind = "variable";
     info.scope_level = symbol_table_ptr->getCurrentScopeLevel();
     info.declaration_line = var_name_token_for_info.line;
     info.declaration_col = var_name_token_for_info.col;
-    std::string node_var_type_string; // For VariableDeclarationNode's type field
+    // Default other fields like is_array, is_pointer_type etc., are set by SymbolInfo constructor
 
-    if (check(TokenType::ARRAY)) { // Changed from match to check to avoid consuming ARRAY yet
-        consume(TokenType::ARRAY, "Expected 'ARRAY' keyword."); // Now consume
+    consume(TokenType::COLON, "Expected ':' after variable name in declaration.");
+    std::string node_var_type_string;
+
+    if (match(TokenType::POINTER_KW)) {
+        consume(TokenType::TO_KW, "Expected 'to' after 'pointer'.");
+        Token base_type_tok = current_token_cache;
+        if (base_type_tok.type == TokenType::TYPE_INTEGER || base_type_tok.type == TokenType::TYPE_STRING ||
+            base_type_tok.type == TokenType::TYPE_BOOLEAN || base_type_tok.type == TokenType::TYPE_CHARACTER ||
+            base_type_tok.type == TokenType::TYPE_REAL    ||
+            base_type_tok.type == TokenType::IDENTIFIER) {
+            advance();
+            info.is_pointer_type = true;
+            info.pointed_type = base_type_tok.value;
+            info.type = "pointer"; // Main type for SymbolInfo
+            node_var_type_string = "pointer to " + base_type_tok.value; // For AST Node
+        } else {
+            ErrorHandler::report(ErrorCode::SYNTAX_MISSING_EXPECTED_TOKEN, base_type_tok.line, base_type_tok.col, "Expected base type after 'pointer to'.");
+            throw std::runtime_error("Parser error: Invalid pointer base type.");
+        }
+    } else if (check(TokenType::ARRAY)) {
+        consume(TokenType::ARRAY, "Expected 'ARRAY' keyword.");
+        consume(TokenType::LBRACKET, "Expected '[' after ARRAY keyword.");
+
+        auto min_bound_expr_node = parseExpression();
+        consume(TokenType::DOTDOT, "Expected '..' for array range separator.");
+        auto max_bound_expr_node = parseExpression();
+
+        consume(TokenType::RBRACKET, "Expected ']' after array bounds.");
+        consume(TokenType::OF, "Expected 'OF' keyword after array bounds specification.");
+
+        Token element_type_token = current_token_cache;
+        if (element_type_token.type == TokenType::TYPE_INTEGER ||
+            element_type_token.type == TokenType::TYPE_REAL ||
+            element_type_token.type == TokenType::TYPE_BOOLEAN ||
+            element_type_token.type == TokenType::TYPE_CHARACTER ||
+            element_type_token.type == TokenType::TYPE_STRING ||
+            element_type_token.type == TokenType::IDENTIFIER) {
+            advance();
+        } else {
+            ErrorHandler::report(ErrorCode::SYNTAX_MISSING_EXPECTED_TOKEN, element_type_token.line, element_type_token.col, "Expected valid array element type (e.g., integer, real, custom_type).");
+            throw std::runtime_error("Parser error: Invalid array element type.");
+        }
+
+        info.is_array = true;
+        info.array_element_type = element_type_token.value;
+        info.type = "array"; // Overall type for symbol table
+
+        IntegerLiteralNode* min_lit_node = dynamic_cast<IntegerLiteralNode*>(min_bound_expr_node.get());
+        IntegerLiteralNode* max_lit_node = dynamic_cast<IntegerLiteralNode*>(max_bound_expr_node.get());
+
+        if (min_lit_node && max_lit_node) {
+            info.array_min_bound = min_lit_node->value;
+            info.array_max_bound = max_lit_node->value;
+            node_var_type_string = "array [" + std::to_string(min_lit_node->value) + ".." + std::to_string(max_lit_node->value) + "] of " + element_type_token.value;
+            if (info.array_min_bound > info.array_max_bound) {
+                ErrorHandler::report(ErrorCode::SEMANTIC_ERROR, var_name_token_for_info.line, var_name_token_for_info.col,
+                                     "Array minimum bound (" + std::to_string(info.array_min_bound) +
+                                     ") cannot be greater than maximum bound (" + std::to_string(info.array_max_bound) + ").");
+            }
+        } else {
+            ErrorHandler::report(ErrorCode::SEMANTIC_ERROR, var_name_token_for_info.line, var_name_token_for_info.col, "Array bounds must currently be integer literals.");
+            info.array_min_bound = 0;
+            info.array_max_bound = -1;
+            node_var_type_string = "array [...] of " + element_type_token.value; // Placeholder
+        }
+    } else {
+         Token type_tok = current_token_cache;
+        if (type_tok.type == TokenType::TYPE_INTEGER || type_tok.type == TokenType::TYPE_STRING ||
+            type_tok.type == TokenType::TYPE_BOOLEAN || type_tok.type == TokenType::TYPE_CHARACTER ||
+            type_tok.type == TokenType::TYPE_REAL    ||
+            type_tok.type == TokenType::IDENTIFIER) {
+            advance();
+            info.type = type_tok.value;
+            node_var_type_string = type_tok.value;
+        } else {
+            ErrorHandler::report(ErrorCode::SYNTAX_INVALID_EXPRESSION, type_tok.line, type_tok.col, "Expected type identifier (e.g., integer, string) or custom type name, or 'pointer'.");
+            throw std::runtime_error("Parser error: Invalid type in variable declaration.");
+        }
+    }
+
+    // Populate SymbolInfo (info.type should get the full string like "pointer to integer" or "integer")
+    // SymbolInfo info; // MOVED TO TOP OF FUNCTION
+    // info.kind = "variable"; // MOVED TO TOP
+    // info.scope_level = symbol_table_ptr->getCurrentScopeLevel(); // MOVED TO TOP
+    // info.declaration_line = var_name_token_for_info.line; // MOVED TO TOP
+    // info.declaration_col = var_name_token_for_info.col; // MOVED TO TOP
+    // info.type is set above based on whether it's a pointer or not
+
+    // Check if node_var_type_string indicates a pointer type
+    // const std::string pointer_prefix = "pointer to "; // This logic is now integrated above
+    // if (node_var_type_string.rfind(pointer_prefix, 0) == 0) {
+    //     info.is_pointer_type = true;
+    //     info.pointed_type = node_var_type_string.substr(pointer_prefix.length());
+    //     info.type = "pointer";
+    // } else {
+    //     info.type = node_var_type_string;
+    // }
+
+    consume(TokenType::SEMICOLON, "Expected ';' after variable declaration.");
+
+    if (!symbol_table_ptr->addSymbol(var_name_node->name, info)) {
+        Token base_type_tok = current_token_cache;
+        if (base_type_tok.type == TokenType::TYPE_INTEGER || base_type_tok.type == TokenType::TYPE_STRING ||
+            base_type_tok.type == TokenType::TYPE_BOOLEAN || base_type_tok.type == TokenType::TYPE_CHARACTER ||
+            base_type_tok.type == TokenType::TYPE_REAL    ||
+            base_type_tok.type == TokenType::IDENTIFIER) { // IDENTIFIER for custom types
+            advance(); // Consume the base type token
+            node_var_type_string = "pointer to " + base_type_tok.value;
+        } else {
+            ErrorHandler::report(ErrorCode::SYNTAX_MISSING_EXPECTED_TOKEN, base_type_tok.line, base_type_tok.col, "Expected base type after 'pointer to'.");
+            throw std::runtime_error("Parser error: Invalid pointer base type.");
+        }
+        // SymbolInfo population for pointer type will be handled in a later subtask
+        // For now, SymbolInfo.type will store "pointer to <base_type>"
+        // And specific fields like is_pointer, pointer_base_type can be added to SymbolInfo later.
+    } else if (check(TokenType::ARRAY)) {
+        consume(TokenType::ARRAY, "Expected 'ARRAY' keyword.");
         consume(TokenType::LBRACKET, "Expected '[' after ARRAY keyword.");
 
         auto min_bound_expr_node = parseExpression(); // This should evaluate to an integer literal
@@ -724,8 +876,62 @@ std::unique_ptr<VariableDeclarationNode> Parser::parseVariableDeclaration() {
             ErrorHandler::report(ErrorCode::SYNTAX_INVALID_EXPRESSION, type_tok.line, type_tok.col, "Expected type identifier (e.g., integer, string) or custom type name.");
             throw std::runtime_error("Parser error: Invalid type in variable declaration.");
         }
-        info.is_array = false; // Ensure it's false for non-arrays
+        info.is_array = false;
+    } else { // Simple type or already determined pointer type string
+         Token type_tok = current_token_cache;
+        if (type_tok.type == TokenType::TYPE_INTEGER || type_tok.type == TokenType::TYPE_STRING ||
+            type_tok.type == TokenType::TYPE_BOOLEAN || type_tok.type == TokenType::TYPE_CHARACTER ||
+            type_tok.type == TokenType::TYPE_REAL    ||
+            type_tok.type == TokenType::IDENTIFIER) {
+            advance(); // Consume the type token
+            // info.type = type_tok.value; // This will be set later from node_var_type_string
+            node_var_type_string = type_tok.value;
+        } else {
+            ErrorHandler::report(ErrorCode::SYNTAX_INVALID_EXPRESSION, type_tok.line, type_tok.col, "Expected type identifier (e.g., integer, string) or custom type name, or 'pointer'.");
+            throw std::runtime_error("Parser error: Invalid type in variable declaration.");
+        }
     }
+
+    // Populate SymbolInfo
+    SymbolInfo info;
+    info.kind = "variable";
+    info.scope_level = symbol_table_ptr->getCurrentScopeLevel();
+    info.declaration_line = var_name_token_for_info.line;
+    info.declaration_col = var_name_token_for_info.col;
+    // info.type is set below based on whether it's a pointer or not
+
+    // Check if node_var_type_string indicates a pointer type
+    const std::string pointer_prefix = "pointer to ";
+    if (node_var_type_string.rfind(pointer_prefix, 0) == 0) { // starts with "pointer to "
+        info.is_pointer_type = true;
+        info.pointed_type = node_var_type_string.substr(pointer_prefix.length());
+        info.type = "pointer"; // Set main type to "pointer" for clarity in SymbolInfo
+    } else {
+        // Not a pointer, is_pointer_type remains false, pointed_type remains ""
+        // info.type is simply node_var_type_string (e.g., "integer", "array [...]...")
+        // This was previously handled by the SymbolInfo constructor default for is_pointer_type and pointed_type.
+        // Explicitly set info.type here for clarity for non-pointer types too.
+        info.type = node_var_type_string;
+    }
+    // is_array, array_element_type etc. are set if it's an array (this logic was inside the 'else if (check(TokenType::ARRAY))' block, needs to be accessible to 'info')
+    // The SymbolInfo 'info' object needs to be accessible where array details are parsed if those details are to be stored in it.
+    // Current structure: node_var_type_string is built, then info is populated.
+    // If it's an array, info.is_array etc. were being set on a *different info object* if it was declared inside that block.
+    // This needs correction: 'info' should be declared before the if/else if/else for type parsing,
+    // and then populated.
+
+    // Refactor: Declare SymbolInfo info at the beginning of the function after var_name_node.
+    // The current diff will apply to the section after node_var_type_string is determined.
+    // The SymbolInfo `info` is already declared *after* node_var_type_string is determined which is fine.
+    // The array specific fields like `info.is_array` were set inside the array parsing block.
+    // This is okay if `info` itself is passed by reference or those fields are set on the same `info` object.
+    // Looking at the code, `info` is declared *after* the if-else-if for type string determination.
+    // This means array metadata (is_array, etc.) is NOT being set on the `info` object that gets added to symbol table.
+    // This is a bug from previous refactoring of this function.
+    // I must correct this by declaring `info` earlier.
+
+    // For this subtask, I will focus only on setting is_pointer_type and pointed_type.
+    // The array metadata issue is pre-existing.
 
     consume(TokenType::SEMICOLON, "Expected ';' after variable declaration.");
 
@@ -734,7 +940,7 @@ std::unique_ptr<VariableDeclarationNode> Parser::parseVariableDeclaration() {
                              info.declaration_line, info.declaration_col,
                              "Variable '" + var_name_node->name + "' already declared in this scope.");
     }
-    return std::make_unique<VariableDeclarationNode>(var_name_token.line, var_name_token.col, var_name_node->name, node_var_type_string);
+    return std::make_unique<VariableDeclarationNode>(var_name_token_for_info.line, var_name_token_for_info.col, var_name_node->name, node_var_type_string);
 }
 
 

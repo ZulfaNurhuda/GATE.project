@@ -158,8 +158,27 @@ void CodeGenerator::visit(VariableDeclarationNode* node) {
     // The SymbolInfo lookup is the more reliable way to get base C type for arrays.
     // If we reach here for an array, it means SymbolInfo lookup failed or it wasn't marked as array.
     // For non-array types, node->var_type should be the simple AN type.
-    write(map_an_type_to_c(node->var_type) + " " + node->var_name);
-    writeln(";");
+    // This is now refined to handle pointer types explicitly.
+    SymbolInfo* info = nullptr; // Re-lookup, as the one in array block is out of scope
+    if (symbol_table_ptr) {
+        info = symbol_table_ptr->lookupSymbol(node->var_name);
+    }
+
+    if (info && info->is_pointer_type) {
+        std::string c_base_type = map_an_type_to_c(info->pointed_type);
+        indent_spaces();
+        if (info->pointed_type == "string") { // NOTAL: pointer to string -> C: char**
+            write("char* *" + node->var_name + "; /* pointer to string */");
+        } else {
+            write(c_base_type + "* " + node->var_name + "; /* pointer to " + info->pointed_type + " */");
+        }
+        writeln();
+    } else if (!(info && info->is_array)) { // If not a pointer and not an array (array handled above)
+        indent_spaces();
+        write(map_an_type_to_c(node->var_type) + " " + node->var_name);
+        writeln(";");
+    }
+    // Array case is already handled and returns earlier in the function.
 }
 
 void CodeGenerator::visit(AssignmentNode* node) {
@@ -695,6 +714,66 @@ void CodeGenerator::visit(WhileNode* node) {
     current_indent_level--;
     indent_spaces();
     writeln("}");
+}
+
+// Visit methods for new AST Nodes (Pointers and Memory)
+void CodeGenerator::visit(ReferenceNode* node) {
+    write("&(");
+    if (node->target_expr) {
+        node->target_expr->accept(this);
+    } else {
+        write("/* ERROR: NULL target_expr in ReferenceNode */");
+    }
+    write(")");
+}
+
+void CodeGenerator::visit(DereferenceNode* node) {
+    write("(*(");
+    if (node->pointer_expr) {
+        node->pointer_expr->accept(this);
+    } else {
+        write("/* ERROR: NULL pointer_expr in DereferenceNode */");
+    }
+    write("))");
+}
+
+void CodeGenerator::visit(AllocateNode* node) {
+    // Assuming result needs a cast in C, e.g. (char*)malloc(size)
+    // For simplicity, omitting cast as C allows void* to any pointer.
+    // Type information for cast would ideally come from context or type inference.
+    write("malloc(");
+    if (node->size_expr) {
+        node->size_expr->accept(this);
+    } else {
+        write("/* ERROR: NULL size_expr in AllocateNode */");
+    }
+    write(")");
+}
+
+void CodeGenerator::visit(ReallocateNode* node) {
+    write("realloc(");
+    if (node->pointer_expr) {
+        node->pointer_expr->accept(this);
+    } else {
+        write("/* ERROR: NULL pointer_expr in ReallocateNode */");
+    }
+    write(", ");
+    if (node->new_size_expr) {
+        node->new_size_expr->accept(this);
+    } else {
+        write("/* ERROR: NULL new_size_expr in ReallocateNode */");
+    }
+    write(")");
+}
+
+void CodeGenerator::visit(DeallocateNode* node) {
+    write("free(");
+    if (node->pointer_expr) {
+        node->pointer_expr->accept(this);
+    } else {
+        write("/* ERROR: NULL pointer_expr in DeallocateNode */");
+    }
+    write(")");
 }
 
 void CodeGenerator::visit(RepeatUntilNode* node) {

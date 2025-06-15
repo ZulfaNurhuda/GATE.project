@@ -123,6 +123,55 @@ public:
     void accept(ASTVisitor* visitor) override;
 };
 
+// New AST Nodes for Pointers and Memory Operations
+class ReferenceNode : public ExpressionNode {
+public:
+    std::unique_ptr<ExpressionNode> target_expr;
+    ReferenceNode(int l, int c, std::unique_ptr<ExpressionNode> expr)
+        : ExpressionNode(l, c), target_expr(std::move(expr)) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
+class DereferenceNode : public ExpressionNode {
+public:
+    std::unique_ptr<ExpressionNode> pointer_expr;
+    DereferenceNode(int l, int c, std::unique_ptr<ExpressionNode> expr)
+        : ExpressionNode(l, c), pointer_expr(std::move(expr)) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
+class AllocateNode : public ExpressionNode { // Assuming allocate(size_expr)
+public:
+    std::unique_ptr<ExpressionNode> size_expr; // Could also be a type node if allocate(TYPE)
+    AllocateNode(int l, int c, std::unique_ptr<ExpressionNode> expr)
+        : ExpressionNode(l, c), size_expr(std::move(expr)) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
+class ReallocateNode : public ExpressionNode {
+public:
+    std::unique_ptr<ExpressionNode> pointer_expr;
+    std::unique_ptr<ExpressionNode> new_size_expr;
+    ReallocateNode(int l, int c, std::unique_ptr<ExpressionNode> ptr_expr, std::unique_ptr<ExpressionNode> ns_expr)
+        : ExpressionNode(l, c), pointer_expr(std::move(ptr_expr)), new_size_expr(std::move(ns_expr)) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
+class DeallocateNode : public ExpressionNode { // Or StatementNode if it doesn't return a value
+public:
+    std::unique_ptr<ExpressionNode> pointer_expr;
+    DeallocateNode(int l, int c, std::unique_ptr<ExpressionNode> expr)
+        : ExpressionNode(l, c), pointer_expr(std::move(expr)) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
+class NullLiteralNode : public ExpressionNode {
+public:
+    NullLiteralNode(int l, int c) : ExpressionNode(l, c) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
+
 // --- Concrete Statement Nodes ---
 class AssignmentNode : public StatementNode {
 public:

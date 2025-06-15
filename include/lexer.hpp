@@ -16,11 +16,11 @@ enum class TokenType
     ELSE,
     // ENDIF, // Removed for indentation-based parsing
     FOR,
-    TO,
+    // TO, // Replaced by TO_KW for consistency, parser will need to use TO_KW
     // ENDFOR, // Removed for indentation-based parsing
     INPUT,
     OUTPUT,
-    DISPOSE,
+    // DISPOSE, // Will be replaced by DEALLOCATE_KW token for "dispose" keyword
     TRUE,
     FALSE,
     LEFT_ARROW,
@@ -104,6 +104,16 @@ enum class TokenType
 
     ENDPROGRAM, // Specific keyword for program termination
     END, // General block end keyword
+
+    // Pointer and Memory Keywords
+    POINTER_KW,
+    TO_KW,          // For POINTER TO type
+    REFERENCE_KW,
+    DEREFERENCE_KW,
+    ALLOCATE_KW,
+    REALLOCATE_KW,
+    DEALLOCATE_KW,  // "deallocate" and "dispose" will map to this
+    NULL_KW,        // For NULL keyword
 
     // Indentation tokens
     INDENT,
