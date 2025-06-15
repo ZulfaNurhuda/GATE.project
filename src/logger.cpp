@@ -41,11 +41,10 @@ void Logger::debug(const std::string& message) {
     if (log_stream && current_log_level != LogLevel::NONE && current_log_level <= LogLevel::DEBUG) { // Corrected to log_stream
         auto now = std::chrono::system_clock::now();
         auto in_time_t = std::chrono::system_clock::to_time_t(now);
-        std::tm buf{};
-        localtime_r(&in_time_t, &buf);
+        std::tm buf = *std::localtime(&in_time_t); // Replaced localtime_r
 
-        (*log_stream) << std::put_time(&buf, "%Y-%m-%d %H:%M:%S") << " "; // Corrected to log_stream
-        (*log_stream) << "[" << level_to_string(LogLevel::DEBUG) << "] " << message << std::endl; // Corrected to log_stream
+        (*log_stream) << std::put_time(&buf, "%Y-%m-%d %H:%M:%S") << " ";
+        (*log_stream) << "[" << level_to_string(LogLevel::DEBUG) << "] " << message << std::endl;
     }
 }
 
@@ -53,11 +52,10 @@ void Logger::info(const std::string& message) {
     if (log_stream && current_log_level != LogLevel::NONE && current_log_level <= LogLevel::INFO) { // Corrected to log_stream
         auto now = std::chrono::system_clock::now();
         auto in_time_t = std::chrono::system_clock::to_time_t(now);
-        std::tm buf{};
-        localtime_r(&in_time_t, &buf);
+        std::tm buf = *std::localtime(&in_time_t); // Replaced localtime_r
 
-        (*log_stream) << std::put_time(&buf, "%Y-%m-%d %H:%M:%S") << " "; // Corrected to log_stream
-        (*log_stream) << "[" << level_to_string(LogLevel::INFO) << "] " << message << std::endl; // Corrected to log_stream
+        (*log_stream) << std::put_time(&buf, "%Y-%m-%d %H:%M:%S") << " ";
+        (*log_stream) << "[" << level_to_string(LogLevel::INFO) << "] " << message << std::endl;
     }
 }
 
@@ -65,11 +63,10 @@ void Logger::warn(const std::string& message) {
     if (log_stream && current_log_level != LogLevel::NONE && current_log_level <= LogLevel::WARNING) { // Corrected to log_stream
         auto now = std::chrono::system_clock::now();
         auto in_time_t = std::chrono::system_clock::to_time_t(now);
-        std::tm buf{};
-        localtime_r(&in_time_t, &buf);
+        std::tm buf = *std::localtime(&in_time_t); // Replaced localtime_r
 
-        (*log_stream) << std::put_time(&buf, "%Y-%m-%d %H:%M:%S") << " "; // Corrected to log_stream
-        (*log_stream) << "[" << level_to_string(LogLevel::WARNING) << "] " << message << std::endl; // Corrected to log_stream
+        (*log_stream) << std::put_time(&buf, "%Y-%m-%d %H:%M:%S") << " ";
+        (*log_stream) << "[" << level_to_string(LogLevel::WARNING) << "] " << message << std::endl;
     }
 }
 
@@ -77,10 +74,9 @@ void Logger::error(const std::string& message) {
     if (log_stream && current_log_level != LogLevel::NONE && current_log_level <= LogLevel::ERROR) { // Corrected to log_stream
         auto now = std::chrono::system_clock::now();
         auto in_time_t = std::chrono::system_clock::to_time_t(now);
-        std::tm buf{};
-        localtime_r(&in_time_t, &buf);
+        std::tm buf = *std::localtime(&in_time_t); // Replaced localtime_r
 
-        (*log_stream) << std::put_time(&buf, "%Y-%m-%d %H:%M:%S") << " "; // Corrected to log_stream
-        (*log_stream) << "[" << level_to_string(LogLevel::ERROR) << "] " << message << std::endl; // Corrected to log_stream
+        (*log_stream) << std::put_time(&buf, "%Y-%m-%d %H:%M:%S") << " ";
+        (*log_stream) << "[" << level_to_string(LogLevel::ERROR) << "] " << message << std::endl;
     }
 }
