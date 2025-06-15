@@ -207,174 +207,104 @@ bool IsLulus(int N) {
     *   `depend on (var) case <val1>: ... otherwise: ...`
 *   **Subprograms:**
     *   `function <Name>(<params>) -> <return_type>`
-    *   `procedure <Name>(<params>)`
+    *   `procedure <Name>(<params>)` (parameterless procedures can be called with or without `()`).
     *   Parameter passing (default `input` mode).
-    *   Return mechanism: `-> value` at end of function or `return` keyword within the body.
     *   **Procedure Parameter Modifiers:** NOTAL procedures support `input`, `output`, and `input/output` modifiers for parameters to control how data is passed and modified.
-        *   `input`: (Default) Parameter is pass-by-value. The procedure receives a copy of the argument. Changes inside the procedure do not affect the caller's variable. C equivalent: `T param_name`.
-        *   `output`: Parameter is pass-by-reference. The procedure is expected to provide a value for this parameter. The caller's variable will be updated. C equivalent: `T* param_name` for most types; `char** param_name` for `string` type, where the procedure is responsible for allocating memory for the string (e.g., using `strdup`).
-        *   `input/output`: Parameter is pass-by-reference. The caller provides an initial value, and the procedure can modify it, with changes reflected back to the caller. C equivalent: `T* param_name` for most types; `char** param_name` for `string` type, allowing the procedure to reallocate or repoint the string. The caller's string variable should typically be heap-allocated (e.g. via `strdup` or other means) to allow the procedure to safely `free` and reassign it.
-
-        **Example (`input/procedure_params_test.notal`):**
-        ```notal
-        procedure ProcessNumbers(input a: integer, output b: integer, input/output c: integer)
-        ALGORITMA
-            b <- a * 2;
-            c <- c * 2;
-
-        procedure ProcessStrings(input s1: string, output s2: string, input/output s3: string)
-        ALGORITMA
-            s2 <- "processed_output";
-            s3 <- "modified_io";
-        ```
-
-        **Generated C Snippet (from `output/procedure_params_test.c`):**
-        ```c
-        // Forward declarations
-        void ProcessNumbers(int a, int* b, int* c);
-        void ProcessStrings(char* s1, char** s2, char** s3);
-
-        // In main:
-        // ProcessNumbers(num_in, &num_out, &num_io);
-        // ProcessStrings(str_in, &str_out, &str_io); // Assuming str_io was strdup'd
-
-        void ProcessNumbers(int a, int* b, int* c) {
-            *b = a * 2;
-            *c = *c * 2;
-        }
-
-        void ProcessStrings(char* s1, char** s2, char** s3) {
-            if (*s2) free(*s2);
-            *s2 = strdup("processed_output");
-
-            if (*s3) free(*s3);
-            *s3 = strdup("modified_io");
-        }
-        ```
+        *   `input`: (Default) Parameter is pass-by-value. C equivalent: `T param_name`.
+        *   `output`: Parameter is pass-by-reference. C equivalent: `T* param_name` for most types; `char** param_name` for `string` type (procedure allocates).
+        *   `input/output`: Parameter is pass-by-reference. C equivalent: `T* param_name` for most types; `char** param_name` for `string` type (procedure can reallocate/repoint). Caller's string should be heap-allocated.
+        *(See `input/procedure_params_test.notal` for detailed examples)*
+    *   Return mechanism: `-> value` at end of function or `return` keyword within the body.
 *   **Abstract Data Types (ADTs):**
     *   Support for `List`, `Stack`, `Tree` etc. (if headers are provided).
     *   Generates `#include "adt_list.h"` etc., when ADT types are used.
     *   Translates ADT operations to C function calls.
 
-## 9. Limitations / Future Work
-*   **Error Recovery:** The parser uses basic error reporting and may not recover gracefully from all syntax errors. Indentation errors might be particularly sensitive.
-*   **Semantic Analysis:** Type checking is primarily done during code generation for I/O. A dedicated semantic analysis phase could provide more comprehensive static checks.
-*   **String Memory Management:** While `dispose` maps to `free`, the NOTAL code must correctly manage string allocation. The C `input` for strings assumes a buffer is ready (example shows `malloc`).
-*   **ADT Memory Management:** The C ADT implementations use `void*` and manual memory management.
-*   **Optimization:** The generated C code is a direct translation and not optimized.
-*   **Indentation Style:** The current indentation parser assumes consistent use of spaces per level. Handling mixed tabs/spaces or variable spaces per level robustly could be enhanced.
+## 9. Pointers, Constants, Enums, and Other Features
 
-## 10. Contributors
+This section details additional language features, including those for more advanced data manipulation and structuring.
 
-This project has benefited from the contributions and insights of:
-
-*   [Zulfa Nurhuda](https://github.com/ZulfaNurhuda)
-*   [Anisa Alhaqi](https://github.com/anisaalhaqi)
-
----
-## Pointers and Memory Management
-
-NOTAL now supports basic pointer types and memory management operations, translating to their C equivalents.
-
-*   **Pointer Declaration:** Variables can be declared as pointers to other types using the syntax:
-    `var_name : pointer to <base_type>`
-    This translates to `base_type* var_name;` in C. For `pointer to string`, it becomes `char** var_name;` in C, allowing modification of the string pointer itself.
-
-*   **Reference Operator (`reference`):**
-    - Syntax: `reference(variable)`
-    - Returns the memory address of `variable`.
-    - Translates to `&variable` in C.
-    - Example: `pNum <- reference(num)` (where `num` is `integer`, `pNum` is `pointer to integer`) becomes `pNum = &num;` in C.
-
-*   **Dereference Operator (`dereference`):**
-    - Syntax: `dereference(pointer_variable)`
-    - Accesses the value pointed to by `pointer_variable`.
-    - Can be used on both the left-hand side (LHS) of an assignment to change the pointed-to value, and on the right-hand side (RHS) or in expressions to read the value.
-    - Translates to `(*pointer_variable)` in C.
-    - Example (RHS): `val <- dereference(pNum)` becomes `val = (*pNum);`
-    - Example (LHS): `dereference(pNum) <- 20` becomes `(*pNum) = 20;`
-
-*   **Dynamic Memory Allocation:**
-    - `allocate(size_expression)`:
-        - Dynamically allocates a block of memory of `size_expression` bytes.
-        - Translates to `malloc(size_expression)` in C. The result is typically assigned to a pointer variable.
-        - Example: `pData <- allocate(100)` becomes `pData = malloc(100);` (casting to specific pointer type like `(int*)malloc(100)` is often done by the C code generator for type safety, though C allows direct assignment from `void*`).
-    - `reallocate(pointer_variable, new_size_expression)`:
-        - Changes the size of the memory block pointed to by `pointer_variable` to `new_size_expression` bytes.
-        - Translates to `realloc(pointer_variable, new_size_expression)` in C.
-        - (Full example usage in `input/pointers_memory_test.notal` is commented out for this iteration but feature is parsed).
-    - `deallocate(pointer_variable)` and `dispose(pointer_variable)`:
-        - Frees the dynamically allocated memory block pointed to by `pointer_variable`.
-        - Both keywords translate to `free(pointer_variable)` in C.
-        - It's good practice to set the pointer to `NULL` after deallocation to prevent dangling pointers.
-
+*   **Pointer Declaration & Operations:**
+    *   Declaration: `var_name : pointer to <base_type>` (Translates to `base_type* var_name;` or `char**` for `pointer to string`).
+    *   Reference: `reference(variable)` (Translates to `&variable`).
+    *   Dereference: `dereference(pointer_variable)` (Translates to `(*pointer_variable)`). Used for both read/write.
+    *   Pointer Member Access: `pointer_expr^.member_name` (Translates to `(pointer_expr_code)->member_name`).
+*   **Dynamic Memory Management:**
+    *   `allocate(size_expression)`: Translates to `malloc(size_expression)`.
+    *   `reallocate(pointer_variable, new_size_expression)`: Translates to `realloc(ptr, new_size)`.
+    *   `deallocate(pointer_variable)` / `dispose(pointer_variable)`: Both translate to `free(ptr)`.
 *   **Null Pointer (`NULL`):**
-    - NOTAL uses `NULL` to represent a null pointer value.
-    - This is typically used to check if an allocation was successful or to initialize/reset pointers.
-    - Translates directly to `NULL` in C (from `<stdlib.h>`).
-    - Example: `if pAllocated = NULL then ...` becomes `if (pAllocated == NULL) { ... }`.
+    *   Represents a null pointer value. Translates to `NULL` in C.
+    *   Example: `if p = NULL then ...`
+*   **Enum Type Declarations:**
+    *   Syntax: `type MyEnum: (VAL1, VAL2, VAL3)`
+    *   Translates to C: `typedef enum { VAL1, VAL2, VAL3 } MyEnum;`
+    *   Enum values (`VAL1`, etc.) are added to the symbol table as constants of type `MyEnum`.
+*   **Constant Declarations:**
+    *   Syntax: `constant MY_CONST = <literal_value>`
+    *   Translates to C: `const <type> MY_CONST = <value>;`
+    *   Type is inferred from the literal (e.g., `10` is integer, `"hi"` is string, `true` is boolean, `NULL` is `void*`).
+*   **Multi-Assignment Lines:**
+    *   Multiple assignment statements can be written on a single line at the beginning of an `ALGORITMA` block, separated by semicolons.
+    *   Example: `ALGORITMA \n    a <- 1; b <- 2; c <- "test"`
 
-### Example: Pointers and Memory (`input/pointers_memory_test.notal`)
+### Example: Advanced Features (`input/advanced_features_test.notal`)
 ```notal
-Program TestPointersMemory
+Program TestAdvancedFeatures
 KAMUS
-    num : integer
-    pNum : pointer to integer
-    pAllocatedNum : pointer to integer
+    type Days: (MONDAY, TUESDAY, WEDNESDAY) // Abbreviated
+    constant PI = 3.14159
+    constant DEFAULT_DAY = MONDAY
+    today : Days
+    type UserRecord: <id: integer, name: string>
+    pUser : pointer to UserRecord
+    procedure InitGlobals // Parameterless
 ALGORITMA
-    output("--- Basic Pointer Test ---")
-    num <- 10
-    pNum <- reference(num)
-    output("Value via pNum: ", dereference(pNum))
-    dereference(pNum) <- 20
-    output("num after update: ", num)
-
-    output("--- Dynamic Allocation Test ---")
-    pAllocatedNum <- allocate(4) // Assuming size of integer
-    if pAllocatedNum = NULL then
-        output("Allocation failed!")
+    InitGlobals
+    counter <- 0; message <- "default_msg"
+    today <- WEDNESDAY
+    if today = DEFAULT_DAY then output("Default day!")
+    pUser <- allocate(100) // Simplified size, real size via sizeof(UserRecord)
+    if pUser = NULL then output("Allocation failed")
     else
-        dereference(pAllocatedNum) <- 123
-        output("Allocated value: ", dereference(pAllocatedNum))
-        deallocate(pAllocatedNum)
-        pAllocatedNum <- NULL
-    output("---")
+        pUser^.id <- 101
+        output("User ID: ", pUser^.id)
+        deallocate(pUser)
 END.
 ```
-
-### Generated C Snippet (from `output/pointers_memory_test.c`):
+### Generated C Snippet (Illustrative from `output/advanced_features_test.c`):
 ```c
-#include <stdio.h>
-#include <stdlib.h> // For malloc, free, NULL
+// Enum
+typedef enum { MONDAY, TUESDAY, WEDNESDAY } Days;
+// Constant
+const double PI = 3.14159;
+const Days DEFAULT_DAY = MONDAY;
+// Record
+typedef struct { int id; char* name; } UserRecord;
+// Global
+Days today;
+UserRecord* pUser = NULL;
+// Procedure
+void InitGlobals(void);
 
 int main() {
-    int num;
-    int* pNum = NULL;
-    int* pAllocatedNum = NULL;
-
-    printf("--- Basic Pointer Test ---\n");
-    num = 10;
-    pNum = &num;
-    printf("Value via pNum: %d\n", (*pNum));
-    (*pNum) = 20;
-    printf("num after update: %d\n", num);
-
-    printf("--- Dynamic Allocation Test ---\n");
-    pAllocatedNum = (int*)malloc(4);
-    if (pAllocatedNum == NULL) {
-        printf("Allocation failed!\n");
-    } else {
-        (*(pAllocatedNum)) = 123;
-        printf("Allocated value: %d\n", (*(pAllocatedNum)));
-        free(pAllocatedNum);
-        pAllocatedNum = NULL;
+    InitGlobals();
+    counter = 0; message = "default_msg";
+    today = WEDNESDAY;
+    if (today == DEFAULT_DAY) { printf("Default day!\n"); }
+    pUser = (UserRecord*)malloc(100);
+    if (pUser == NULL) { printf("Allocation failed\n"); }
+    else {
+        (pUser)->id = 101;
+        printf("User ID: %d\n", (pUser)->id);
+        free(pUser);
     }
-    printf("---\n");
     return 0;
 }
+// ... procedure implementations ...
 ```
 
-## 11. Limitations / Future Work (Renumbered)
+## 10. Limitations / Future Work (Renumbered)
 *   **Error Recovery:** The parser uses basic error reporting and may not recover gracefully from all syntax errors. Indentation errors might be particularly sensitive.
 *   **Semantic Analysis:** Type checking is primarily done during code generation for I/O. A dedicated semantic analysis phase could provide more comprehensive static checks.
 *   **String Memory Management:** While `dispose` maps to `free`, the NOTAL code must correctly manage string allocation. The C `input` for strings assumes a buffer is ready (example shows `malloc`). For `pointer to string`, careful management of `char**` is needed.
@@ -384,7 +314,7 @@ int main() {
 *   **Pointer Arithmetic:** Not explicitly supported in NOTAL syntax (e.g. `p + 1` on a pointer to step by type size).
 *   **Type Casting for `allocate`:** `allocate` returns a generic pointer; explicit casting if needed would be a NOTAL language feature or a more advanced generator task. Current C output relies on implicit `void*` conversion or adds a basic cast.
 
-## 12. Contributors (Renumbered)
+## 11. Contributors (Renumbered)
 
 This project has benefited from the contributions and insights of:
 

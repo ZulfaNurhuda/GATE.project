@@ -716,6 +716,108 @@ void CodeGenerator::visit(WhileNode* node) {
     writeln("}");
 }
 
+// New visit methods for pointer access, null, enum, constant
+void CodeGenerator::visit(PointerMemberAccessNode* node) {
+    write("(");
+    if (node->pointer_expr) {
+        node->pointer_expr->accept(this);
+    } else {
+        write("/* ERROR: NULL pointer_expr in PointerMemberAccessNode */");
+    }
+    write(")->");
+    if (node->member_name) {
+        node->member_name->accept(this); // This will just write the name
+    } else {
+        write("/* ERROR: NULL member_name in PointerMemberAccessNode */");
+    }
+    write(")");
+}
+
+void CodeGenerator::visit(NullLiteralNode* node) {
+    // The NullLiteralNode itself doesn't carry a type, but the context might.
+    // For general C, NULL is often ((void*)0).
+    write("NULL");
+}
+
+void CodeGenerator::visit(EnumTypeNode* node) {
+    indent_spaces();
+    write("typedef enum { ");
+    for (size_t i = 0; i < node->values.size(); ++i) {
+        // It's good practice to prefix enum values in C to avoid name clashes,
+        // e.g., MyEnum_VAL1. For now, direct translation.
+        write(node->values[i]);
+        if (i < node->values.size() - 1) {
+            write(", ");
+        }
+    }
+    write(" } " + node->name + ";");
+    writeln();
+    writeln(); // Extra blank line for readability after type definition
+}
+
+void CodeGenerator::visit(ConstantDeclarationNode* node) {
+    SymbolInfo* info = nullptr;
+    if (symbol_table_ptr) {
+        info = symbol_table_ptr->lookupSymbol(node->name);
+    }
+
+    if (!info) {
+        indent_spaces();
+        // Fallback if symbol info not found, though parser should ensure this.
+        // Try to infer from AST node value if possible as a last resort, or default to "int".
+        std::string c_type = "int"; // Default fallback
+        if (dynamic_cast<StringLiteralNode*>(node->value.get())) {
+            c_type = "char*";
+        } else if (dynamic_cast<NullLiteralNode*>(node->value.get())) {
+            c_type = "void*"; // For NULL
+        }
+        // No good way to infer float/double without RealLiteralNode
+        writeln("/* WARNING: SymbolInfo not found for constant: " + node->name + ". Using guessed type " + c_type + ". */");
+        indent_spaces();
+        write("const " + c_type + " " + node->name + " = ");
+    } else {
+        std::string c_type;
+        if (info->is_pointer_type) {
+            if (!info->pointed_type.empty()) {
+                 if (info->pointed_type == "string") {
+                    // const pointer to string literal: const char* NAME = "value";
+                    // const pointer to char (if it's a pointer to a single char): const char* NAME = &char_var;
+                    // pointer to pointer to char: const char** NAME = ...;
+                    // If the constant itself is NULL and type is pointer to string: const char** NAME = NULL;
+                    // If the constant value is a string literal and type is pointer to string: (this is unusual for constants)
+                    // For `constant MY_PTR_STR : pointer to string = NULL` -> `const char** MY_PTR_STR = NULL;`
+                    // For `constant MY_STR_LIT_PTR : pointer to string = reference("some_global_string_literal_var")` -> `const char** ...`
+                    // The SymbolInfo.type for a constant NULL was set to "pointer" by parser.
+                    // If info.type is "pointer" and info.pointed_type is "string" -> char**
+                     c_type = map_an_type_to_c(info->pointed_type) + "*";
+                 } else { // pointer to non-string (e.g. integer, real)
+                    c_type = map_an_type_to_c(info->pointed_type) + "*";
+                 }
+            } else { // Generic pointer, e.g. from `MY_NULL = NULL` where type wasn't `pointer to X`
+                c_type = "void*"; // `const void* NAME = NULL;` is safe
+            }
+        } else if (info->type == "pointer") { // Case for `constant X = NULL` where type was inferred as "pointer"
+            c_type = "void*";
+        }
+         else { // Not a pointer type
+            c_type = map_an_type_to_c(info->type);
+            // If it's a string constant like `constant GREET = "Hello"`, c_type becomes "char*"
+            // So `const char* GREET = ...` is correct.
+        }
+        indent_spaces();
+        write("const " + c_type + " " + node->name + " = ");
+    }
+
+    if (node->value) {
+        node->value->accept(this);
+    } else {
+        // This case should ideally be prevented by the parser.
+        write("/* ERROR: NULL value_expr in ConstantDeclarationNode */");
+    }
+    write(";");
+    writeln();
+}
+
 // Visit methods for new AST Nodes (Pointers and Memory)
 void CodeGenerator::visit(ReferenceNode* node) {
     write("&(");

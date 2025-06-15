@@ -171,6 +171,34 @@ public:
     void accept(ASTVisitor* visitor) override;
 };
 
+class PointerMemberAccessNode : public ExpressionNode {
+public:
+    std::unique_ptr<ExpressionNode> pointer_expr;
+    std::unique_ptr<IdentifierNode> member_name;
+    PointerMemberAccessNode(int l, int c, std::unique_ptr<ExpressionNode> ptr_expr, std::unique_ptr<IdentifierNode> member)
+        : ExpressionNode(l, c), pointer_expr(std::move(ptr_expr)), member_name(std::move(member)) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
+// --- New Declaration Nodes ---
+class EnumTypeNode : public DeclarationNode {
+public:
+    std::string name;
+    std::vector<std::string> values;
+    EnumTypeNode(int l, int c, std::string enum_name, std::vector<std::string> enum_values)
+        : DeclarationNode(l, c), name(std::move(enum_name)), values(std::move(enum_values)) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
+class ConstantDeclarationNode : public DeclarationNode {
+public:
+    std::string name;
+    std::unique_ptr<ExpressionNode> value; // Should be a literal expression
+    ConstantDeclarationNode(int l, int c, std::string const_name, std::unique_ptr<ExpressionNode> val_expr)
+        : DeclarationNode(l, c), name(std::move(const_name)), value(std::move(val_expr)) {}
+    void accept(ASTVisitor* visitor) override;
+};
+
 
 // --- Concrete Statement Nodes ---
 class AssignmentNode : public StatementNode {
@@ -368,9 +396,12 @@ private:
     std::unique_ptr<BlockNode> parseBlock();
     std::unique_ptr<IdentifierNode> parseIdentifier();
     std::unique_ptr<VariableDeclarationNode> parseVariableDeclaration();
-    std::unique_ptr<FunctionParameterNode> parseFunctionParameter(); // Added declaration
+    std::unique_ptr<FunctionParameterNode> parseFunctionParameter();
     std::unique_ptr<FunctionPrototypeNode> parseFunctionPrototype();
     std::unique_ptr<SubprogramBodyNode> parseSubprogramBody();
+    std::unique_ptr<ConstantDeclarationNode> parseConstantDeclaration(); // New
+    std::unique_ptr<DeclarationNode> parseTypeDefinition();            // New (can return EnumTypeNode or RecordTypeNode)
+    std::unique_ptr<EnumTypeNode> parseEnumTypeDefinitionBody(Token type_name_token); // New Helper
     // ... other parsing helpers for different node types
     // Helper function to get operator precedence - declaration
     int getOperatorPrecedence(TokenType type);

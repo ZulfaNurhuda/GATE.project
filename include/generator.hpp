@@ -38,6 +38,10 @@ class DereferenceNode;
 class AllocateNode;
 class ReallocateNode;
 class DeallocateNode;
+class NullLiteralNode; // Added
+class EnumTypeNode;
+class ConstantDeclarationNode;
+class PointerMemberAccessNode; // Added
 // ExpressionNode, StatementNode, DeclarationNode are abstract, so no visit for them directly.
 
 class ASTVisitor {
@@ -71,6 +75,10 @@ public:
     virtual void visit(AllocateNode* node) = 0;
     virtual void visit(ReallocateNode* node) = 0;
     virtual void visit(DeallocateNode* node) = 0;
+    virtual void visit(NullLiteralNode* node) = 0; // Added
+    virtual void visit(EnumTypeNode* node) = 0;
+    virtual void visit(ConstantDeclarationNode* node) = 0;
+    virtual void visit(PointerMemberAccessNode* node) = 0; // Added
     // Add any other concrete ASTNode types here
 };
 
@@ -121,6 +129,10 @@ public:
     void visit(AllocateNode* node) override;
     void visit(ReallocateNode* node) override;
     void visit(DeallocateNode* node) override;
+    void visit(NullLiteralNode* node) override; // Added
+    void visit(EnumTypeNode* node) override;
+    void visit(ConstantDeclarationNode* node) override;
+    void visit(PointerMemberAccessNode* node) override; // Added
     // Implement visit for any other concrete ASTNode types
 };
 

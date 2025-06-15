@@ -114,6 +114,10 @@ enum class TokenType
     REALLOCATE_KW,
     DEALLOCATE_KW,  // "deallocate" and "dispose" will map to this
     NULL_KW,        // For NULL keyword
+    CONSTANT_KW,    // For "constant" keyword
+
+    // Operators
+    POINTER_ACCESS_OP, // For ^. operator
 
     // Indentation tokens
     INDENT,

@@ -75,13 +75,27 @@ struct SymbolInfo {
     bool is_pointer_type;
     std::string pointed_type;   // Base type if is_pointer_type is true
 
+    // Constant information
+    bool is_constant;
+    // std::string literal_value_for_constant; // Optional: Store actual value if simple
+
+    // Enum type information
+    bool is_enum_type;
+    std::vector<std::string> enum_values_list; // For enum type, lists its values
+
+    // Enum value information
+    bool is_enum_value;
+    std::string enum_parent_type_name; // For enum value, stores its enum type name
+
     // Default constructor for convenience
     SymbolInfo(std::string t = "", std::string k = "", int sl = 0, int dl = 0, int dc = 0)
         : type(std::move(t)), kind(std::move(k)), scope_level(sl), declaration_line(dl), declaration_col(dc),
           is_array(false), array_element_type(""), array_min_bound(0), array_max_bound(0),
-          // Initialize param_mode: if kind is "parameter", default to IN, otherwise NONE.
           param_mode(k == "parameter" ? ParameterMode::IN : ParameterMode::NONE),
-          is_pointer_type(false), pointed_type("") // Initialize pointer fields
+          is_pointer_type(false), pointed_type(""),
+          is_constant(false),
+          is_enum_type(false), /* enum_values_list is default-constructed to empty */
+          is_enum_value(false), enum_parent_type_name("")
           {}
 };
 

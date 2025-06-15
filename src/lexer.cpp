@@ -35,7 +35,8 @@ static const std::unordered_map<std::string, TokenType> keywords = {
     {"reallocate", TokenType::REALLOCATE_KW},
     {"deallocate", TokenType::DEALLOCATE_KW},
     {"dispose", TokenType::DEALLOCATE_KW}, // "dispose" also maps to DEALLOCATE_KW
-    {"null", TokenType::NULL_KW}          // Added NULL keyword
+    {"null", TokenType::NULL_KW},          // Added NULL keyword
+    {"constant", TokenType::CONSTANT_KW}  // Added CONSTANT keyword
 };
 
 // Helper function to calculate leading spaces
@@ -251,8 +252,16 @@ std::vector<Token> Lexer::tokenize(const std::string &source_code) {
             }
 
             // Operators and Punctuation
-            // Try 2-character tokens first
-            if (current_pos + 1 < line_end_pos) { // Ensure next char is on the same line
+            // Check for "^." first
+            if (current_char == '^' && current_pos + 1 < line_end_pos && source_code[current_pos + 1] == '.') {
+                tokens.push_back({TokenType::POINTER_ACCESS_OP, "^.", current_line_num, token_start_col});
+                current_pos += 2;
+                current_col_num += 2;
+                continue;
+            }
+
+            // Try 2-character tokens first (other than ^.)
+            if (current_pos + 1 < line_end_pos) {
                 char next_char = source_code[current_pos + 1];
                 std::string two_char_op = std::string(1, current_char) + next_char;
                 if (two_char_op == "<-") { tokens.push_back({TokenType::ASSIGN_OP, "<-", current_line_num, token_start_col}); current_pos+=2; current_col_num+=2; continue;}
