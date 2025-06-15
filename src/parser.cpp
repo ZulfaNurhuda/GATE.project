@@ -251,8 +251,6 @@ std::unique_ptr<StringLiteralNode> Parser::parseStringLiteral() {
 std::unique_ptr<ExpressionNode> Parser::parsePrimaryExpression() {
     if (check(TokenType::IDENTIFIER)) {
         auto ident_node_ptr = parseIdentifier(); // This is std::unique_ptr<IdentifierNode>
-        int line = ident_node_ptr->line;
-        int col = ident_node_ptr->col;
 
         // Check for postfix operations (function call or array access)
         // This loop allows for chained operations like foo(x)[y] if grammar supports it,
