@@ -1,9 +1,0 @@
-Program HelloWorld
-{ Program ini akan mengeprint "Hello, World!" ke layar console! }
-
-KAMUS
-    constant number: integer = 10
-
-ALGORITMA
-    output("Hallo, World!")
-    output("Your number is " + number)
