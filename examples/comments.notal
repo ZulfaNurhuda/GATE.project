@@ -1,0 +1,21 @@
+PROGRAM CommentsExample
+
+{ This is a single line comment. }
+
+{ 
+  This is a multi-line
+  comment. 
+}
+
+KAMUS
+  x: integer { Variable declaration with a comment }
+
+ALGORITMA
+  x <- 10 { This is an assignment statement }
+  
+  { 
+    Another multi-line
+    comment here
+  }
+  
+  output(x)
