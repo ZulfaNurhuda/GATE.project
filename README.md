@@ -1,5 +1,102 @@
 # **NOTAL Transpiler to Pascal**
 
+# **0. Table of Contents**
+
+- [**NOTAL Transpiler to Pascal**](#notal-transpiler-to-pascal)
+- [**0. Table of Contents**](#0-table-of-contents)
+- [**1. Introduction**](#1-introduction)
+  - [**1.1 Project Objective**](#11-project-objective)
+  - [**1.2. Vision and Benefit**](#12-vision-and-benefit)
+  - [**1.3. Transpiler Scope**](#13-transpiler-scope)
+  - [**1.4. Document Audience**](#14-document-audience)
+- [**2. NOTAL Language Overview**](#2-notal-language-overview)
+  - [**2.1. NOTAL Design Philosophy**](#21-notal-design-philosophy)
+  - [**2.2. NOTAL Program Structure**](#22-notal-program-structure)
+    - [**2.2.1. Program Header Block**](#221-program-header-block)
+    - [**2.2.2. DICTIONARY Block**](#222-dictionary-block)
+    - [**2.2.3. ALGORITHM Block**](#223-algorithm-block)
+- [**3. NOTAL Syntax Specification and Pascal Equivalents**](#3-notal-syntax-specification-and-pascal-equivalents)
+  - [**3.1. Data Types and Structures**](#31-data-types-and-structures)
+    - [**3.1.1. Fundamental Data Types**](#311-fundamental-data-types)
+      - [**3.1.1.1. Integer**](#3111-integer)
+      - [**3.1.1.2. Real**](#3112-real)
+      - [**3.1.1.3. Boolean**](#3113-boolean)
+      - [**3.1.1.4. Character**](#3114-character)
+      - [**3.1.1.5. String**](#3115-string)
+    - [**3.1.2. Structured Types (Record)**](#312-structured-types-record)
+    - [**3.1.3. Static and Multidimensional Arrays**](#313-static-and-multidimensional-arrays)
+    - [**3.1.4. Dynamic Arrays (Declaration, Allocation, Access, Deallocation)**](#314-dynamic-arrays-declaration-allocation-access-deallocation)
+    - [**3.1.5. Enumerated Types and Constraints**](#315-enumerated-types-and-constraints)
+  - [**3.2. Operators and Expressions**](#32-operators-and-expressions)
+    - [**3.2.1. Arithmetic Operators**](#321-arithmetic-operators)
+    - [**3.2.2. Relational Operators**](#322-relational-operators)
+    - [**3.2.3. Logical Operators**](#323-logical-operators)
+    - [**3.2.4. String Operator**](#324-string-operator)
+    - [**3.2.5. Assignment and Initialization**](#325-assignment-and-initialization)
+  - [**3.3. Program Flow Control Structures**](#33-program-flow-control-structures)
+    - [**3.3.1. Conditional Statements**](#331-conditional-statements)
+    - [**3.3.2. Depend On Structure**](#332-depend-on-structure)
+    - [**3.3.3. Looping Structures**](#333-looping-structures)
+      - [**3.3.3.1. While Loop**](#3331-while-loop)
+      - [**3.3.3.2. Repeat-Until Loop**](#3332-repeat-until-loop)
+      - [**3.3.3.3. Traversal Loop**](#3333-traversal-loop)
+      - [**3.3.3.4. Iterate-Stop Loop**](#3334-iterate-stop-loop)
+      - [**3.3.3.5. Repeat N Times**](#3335-repeat-n-times)
+    - [**3.3.4. Loop Control (stop, skip)**](#334-loop-control-stop-skip)
+  - [**3.4. Procedures and Functions**](#34-procedures-and-functions)
+    - [**3.4.1. Procedure Declaration and Definition**](#341-procedure-declaration-and-definition)
+    - [**3.4.2. Function Declaration and Definition**](#342-function-declaration-and-definition)
+    - [**3.4.3. Parameter Modes (input, output, input/output)**](#343-parameter-modes-input-output-inputoutput)
+    - [**3.4.4. Scope and Visibility**](#344-scope-and-visibility)
+  - [**3.5. Pointer Operations and Memory Management**](#35-pointer-operations-and-memory-management)
+    - [**3.5.1. Simple Pointer Declaration and Operations**](#351-simple-pointer-declaration-and-operations)
+    - [**3.5.2. Combination of Pointers and Dynamic Arrays**](#352-combination-of-pointers-and-dynamic-arrays)
+    - [**3.5.3. Pointer Parameters in Procedures/Functions**](#353-pointer-parameters-in-proceduresfunctions)
+  - [**3.6. Input/Output and Casting**](#36-inputoutput-and-casting)
+    - [**3.6.1. Input/Output Operations**](#361-inputoutput-operations)
+    - [**3.6.2. Casting and Conversion Functions**](#362-casting-and-conversion-functions)
+      - [**3.6.2.1. From String to Other Types**](#3621-from-string-to-other-types)
+      - [**3.6.2.2. From Boolean to Other Types**](#3622-from-boolean-to-other-types)
+      - [**3.6.2.3. From Char to Other Types**](#3623-from-char-to-other-types)
+      - [**3.6.2.4. From Integer to Other Types**](#3624-from-integer-to-other-types)
+      - [**3.6.2.5. From Real to Other Types**](#3625-from-real-to-other-types)
+- [**4. Transpiler Architecture and Implementation**](#4-transpiler-architecture-and-implementation)
+  - [**4.1. Core Transpiler Components**](#41-core-transpiler-components)
+    - [**4.1.1. Lexical Analyzer (Lexer)**](#411-lexical-analyzer-lexer)
+    - [**4.1.2. Syntax Parser**](#412-syntax-parser)
+    - [**4.1.3. Semantic Analyzer**](#413-semantic-analyzer)
+    - [**4.1.4. Code Generator**](#414-code-generator)
+  - [**4.2. Technologies and Support Components**](#42-technologies-and-support-components)
+    - [**4.2.1. Implementation Language (C++)**](#421-implementation-language-c)
+    - [**4.2.2. Build System (Makefile)**](#422-build-system-makefile)
+    - [**4.2.3. Testing Framework (Google Test)**](#423-testing-framework-google-test)
+    - [**4.2.4. Command Line Interface (`cxxopts`)**](#424-command-line-interface-cxxopts)
+    - [**4.2.5. Comprehensive and Strict Error Handler**](#425-comprehensive-and-strict-error-handler)
+    - [**4.2.6. Folder structure for projects (recommended)**](#426-folder-structure-for-projects-recommended)
+    - [**4.2.6. Logging System**](#426-logging-system)
+- [**5. Testing and Validation Strategy**](#5-testing-and-validation-strategy)
+  - [**5.1. Comprehensive Test Cases**](#51-comprehensive-test-cases)
+    - [**5.1.1. Unit Testing**](#511-unit-testing)
+    - [**5.1.2. Integration Testing**](#512-integration-testing)
+    - [**5.1.3. Dynamic Array Test Cases**](#513-dynamic-array-test-cases)
+    - [**5.1.4. Regression Testing**](#514-regression-testing)
+  - [**5.2. Semantic Validation**](#52-semantic-validation)
+    - [**5.2.1. Type Safety**](#521-type-safety)
+    - [**5.2.2. Memory Management Validation**](#522-memory-management-validation)
+    - [**5.2.3. Scope Resolution**](#523-scope-resolution)
+    - [**5.2.4. Constraint Validation**](#524-constraint-validation)
+- [**6. Example Programs and Transpilation Result**](#6-example-programs-and-transpilation-result)
+  - [**6.1. Example 1: Simple Calculator with Conditional Structure**](#61-example-1-simple-calculator-with-conditional-structure)
+  - [**6.2. Example 2: Dynamic Array Operations and Procedures**](#62-example-2-dynamic-array-operations-and-procedures)
+  - [**6.3. Example 3: Pointer Operations and Data Structures**](#63-example-3-pointer-operations-and-data-structures)
+- [**7. Conclusion and Future Plans**](#7-conclusion-and-future-plans)
+  - [**7.1. Summary of Achievements**](#71-summary-of-achievements)
+  - [**7.2. Potential Future Development**](#72-potential-future-development)
+- [**8. Appendix**](#8-appendix)
+  - [**8.1. Lexical Rules**](#81-lexical-rules)
+  - [**8.2. NOTAL Grammar (BNF/EBNF)**](#82-notal-grammar-bnfebnf)
+  - [**8.3. AST Specification**](#83-ast-specification)
+
 # **1. Introduction**
 
 ## **1.1 Project Objective**
@@ -3211,6 +3308,79 @@ The *cxxopts* library is used to parse command-line options. This provides a use
 ### **4.2.5. Comprehensive and Strict Error Handler**
 
 This component is crucial for providing meaningful feedback to the user. It is designed to detect, manage, and report syntax or semantic errors found during the transpilation process. When an error is encountered, the handler will stop the process and provide a clear message that includes the error type, line number, and a description to help the user easily locate and fix the issue in the NOTAL source code.
+
+### **4.2.6. Folder structure for projects (recommended)**
+
+```bash
+GATE.project/
+├── Makefile
+├── README.md
+├── CMakeLists.txt             # (opsional, jika ingin support CMake)
+│
+├── include/                   # Header files (.hpp)
+│   ├── ast.hpp
+│   ├── code_generator.hpp
+│   ├── error_handler.hpp
+│   ├── lexer.hpp
+│   ├── logger.hpp
+│   ├── parser.hpp
+│   ├── semantic_analyzer.hpp
+│   └── transpiler.hpp
+│
+├── src/                       # Source files (.cpp)
+│   ├── ast.cpp
+│   ├── code_generator.cpp
+│   ├── error_handler.cpp
+│   ├── lexer.cpp
+│   ├── logger.cpp
+│   ├── main.cpp
+│   ├── parser.cpp
+│   ├── semantic_analyzer.cpp
+│   └── transpiler.cpp
+│
+├── build/                     # Build artifacts (.o or .obj)
+│   ├── ast.o
+│   ├── code_generator.o
+│   ├── error_handler.o
+│   ├── lexer.o
+│   ├── logger.o
+│   ├── main.o
+│   ├── parser.o
+│   ├── semantic_analyzer.o
+│   └── transpiler.o
+│
+├── bin/                       # Executable files
+│   ├── gate                   # Linux executable
+│   └── gate.exe               # Windows executable
+│
+├── lib/                       # External libraries (bisa submodules/zip/extract manual)
+│   ├── cxxopts/               # CLI argument parser
+│   ├── spdlog/                # Logging library
+│   └── gtest/                 # Google Test framework
+│
+├── test/                      # Unit & integration tests
+│   ├── lexer_test.cpp
+│   ├── parser_test.cpp
+│   ├── semantic_test.cpp
+│   ├── codegen_test.cpp
+│   └── ... (test lainnya)
+│
+├── example/                   # Contoh file NOTAL dan hasil Pascal
+│   ├── notal/                 # .notal (input)
+│   │   ├── simple_calculator.notal
+│   │   ├── dynamic_array.notal
+│   │   └── ... (contoh lainnya)
+│   └── pascal/                # .pas (output transpile)
+│       ├── simple_calculator.pas
+│       ├── dynamic_array.pas
+│       └── ... (contoh lainnya)
+│
+├── scripts/                   # (opsional) Script bantu (misal: download deps, format, dll)
+│   └── example.sh
+│
+└── docs/                      # (opsional) Dokumentasi tambahan
+    └── example.md
+```
 
 ### **4.2.6. Logging System**
 
