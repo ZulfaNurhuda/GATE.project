@@ -1,0 +1,23 @@
+PROGRAM TestConstantsAndInput
+{ This program tests constant declarations and input statements. }
+
+KAMUS
+    constant PI: real = 3.14159
+    constant MAX_SIZE: integer = 100
+    constant GREETING: string = 'Hello, '
+
+    radius: real
+    name: string
+    area: real
+
+ALGORITMA
+    output(GREETING)
+    output('Enter your name: ')
+    input(name)
+
+    output('Hello, ', name, '! Enter the radius: ')
+    input(radius)
+
+    area <- PI * radius * radius
+    output('The area is: ', area)
+    output('Max size is: ', MAX_SIZE)

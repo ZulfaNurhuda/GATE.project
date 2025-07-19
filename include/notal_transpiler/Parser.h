@@ -26,7 +26,9 @@ private:
     std::shared_ptr<ast::AlgoritmaStmt> algoritma();
     std::shared_ptr<ast::Stmt> declaration();
     std::shared_ptr<ast::Stmt> varDeclaration();
+    std::shared_ptr<ast::Stmt> constantDeclaration(); // Added
     std::shared_ptr<ast::Stmt> statement();
+    std::shared_ptr<ast::Stmt> inputStatement();      // Added
     std::shared_ptr<ast::Stmt> ifStatement();
     std::shared_ptr<ast::Stmt> ifStatementBody(int parentIndentLevel); // Helper for recursion
     std::shared_ptr<ast::Stmt> whileStatement();

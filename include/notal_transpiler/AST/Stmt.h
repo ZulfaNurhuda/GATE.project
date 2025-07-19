@@ -16,6 +16,8 @@ struct ProgramStmt;
 struct KamusStmt;
 struct AlgoritmaStmt;
 struct VarDeclStmt;
+struct ConstDeclStmt; // Added
+struct InputStmt;     // Added
 struct IfStmt;
 struct WhileStmt;
 struct RepeatUntilStmt;
@@ -31,6 +33,8 @@ public:
     virtual std::any visit(std::shared_ptr<KamusStmt> stmt) = 0;
     virtual std::any visit(std::shared_ptr<AlgoritmaStmt> stmt) = 0;
     virtual std::any visit(std::shared_ptr<VarDeclStmt> stmt) = 0;
+    virtual std::any visit(std::shared_ptr<ConstDeclStmt> stmt) = 0; // Added
+    virtual std::any visit(std::shared_ptr<InputStmt> stmt) = 0;     // Added
     virtual std::any visit(std::shared_ptr<IfStmt> stmt) = 0;
     virtual std::any visit(std::shared_ptr<WhileStmt> stmt) = 0;
     virtual std::any visit(std::shared_ptr<RepeatUntilStmt> stmt) = 0;
@@ -51,6 +55,31 @@ struct ExpressionStmt : Stmt, public std::enable_shared_from_this<ExpressionStmt
     std::shared_ptr<Expr> expression;
 
     explicit ExpressionStmt(std::shared_ptr<Expr> expression) : expression(std::move(expression)) {}
+
+    std::any accept(StmtVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
+// Constant declaration statement node
+struct ConstDeclStmt : Stmt, public std::enable_shared_from_this<ConstDeclStmt> {
+    Token name;
+    Token type; // Optional, can be inferred
+    std::shared_ptr<Expr> initializer;
+
+    ConstDeclStmt(Token name, Token type, std::shared_ptr<Expr> initializer)
+        : name(std::move(name)), type(std::move(type)), initializer(std::move(initializer)) {}
+
+    std::any accept(StmtVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
+// Input statement node
+struct InputStmt : Stmt, public std::enable_shared_from_this<InputStmt> {
+    std::shared_ptr<Variable> variable;
+
+    explicit InputStmt(std::shared_ptr<Variable> variable) : variable(std::move(variable)) {}
 
     std::any accept(StmtVisitor& visitor) override {
         return visitor.visit(shared_from_this());

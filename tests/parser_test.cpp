@@ -123,3 +123,59 @@ ALGORITMA
     auto cond1 = std::dynamic_pointer_cast<notal::ast::Binary>(dependOnStmt->cases[0].conditions[0]);
     ASSERT_NE(cond1, nullptr);
 }
+
+TEST(ParserTest, ConstantDeclaration) {
+    std::string source = R"(
+PROGRAM TestConstants
+KAMUS
+    constant PI: real = 3.14
+    constant MAX: integer = 100
+ALGORITMA
+    output(PI)
+)";
+    notal::Lexer lexer(source);
+    notal::Parser parser(lexer.allTokens());
+    auto program = parser.parse();
+
+    ASSERT_NE(program, nullptr);
+    ASSERT_NE(program->kamus, nullptr);
+    ASSERT_EQ(program->kamus->declarations.size(), 2);
+
+    auto constDecl1 = std::dynamic_pointer_cast<notal::ast::ConstDeclStmt>(program->kamus->declarations[0]);
+    ASSERT_NE(constDecl1, nullptr);
+    EXPECT_EQ(constDecl1->name.lexeme, "PI");
+    EXPECT_EQ(constDecl1->type.type, notal::TokenType::REAL);
+    auto literal1 = std::dynamic_pointer_cast<notal::ast::Literal>(constDecl1->initializer);
+    ASSERT_NE(literal1, nullptr);
+    EXPECT_EQ(std::any_cast<double>(literal1->value), 3.14);
+
+    auto constDecl2 = std::dynamic_pointer_cast<notal::ast::ConstDeclStmt>(program->kamus->declarations[1]);
+    ASSERT_NE(constDecl2, nullptr);
+    EXPECT_EQ(constDecl2->name.lexeme, "MAX");
+    EXPECT_EQ(constDecl2->type.type, notal::TokenType::INTEGER);
+    auto literal2 = std::dynamic_pointer_cast<notal::ast::Literal>(constDecl2->initializer);
+    ASSERT_NE(literal2, nullptr);
+    EXPECT_EQ(std::any_cast<int>(literal2->value), 100);
+}
+
+TEST(ParserTest, InputStatement) {
+    std::string source = R"(
+PROGRAM TestInput
+KAMUS
+    nama: string
+ALGORITMA
+    input(nama)
+)";
+    notal::Lexer lexer(source);
+    notal::Parser parser(lexer.allTokens());
+    auto program = parser.parse();
+
+    ASSERT_NE(program, nullptr);
+    ASSERT_NE(program->algoritma, nullptr);
+    ASSERT_NE(program->algoritma->body, nullptr);
+    ASSERT_EQ(program->algoritma->body->statements.size(), 1);
+
+    auto inputStmt = std::dynamic_pointer_cast<notal::ast::InputStmt>(program->algoritma->body->statements[0]);
+    ASSERT_NE(inputStmt, nullptr);
+    EXPECT_EQ(inputStmt->variable->name.lexeme, "nama");
+}

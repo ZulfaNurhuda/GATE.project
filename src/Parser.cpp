@@ -59,9 +59,31 @@ std::shared_ptr<ast::AlgoritmaStmt> Parser::algoritma() {
     return std::make_shared<ast::AlgoritmaStmt>(body);
 }
 
-// declaration -> varDeclaration
+// declaration -> constantDeclaration | varDeclaration
 std::shared_ptr<ast::Stmt> Parser::declaration() {
+    if (match({TokenType::CONSTANT})) {
+        return constantDeclaration();
+    }
     return varDeclaration();
+}
+
+// constantDeclaration -> "constant" IDENTIFIER ":" type "=" expression
+std::shared_ptr<ast::Stmt> Parser::constantDeclaration() {
+    Token name = consume(TokenType::IDENTIFIER, "Expect constant name.");
+    consume(TokenType::COLON, "Expect ':' after constant name.");
+
+    Token type = advance();
+    if (type.type != TokenType::INTEGER && type.type != TokenType::REAL &&
+        type.type != TokenType::STRING && type.type != TokenType::BOOLEAN &&
+        type.type != TokenType::CHARACTER) {
+            throw error(type, "Expect a type name.");
+    }
+
+    consume(TokenType::EQUAL, "Expect '=' after type.");
+
+    std::shared_ptr<ast::Expr> initializer = expression();
+
+    return std::make_shared<ast::ConstDeclStmt>(name, type, initializer);
 }
 
 // varDeclaration -> IDENTIFIER ":" type
@@ -102,7 +124,7 @@ std::vector<std::shared_ptr<notal::ast::Stmt>> Parser::parseBlockByIndentation(i
     return statements;
 }
 
-// statement -> ifStatement | whileStatement | repeatUntilStatement | outputStatement | expressionStatement
+// statement -> ifStatement | whileStatement | repeatUntilStatement | outputStatement | inputStatement | expressionStatement
 std::shared_ptr<notal::ast::Stmt> Parser::statement() {
     if (check(TokenType::IF)) {
         return ifStatement();
@@ -119,7 +141,22 @@ std::shared_ptr<notal::ast::Stmt> Parser::statement() {
     if (check(TokenType::OUTPUT)) {
         return outputStatement();
     }
+    if (check(TokenType::INPUT)) {
+        return inputStatement();
+    }
     return expressionStatement();
+}
+
+// inputStatement -> "input" "(" IDENTIFIER ")"
+std::shared_ptr<ast::Stmt> Parser::inputStatement() {
+    consume(TokenType::INPUT, "Expect 'input'.");
+    consume(TokenType::LPAREN, "Expect '(' after 'input'.");
+
+    Token variable_token = consume(TokenType::IDENTIFIER, "Expect variable name.");
+    auto variable = std::make_shared<ast::Variable>(variable_token);
+
+    consume(TokenType::RPAREN, "Expect ')' after variable name.");
+    return std::make_shared<ast::InputStmt>(variable);
 }
 
 std::shared_ptr<notal::ast::Stmt> Parser::ifStatement() {

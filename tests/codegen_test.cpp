@@ -161,6 +161,43 @@ end.
     EXPECT_EQ(normalizeCode(result), normalizeCode(expected));
 }
 
+TEST(CodeGenTest, ConstantsAndInput) {
+    std::string source = R"(
+PROGRAM TestConstantsAndInput
+KAMUS
+    constant PI: real = 3.14
+    constant GREETING: string = 'Hello'
+    nama: string
+ALGORITMA
+    output(GREETING)
+    input(nama)
+)";
+    notal::Lexer lexer(source);
+    notal::Parser parser(lexer.allTokens());
+    auto program = parser.parse();
+    ASSERT_NE(program, nullptr);
+
+    notal::CodeGenerator generator;
+    std::string result = generator.generate(program);
+
+    std::string expected = R"(
+program TestConstantsAndInput;
+
+const
+  PI = 3.14;
+  GREETING = 'Hello';
+
+var
+  nama: string;
+
+begin
+  writeln('Hello');
+  readln(nama);
+end.
+)";
+    ASSERT_EQ(normalizeCode(result), normalizeCode(expected));
+}
+
 TEST(CodeGenTest, WhileStatement) {
     std::string source = R"(
 PROGRAM Countdown
