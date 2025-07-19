@@ -1,0 +1,24 @@
+PROGRAM DependOnExample
+{ Contoh penggunaan struktur depend on }
+
+KAMUS
+    nilai: integer
+    status: string
+    op: character
+
+ALGORITMA
+    { Contoh dengan literal }
+    op <- '+'
+    depend on (op)
+        '+': output('Operasi Penjumlahan')
+        '-': output('Operasi Pengurangan')
+        '*', '/': output('Operasi Perkalian atau Pembagian')
+        otherwise: output('Operator tidak dikenal')
+
+    { Contoh dengan ekspresi kompleks - akan di-transpile ke if-else }
+    nilai <- 85
+    depend on (true)
+        nilai >= 90: status <- 'Sangat Baik'
+        nilai >= 75: status <- 'Baik'
+        otherwise: status <- 'Perlu Perbaikan'
+    output('Status: ', status)

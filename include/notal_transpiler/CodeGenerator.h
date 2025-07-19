@@ -23,6 +23,7 @@ public:
     std::any visit(std::shared_ptr<ast::WhileStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::RepeatUntilStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::OutputStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::DependOnStmt> stmt) override;
 
     // Expression visitors
     std::any visit(std::shared_ptr<ast::Binary> expr) override;

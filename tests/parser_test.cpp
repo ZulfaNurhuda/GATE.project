@@ -56,4 +56,70 @@ ALGORITMA
     EXPECT_EQ(cleanString(result), cleanString(expected));
 }
 
+TEST(ParserTest, DependOnLiteral) {
+    std::string source = R"(
+PROGRAM TestDependOn
+KAMUS
+    op: character
+ALGORITMA
+    depend on (op)
+        '+': output('Tambah')
+        '-': output('Kurang')
+        otherwise: output('Lainnya')
+)";
+    notal::Lexer lexer(source);
+    notal::Parser parser(lexer.allTokens());
+    auto program = parser.parse();
 
+    ASSERT_NE(program, nullptr);
+    auto algoritma = program->algoritma;
+    ASSERT_EQ(algoritma->body->statements.size(), (size_t)1);
+
+    auto dependOnStmt = std::dynamic_pointer_cast<notal::ast::DependOnStmt>(algoritma->body->statements[0]);
+    ASSERT_NE(dependOnStmt, nullptr);
+    ASSERT_NE(dependOnStmt->expression, nullptr);
+    ASSERT_EQ(dependOnStmt->cases.size(), 2);
+    ASSERT_NE(dependOnStmt->otherwiseBranch, nullptr);
+
+    // Case '+'
+    ASSERT_EQ(dependOnStmt->cases[0].conditions.size(), 1);
+    auto cond1 = std::dynamic_pointer_cast<notal::ast::Literal>(dependOnStmt->cases[0].conditions[0]);
+    ASSERT_NE(cond1, nullptr);
+    ASSERT_EQ(std::any_cast<std::string>(cond1->value), "+");
+
+    // Case '-'
+    ASSERT_EQ(dependOnStmt->cases[1].conditions.size(), 1);
+    auto cond2 = std::dynamic_pointer_cast<notal::ast::Literal>(dependOnStmt->cases[1].conditions[0]);
+    ASSERT_NE(cond2, nullptr);
+    ASSERT_EQ(std::any_cast<std::string>(cond2->value), "-");
+}
+
+TEST(ParserTest, DependOnComplex) {
+    std::string source = R"(
+PROGRAM TestDependOn
+KAMUS
+    nilai: integer
+ALGORITMA
+    depend on (true)
+        nilai > 90: output('A')
+        nilai > 80: output('B')
+)";
+    notal::Lexer lexer(source);
+    notal::Parser parser(lexer.allTokens());
+    auto program = parser.parse();
+
+    ASSERT_NE(program, nullptr);
+    auto algoritma = program->algoritma;
+    ASSERT_EQ(algoritma->body->statements.size(), 1);
+
+    auto dependOnStmt = std::dynamic_pointer_cast<notal::ast::DependOnStmt>(algoritma->body->statements[0]);
+    ASSERT_NE(dependOnStmt, nullptr);
+    ASSERT_NE(dependOnStmt->expression, nullptr);
+    ASSERT_EQ(dependOnStmt->cases.size(), 2);
+    ASSERT_EQ(dependOnStmt->otherwiseBranch, nullptr);
+
+    // Case nilai > 90
+    ASSERT_EQ(dependOnStmt->cases[0].conditions.size(), 1);
+    auto cond1 = std::dynamic_pointer_cast<notal::ast::Binary>(dependOnStmt->cases[0].conditions[0]);
+    ASSERT_NE(cond1, nullptr);
+}

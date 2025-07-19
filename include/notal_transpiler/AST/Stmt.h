@@ -20,6 +20,7 @@ struct IfStmt;
 struct WhileStmt;
 struct RepeatUntilStmt;
 struct OutputStmt;
+struct DependOnStmt;
 
 // Visitor interface for statements
 class StmtVisitor {
@@ -34,6 +35,7 @@ public:
     virtual std::any visit(std::shared_ptr<WhileStmt> stmt) = 0;
     virtual std::any visit(std::shared_ptr<RepeatUntilStmt> stmt) = 0;
     virtual std::any visit(std::shared_ptr<OutputStmt> stmt) = 0;
+    virtual std::any visit(std::shared_ptr<DependOnStmt> stmt) = 0;
     virtual ~StmtVisitor() = default;
 };
 
@@ -168,6 +170,27 @@ struct RepeatUntilStmt : Stmt, public std::enable_shared_from_this<RepeatUntilSt
     }
 };
 
+// Depend On statement node
+struct DependOnStmt : Stmt, public std::enable_shared_from_this<DependOnStmt> {
+    struct Case {
+        std::vector<std::shared_ptr<Expr>> conditions;
+        std::shared_ptr<Stmt> body;
+
+        Case(std::vector<std::shared_ptr<Expr>> conditions, std::shared_ptr<Stmt> body)
+            : conditions(std::move(conditions)), body(std::move(body)) {}
+    };
+
+    std::shared_ptr<Expr> expression;
+    std::vector<Case> cases;
+    std::shared_ptr<Stmt> otherwiseBranch; // Can be null
+
+    DependOnStmt(std::shared_ptr<Expr> expression, std::vector<Case> cases, std::shared_ptr<Stmt> otherwiseBranch)
+        : expression(std::move(expression)), cases(std::move(cases)), otherwiseBranch(std::move(otherwiseBranch)) {}
+
+    std::any accept(StmtVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
 
 } // namespace ast
 } // namespace notal

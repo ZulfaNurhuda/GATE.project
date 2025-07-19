@@ -21,6 +21,8 @@ public:
     std::any visit(std::shared_ptr<ast::VarDeclStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::IfStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::WhileStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::RepeatUntilStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::DependOnStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::OutputStmt> stmt) override;
 
     // Expression visitors

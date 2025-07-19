@@ -202,6 +202,102 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::RepeatUntilStmt> stmt) {
     return {};
 }
 
+std::any CodeGenerator::visit(std::shared_ptr<ast::DependOnStmt> stmt) {
+    // Check if all cases are literals to decide between 'case' and 'if-elif'
+    bool allLiterals = true;
+    for (const auto& caseItem : stmt->cases) {
+        for (const auto& cond : caseItem.conditions) {
+            if (std::dynamic_pointer_cast<ast::Literal>(cond) == nullptr) {
+                allLiterals = false;
+                break;
+            }
+        }
+        if (!allLiterals) break;
+    }
+
+    if (allLiterals) {
+        // Generate a 'case' statement
+        out << "case " << evaluate(stmt->expression) << " of\n";
+        indentLevel++;
+        for (const auto& caseItem : stmt->cases) {
+            indent();
+            for (size_t i = 0; i < caseItem.conditions.size(); ++i) {
+                out << evaluate(caseItem.conditions[i]);
+                if (i < caseItem.conditions.size() - 1) {
+                    out << ", ";
+                }
+            }
+            out << ":\n";
+            indentLevel++;
+            indent();
+            out << "begin\n";
+            indentLevel++;
+            execute(caseItem.body);
+            indentLevel--;
+            indent();
+            out << "end;\n";
+            indentLevel--;
+        }
+        if (stmt->otherwiseBranch) {
+            indent();
+            out << "else\n";
+            indentLevel++;
+            indent();
+            out << "begin\n";
+            indentLevel++;
+            execute(stmt->otherwiseBranch);
+            indentLevel--;
+            indent();
+            out << "end;\n";
+            indentLevel--;
+        }
+        indentLevel--;
+        indent();
+        out << "end;\n";
+    } else {
+        // Generate an 'if-elif-else' chain
+        for (size_t i = 0; i < stmt->cases.size(); ++i) {
+            if (i > 0) {
+                out << "else ";
+            }
+            out << "if (";
+            for (size_t j = 0; j < stmt->cases[i].conditions.size(); ++j) {
+                out << evaluate(stmt->expression) << " = " << evaluate(stmt->cases[i].conditions[j]);
+                if (j < stmt->cases[i].conditions.size() - 1) {
+                    out << " or ";
+                }
+            }
+            out << ") then\n";
+            indent();
+            out << "begin\n";
+            indentLevel++;
+            execute(stmt->cases[i].body);
+            indentLevel--;
+            indent();
+            out << "end";
+            if (i < stmt->cases.size() - 1 || stmt->otherwiseBranch) {
+                out << "\n";
+                indent();
+            } else {
+                out << ";\n";
+            }
+        }
+
+        if (stmt->otherwiseBranch) {
+            out << "else\n";
+            indent();
+            out << "begin\n";
+            indentLevel++;
+            execute(stmt->otherwiseBranch);
+            indentLevel--;
+            indent();
+            out << "end;\n";
+        }
+    }
+
+    return {};
+}
+
 std::any CodeGenerator::visit(std::shared_ptr<ast::Call> expr) {
     (void)expr; // Suppress unused parameter warning
     return std::string("{ call expression not implemented }");

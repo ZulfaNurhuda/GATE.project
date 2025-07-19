@@ -104,16 +104,19 @@ std::vector<std::shared_ptr<notal::ast::Stmt>> Parser::parseBlockByIndentation(i
 
 // statement -> ifStatement | whileStatement | repeatUntilStatement | outputStatement | expressionStatement
 std::shared_ptr<notal::ast::Stmt> Parser::statement() {
-    if (peek().type == TokenType::IF) {
+    if (check(TokenType::IF)) {
         return ifStatement();
     }
-    if (peek().type == TokenType::WHILE) {
+    if (check(TokenType::WHILE)) {
         return whileStatement();
     }
-    if (peek().type == TokenType::REPEAT) {
+    if (check(TokenType::REPEAT)) {
         return repeatUntilStatement();
     }
-    if (peek().type == TokenType::OUTPUT) {
+    if (check(TokenType::DEPEND)) {
+        return dependOnStatement();
+    }
+    if (check(TokenType::OUTPUT)) {
         return outputStatement();
     }
     return expressionStatement();
@@ -207,6 +210,61 @@ std::shared_ptr<ast::Stmt> Parser::repeatUntilStatement() {
     std::shared_ptr<ast::Expr> condition = expression();
 
     return std::make_shared<ast::RepeatUntilStmt>(body, condition);
+}
+
+std::shared_ptr<ast::Stmt> Parser::dependOnStatement() {
+    Token dependToken = consume(TokenType::DEPEND, "Expect 'depend'.");
+    consume(TokenType::ON, "Expect 'on' after 'depend'.");
+    consume(TokenType::LPAREN, "Expect '(' after 'on'.");
+    std::shared_ptr<ast::Expr> expr = expression();
+    consume(TokenType::RPAREN, "Expect ')' after depend on expression.");
+
+    std::vector<ast::DependOnStmt::Case> cases;
+    std::shared_ptr<ast::Stmt> otherwiseBranch = nullptr;
+
+    int caseIndent = 0;
+    if (!isAtEnd()) {
+        caseIndent = peek().column;
+    }
+
+    if (caseIndent <= dependToken.column) {
+        throw error(peek(), "Cases for 'depend on' must be indented.");
+    }
+
+    while (!isAtEnd() && peek().column == caseIndent && !check(TokenType::OTHERWISE)) {
+        std::vector<std::shared_ptr<ast::Expr>> conditions;
+        do {
+            conditions.push_back(expression());
+        } while (match({TokenType::COMMA}));
+
+        consume(TokenType::COLON, "Expect ':' after case conditions.");
+
+        int bodyIndent = 0;
+        if (!isAtEnd()) {
+            bodyIndent = peek().column;
+        }
+
+        if (bodyIndent <= caseIndent) {
+            throw error(peek(), "The body of a case must be indented.");
+        }
+
+        auto body = std::make_shared<ast::BlockStmt>(parseBlockByIndentation(bodyIndent));
+        cases.emplace_back(conditions, body);
+    }
+
+    if (match({TokenType::OTHERWISE})) {
+        consume(TokenType::COLON, "Expect ':' after 'otherwise'.");
+        int otherwiseIndent = 0;
+        if (!isAtEnd()) {
+            otherwiseIndent = peek().column;
+        }
+        if (otherwiseIndent <= dependToken.column) {
+            throw error(peek(), "The body of 'otherwise' must be indented.");
+        }
+        otherwiseBranch = std::make_shared<ast::BlockStmt>(parseBlockByIndentation(otherwiseIndent));
+    }
+
+    return std::make_shared<ast::DependOnStmt>(expr, cases, otherwiseBranch);
 }
 
 std::shared_ptr<ast::Stmt> Parser::outputStatement() {

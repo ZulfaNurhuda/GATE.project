@@ -98,6 +98,16 @@ std::any ASTPrinter::visit(std::shared_ptr<ast::Call> expr) {
     return std::string("(call ...)");
 }
 
+std::any ASTPrinter::visit(std::shared_ptr<ast::RepeatUntilStmt> stmt) {
+	(void)stmt;
+	return std::string("(repeat ... until ...)");
+}
+
+std::any ASTPrinter::visit(std::shared_ptr<ast::DependOnStmt> stmt) {
+	(void)stmt;
+	return std::string("(depend on ...)");
+}
+
 
 // --- Helper Methods ---
 

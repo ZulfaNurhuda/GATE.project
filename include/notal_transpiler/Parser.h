@@ -31,6 +31,7 @@ private:
     std::shared_ptr<ast::Stmt> ifStatementBody(int parentIndentLevel); // Helper for recursion
     std::shared_ptr<ast::Stmt> whileStatement();
     std::shared_ptr<ast::Stmt> repeatUntilStatement();
+    std::shared_ptr<ast::Stmt> dependOnStatement();
     std::shared_ptr<ast::Stmt> expressionStatement();
     std::shared_ptr<ast::Stmt> outputStatement();
     std::vector<std::shared_ptr<ast::Stmt>> block();
