@@ -1,5 +1,4 @@
-PROGRAM TestConstantsAndInput
-{ This program tests constant declarations and input statements. }
+PROGRAM ExampleInputAndConstant
 
 KAMUS
     constant PI: real = 3.14159

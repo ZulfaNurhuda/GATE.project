@@ -191,7 +191,7 @@ var
   nama: string;
 
 begin
-  writeln('Hello');
+  writeln(GREETING);
   readln(nama);
 end.
 )";

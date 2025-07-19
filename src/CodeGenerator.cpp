@@ -104,7 +104,6 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::ConstDeclStmt> stmt) {
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::InputStmt> stmt) {
-    indent();
     out << "readln(" << stmt->variable->name.lexeme << ");" << std::endl;
     return {};
 }
@@ -134,7 +133,16 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::ExpressionStmt> stmt) {
 std::any CodeGenerator::visit(std::shared_ptr<ast::OutputStmt> stmt) {
     out << "writeln(";
     for (size_t i = 0; i < stmt->expressions.size(); ++i) {
-        out << evaluate(stmt->expressions[i]);
+        if (auto varExpr = std::dynamic_pointer_cast<ast::Variable>(stmt->expressions[i])) {
+            auto it = constants.find(varExpr->name.lexeme);
+            if (it != constants.end()) {
+                out << varExpr->name.lexeme; // Output constant name
+            } else {
+                out << evaluate(stmt->expressions[i]); // Evaluate as usual
+            }
+        } else {
+            out << evaluate(stmt->expressions[i]); // Evaluate as usual
+        }
         if (i < stmt->expressions.size() - 1) {
             out << ", ";
         }
@@ -167,10 +175,6 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::Grouping> expr) {
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::Variable> expr) {
-    auto it = constants.find(expr->name.lexeme);
-    if (it != constants.end()) {
-        return evaluate(it->second);
-    }
     return std::string(expr->name.lexeme);
 }
 
