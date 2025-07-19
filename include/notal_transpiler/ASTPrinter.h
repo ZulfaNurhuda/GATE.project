@@ -19,6 +19,8 @@ public:
     std::any visit(std::shared_ptr<ast::KamusStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::AlgoritmaStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::VarDeclStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::ConstDeclStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::InputStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::IfStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::WhileStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::RepeatUntilStmt> stmt) override;

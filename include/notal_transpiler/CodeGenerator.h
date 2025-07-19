@@ -5,6 +5,7 @@
 #include "AST/Stmt.h"
 #include <string>
 #include <sstream>
+#include <map>
 
 namespace notal {
 
@@ -19,6 +20,8 @@ public:
     std::any visit(std::shared_ptr<ast::KamusStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::AlgoritmaStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::VarDeclStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::ConstDeclStmt> stmt) override; // Added
+    std::any visit(std::shared_ptr<ast::InputStmt> stmt) override;     // Added
     std::any visit(std::shared_ptr<ast::IfStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::WhileStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::RepeatUntilStmt> stmt) override;
@@ -37,6 +40,7 @@ public:
 private:
     std::stringstream out;
     int indentLevel = 0;
+    std::map<std::string, std::shared_ptr<ast::Literal>> constants;
     
     void indent();
     std::string pascalType(const Token& token);

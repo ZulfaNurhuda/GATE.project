@@ -13,6 +13,7 @@ namespace notal {
 
         // Keywords
         PROGRAM, KAMUS, ALGORITMA,
+        CONSTANT,
         TYPE,
         IF, THEN, ELSE, ELIF,
         DEPEND, ON, OTHERWISE,
@@ -73,6 +74,7 @@ namespace notal {
         {"PROGRAM", TokenType::PROGRAM},
         {"KAMUS", TokenType::KAMUS},
         {"ALGORITMA", TokenType::ALGORITMA},
+        {"constant", TokenType::CONSTANT},
         {"type", TokenType::TYPE},
         {"if", TokenType::IF},
         {"then", TokenType::THEN},

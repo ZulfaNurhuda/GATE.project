@@ -1,6 +1,8 @@
 #include "notal_transpiler/CodeGenerator.h"
 #include <stdexcept>
 #include <iostream>
+#include <sstream>
+#include <iomanip>
 
 namespace notal {
 
@@ -48,21 +50,62 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::ProgramStmt> stmt) {
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::KamusStmt> stmt) {
     if (stmt->declarations.empty()) return {};
-    
-    out << "var\n";
-    indentLevel++;
+
+    // Separate const and var declarations
+    std::vector<std::shared_ptr<ast::Stmt>> constDecls;
+    std::vector<std::shared_ptr<ast::Stmt>> varDecls;
+
     for (const auto& decl : stmt->declarations) {
-        indent();
-        execute(decl);
-        out << ";\n";
+        if (std::dynamic_pointer_cast<ast::ConstDeclStmt>(decl)) {
+            constDecls.push_back(decl);
+        } else {
+            varDecls.push_back(decl);
+        }
     }
-    indentLevel--;
-    out << "\n";
+
+    if (!constDecls.empty()) {
+        out << "const\n";
+        indentLevel++;
+        for (const auto& decl : constDecls) {
+            execute(decl);
+        }
+        indentLevel--;
+        out << "\n";
+    }
+
+    if (!varDecls.empty()) {
+        out << "var\n";
+        indentLevel++;
+        for (const auto& decl : varDecls) {
+            indent();
+            execute(decl);
+            out << ";\n";
+        }
+        indentLevel--;
+        out << "\n";
+    }
+
     return {};
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::VarDeclStmt> stmt) {
     out << stmt->name.lexeme << ": " << pascalType(stmt->type);
+    return {};
+}
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::ConstDeclStmt> stmt) {
+    auto literal = std::dynamic_pointer_cast<ast::Literal>(stmt->initializer);
+    if (literal) {
+        constants[stmt->name.lexeme] = literal;
+    }
+    indent();
+    out << stmt->name.lexeme << " = " << evaluate(stmt->initializer) << ";" << std::endl;
+    return {};
+}
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::InputStmt> stmt) {
+    indent();
+    out << "readln(" << stmt->variable->name.lexeme << ");" << std::endl;
     return {};
 }
 
@@ -124,6 +167,10 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::Grouping> expr) {
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::Variable> expr) {
+    auto it = constants.find(expr->name.lexeme);
+    if (it != constants.end()) {
+        return evaluate(it->second);
+    }
     return std::string(expr->name.lexeme);
 }
 
@@ -132,7 +179,12 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::Literal> expr) {
         return std::to_string(std::any_cast<int>(expr->value));
     }
     if (expr->value.type() == typeid(double)) {
-        return std::to_string(std::any_cast<double>(expr->value));
+        std::string s = std::to_string(std::any_cast<double>(expr->value));
+        s.erase(s.find_last_not_of('0') + 1, std::string::npos);
+        if (s.back() == '.') {
+            s.pop_back();
+        }
+        return s;
     }
     if (expr->value.type() == typeid(bool)) {
         return std::any_cast<bool>(expr->value) ? std::string("true") : std::string("false");

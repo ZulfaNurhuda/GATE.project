@@ -38,6 +38,14 @@ std::any ASTPrinter::visit(std::shared_ptr<ast::VarDeclStmt> stmt) {
     return "(VAR_DECL " + stmt->name.lexeme + " : " + stmt->type.lexeme + ")";
 }
 
+std::any ASTPrinter::visit(std::shared_ptr<ast::ConstDeclStmt> stmt) {
+    return parenthesize("CONST_DECL " + stmt->name.lexeme + " : " + stmt->type.lexeme, {stmt->initializer});
+}
+
+std::any ASTPrinter::visit(std::shared_ptr<ast::InputStmt> stmt) {
+    return parenthesize("input", {stmt->variable});
+}
+
 std::any ASTPrinter::visit(std::shared_ptr<ast::ExpressionStmt> stmt) {
     return parenthesize("expr-stmt", {stmt->expression});
 }
