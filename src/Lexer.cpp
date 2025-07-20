@@ -57,9 +57,10 @@ Token Lexer::nextToken() {
             if (match('>')) return makeToken(TokenType::NOT_EQUAL);
             if (match('=')) return makeToken(TokenType::LESS_EQUAL);
             return makeToken(TokenType::LESS);
+        case '<': return makeToken(TokenType::LANGLE);
         case '>':
             if (match('=')) return makeToken(TokenType::GREATER_EQUAL);
-            return makeToken(TokenType::GREATER);
+            return makeToken(TokenType::RANGLE);
         case '\'': return stringLiteral('\'');
         case '"': return stringLiteral('"');
     }
