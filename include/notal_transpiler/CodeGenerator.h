@@ -50,6 +50,7 @@ private:
     std::string pascalType(const Token& token);
     std::string evaluate(std::shared_ptr<ast::Expr> expr);
     void execute(std::shared_ptr<ast::Stmt> stmt);
+    std::string generateConstraintCheck(std::shared_ptr<ast::ConstrainedVarDeclStmt> constrainedVar);
 };
 
 } // namespace notal
