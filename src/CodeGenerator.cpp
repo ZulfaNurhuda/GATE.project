@@ -408,4 +408,43 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::Call> expr) {
     return std::string("{ call expression not implemented }");
 }
 
+// --- New Statement Visitors ---
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::RecordTypeDeclStmt> stmt) {
+    indent();
+    out << stmt->typeName.lexeme << " = record\n";
+    indentLevel++;
+    
+    for (const auto& field : stmt->fields) {
+        indent();
+        out << field.name.lexeme << ": " << pascalType(field.type) << ";\n";
+    }
+    
+    indentLevel--;
+    indent();
+    out << "end;\n\n";
+    return {};
+}
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::EnumTypeDeclStmt> stmt) {
+    indent();
+    out << stmt->typeName.lexeme << " = (";
+    
+    for (size_t i = 0; i < stmt->values.size(); ++i) {
+        out << stmt->values[i].lexeme;
+        if (i < stmt->values.size() - 1) {
+            out << ", ";
+        }
+    }
+    
+    out << ");\n\n";
+    return {};
+}
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::ConstrainedVarDeclStmt> stmt) {
+    out << stmt->name.lexeme << ": " << pascalType(stmt->type);
+    // The constraint handling is done in KamusStmt visitor through setter procedures
+    return {};
+}
+
 } // namespace notal
