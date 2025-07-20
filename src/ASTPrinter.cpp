@@ -116,6 +116,30 @@ std::any ASTPrinter::visit(std::shared_ptr<ast::DependOnStmt> stmt) {
 	return std::string("(depend on ...)");
 }
 
+std::any ASTPrinter::visit(std::shared_ptr<ast::RecordTypeDeclStmt> stmt) {
+    std::stringstream ss;
+    ss << "(RECORD_TYPE_DECL " << stmt->typeName.lexeme;
+    for (const auto& field : stmt->fields) {
+        ss << " (" << field.name.lexeme << " : " << field.type.lexeme << ")";
+    }
+    ss << ")";
+    return ss.str();
+}
+
+std::any ASTPrinter::visit(std::shared_ptr<ast::EnumTypeDeclStmt> stmt) {
+    std::stringstream ss;
+    ss << "(ENUM_TYPE_DECL " << stmt->typeName.lexeme;
+    for (const auto& value : stmt->values) {
+        ss << " " << value.lexeme;
+    }
+    ss << ")";
+    return ss.str();
+}
+
+std::any ASTPrinter::visit(std::shared_ptr<ast::ConstrainedVarDeclStmt> stmt) {
+    return parenthesize("CONSTRAINED_VAR_DECL " + stmt->name.lexeme + " : " + stmt->type.lexeme, {stmt->constraint});
+}
+
 
 // --- Helper Methods ---
 
