@@ -428,6 +428,10 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::FieldAccess> expr) {
     return evaluate(expr->object) + "." + expr->name.lexeme;
 }
 
+std::any CodeGenerator::visit(std::shared_ptr<ast::FieldAssign> expr) {
+    return evaluate(expr->target) + " := " + evaluate(expr->value);
+}
+
 // --- New Statement Visitors ---
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::RecordTypeDeclStmt> stmt) {
