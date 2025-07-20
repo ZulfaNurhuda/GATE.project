@@ -399,6 +399,13 @@ std::shared_ptr<ast::Expr> Parser::assignment() {
         if (auto var = std::dynamic_pointer_cast<ast::Variable>(expr)) {
             Token name = var->name;
             return std::make_shared<ast::Assign>(name, value);
+        } else if (auto fieldAccess = std::dynamic_pointer_cast<ast::FieldAccess>(expr)) {
+            // For field access assignments, we need to create a different approach
+            // For now, let's create a special Assign that can handle field access
+            // We'll use a dummy token for the field access and handle it in CodeGenerator
+            Token dummyToken = fieldAccess->name; // Use the field name as the token
+            dummyToken.lexeme = evaluate(expr); // Store the full field access string
+            return std::make_shared<ast::Assign>(dummyToken, value);
         }
 
         throw error(equals, "Invalid assignment target.");
