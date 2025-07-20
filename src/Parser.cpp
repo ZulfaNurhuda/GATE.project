@@ -59,10 +59,13 @@ std::shared_ptr<ast::AlgoritmaStmt> Parser::algoritma() {
     return std::make_shared<ast::AlgoritmaStmt>(body);
 }
 
-// declaration -> constantDeclaration | varDeclaration
+// declaration -> constantDeclaration | typeDeclaration | varDeclaration
 std::shared_ptr<ast::Stmt> Parser::declaration() {
     if (match({TokenType::CONSTANT})) {
         return constantDeclaration();
+    }
+    if (match({TokenType::TYPE})) {
+        return typeDeclaration();
     }
     return varDeclaration();
 }
@@ -86,7 +89,57 @@ std::shared_ptr<ast::Stmt> Parser::constantDeclaration() {
     return std::make_shared<ast::ConstDeclStmt>(name, type, initializer);
 }
 
-// varDeclaration -> IDENTIFIER ":" type
+// typeDeclaration -> "type" IDENTIFIER ":" recordType | enumType
+std::shared_ptr<ast::Stmt> Parser::typeDeclaration() {
+    Token name = consume(TokenType::IDENTIFIER, "Expect type name.");
+    consume(TokenType::COLON, "Expect ':' after type name.");
+    
+    if (check(TokenType::LESS)) {
+        // Record type: type Student: < name: string, age: integer >
+        advance(); // consume <
+        
+        std::vector<ast::RecordTypeDeclStmt::Field> fields;
+        
+        if (!check(TokenType::GREATER)) {
+            do {
+                Token fieldName = consume(TokenType::IDENTIFIER, "Expect field name.");
+                consume(TokenType::COLON, "Expect ':' after field name.");
+                Token fieldType = advance();
+                
+                if (fieldType.type != TokenType::INTEGER && fieldType.type != TokenType::REAL &&
+                    fieldType.type != TokenType::STRING && fieldType.type != TokenType::BOOLEAN &&
+                    fieldType.type != TokenType::CHARACTER && fieldType.type != TokenType::IDENTIFIER) {
+                    throw error(fieldType, "Expect a basic type name or custom type.");
+                }
+                
+                fields.emplace_back(fieldName, fieldType);
+            } while (match({TokenType::COMMA}));
+        }
+        
+        consume(TokenType::GREATER, "Expect '>' after record fields.");
+        return std::make_shared<ast::RecordTypeDeclStmt>(name, fields);
+        
+    } else if (check(TokenType::LPAREN)) {
+        // Enum type: type Day: (monday, tuesday, wednesday)
+        advance(); // consume (
+        
+        std::vector<Token> values;
+        
+        if (!check(TokenType::RPAREN)) {
+            do {
+                Token value = consume(TokenType::IDENTIFIER, "Expect enum value name.");
+                values.push_back(value);
+            } while (match({TokenType::COMMA}));
+        }
+        
+        consume(TokenType::RPAREN, "Expect ')' after enum values.");
+        return std::make_shared<ast::EnumTypeDeclStmt>(name, values);
+    } else {
+        throw error(peek(), "Expect '<' for record type or '(' for enum type.");
+    }
+}
+
+// varDeclaration -> IDENTIFIER ":" type [ "|" constraint ]
 std::shared_ptr<ast::Stmt> Parser::varDeclaration() {
     Token name = consume(TokenType::IDENTIFIER, "Expect variable name.");
     consume(TokenType::COLON, "Expect ':' after variable name.");
@@ -94,9 +147,15 @@ std::shared_ptr<ast::Stmt> Parser::varDeclaration() {
     Token type = advance();
     if (type.type != TokenType::INTEGER && type.type != TokenType::REAL &&
         type.type != TokenType::STRING && type.type != TokenType::BOOLEAN &&
-        type.type != TokenType::CHARACTER) {
+        type.type != TokenType::CHARACTER && type.type != TokenType::IDENTIFIER) {
             throw error(type, "Expect a type name.");
         }
+
+    // Check for constraint: age: integer | age >= 0 and age <= 150
+    if (match({TokenType::PIPE})) {
+        std::shared_ptr<ast::Expr> constraint = expression();
+        return std::make_shared<ast::ConstrainedVarDeclStmt>(name, type, constraint);
+    }
 
     return std::make_shared<ast::VarDeclStmt>(name, type);
 }
@@ -331,7 +390,7 @@ std::shared_ptr<ast::Expr> Parser::expression() {
 }
 
 std::shared_ptr<ast::Expr> Parser::assignment() {
-    std::shared_ptr<ast::Expr> expr = equality();
+    std::shared_ptr<ast::Expr> expr = logic_or();
 
     if (match({TokenType::ASSIGN})) {
         Token equals = previous();
@@ -340,11 +399,33 @@ std::shared_ptr<ast::Expr> Parser::assignment() {
         if (auto var = std::dynamic_pointer_cast<ast::Variable>(expr)) {
             Token name = var->name;
             return std::make_shared<ast::Assign>(name, value);
+        } else if (auto fieldAccess = std::dynamic_pointer_cast<ast::FieldAccess>(expr)) {
+            return std::make_shared<ast::FieldAssign>(fieldAccess, value);
         }
 
         throw error(equals, "Invalid assignment target.");
     }
 
+    return expr;
+}
+
+std::shared_ptr<ast::Expr> Parser::logic_or() {
+    std::shared_ptr<ast::Expr> expr = logic_and();
+    while (match({TokenType::OR})) {
+        Token op = previous();
+        std::shared_ptr<ast::Expr> right = logic_and();
+        expr = std::make_shared<ast::Binary>(expr, op, right);
+    }
+    return expr;
+}
+
+std::shared_ptr<ast::Expr> Parser::logic_and() {
+    std::shared_ptr<ast::Expr> expr = equality();
+    while (match({TokenType::AND})) {
+        Token op = previous();
+        std::shared_ptr<ast::Expr> right = equality();
+        expr = std::make_shared<ast::Binary>(expr, op, right);
+    }
     return expr;
 }
 
@@ -394,7 +475,22 @@ std::shared_ptr<ast::Expr> Parser::unary() {
         std::shared_ptr<ast::Expr> right = unary();
         return std::make_shared<ast::Unary>(op, right);
     }
-    return primary();
+    return call();
+}
+
+std::shared_ptr<ast::Expr> Parser::call() {
+    std::shared_ptr<ast::Expr> expr = primary();
+    
+    while (true) {
+        if (match({TokenType::DOT})) {
+            Token name = consume(TokenType::IDENTIFIER, "Expect field name after '.'.");
+            expr = std::make_shared<ast::FieldAccess>(expr, name);
+        } else {
+            break;
+        }
+    }
+    
+    return expr;
 }
 
 std::shared_ptr<ast::Expr> Parser::primary() {

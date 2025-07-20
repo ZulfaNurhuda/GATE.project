@@ -1,0 +1,14 @@
+PROGRAM EnumExample
+{ Test enum type declarations }
+KAMUS
+    type Day: (monday, tuesday, wednesday, thursday, friday, saturday, sunday)
+    type Grade: (A, B, C, D, E, F)
+    
+    today: Day
+    myGrade: Grade
+    
+ALGORITMA
+    today <- monday
+    myGrade <- A
+    output('Today is: ', today)
+    output('My grade is: ', myGrade)

@@ -27,6 +27,7 @@ private:
     std::shared_ptr<ast::Stmt> declaration();
     std::shared_ptr<ast::Stmt> varDeclaration();
     std::shared_ptr<ast::Stmt> constantDeclaration(); // Added
+    std::shared_ptr<ast::Stmt> typeDeclaration();     // Added for type declarations
     std::shared_ptr<ast::Stmt> statement();
     std::shared_ptr<ast::Stmt> inputStatement();      // Added
     std::shared_ptr<ast::Stmt> ifStatement();
@@ -49,6 +50,7 @@ private:
     std::shared_ptr<ast::Expr> term();
     std::shared_ptr<ast::Expr> factor();
     std::shared_ptr<ast::Expr> unary();
+    std::shared_ptr<ast::Expr> call();
     std::shared_ptr<ast::Expr> primary();
 
 

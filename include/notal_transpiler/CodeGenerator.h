@@ -22,6 +22,9 @@ public:
     std::any visit(std::shared_ptr<ast::VarDeclStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::ConstDeclStmt> stmt) override; // Added
     std::any visit(std::shared_ptr<ast::InputStmt> stmt) override;     // Added
+    std::any visit(std::shared_ptr<ast::RecordTypeDeclStmt> stmt) override; // Added
+    std::any visit(std::shared_ptr<ast::EnumTypeDeclStmt> stmt) override;   // Added
+    std::any visit(std::shared_ptr<ast::ConstrainedVarDeclStmt> stmt) override; // Added
     std::any visit(std::shared_ptr<ast::IfStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::WhileStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::RepeatUntilStmt> stmt) override;
@@ -36,16 +39,20 @@ public:
     std::any visit(std::shared_ptr<ast::Grouping> expr) override;
     std::any visit(std::shared_ptr<ast::Assign> expr) override;
     std::any visit(std::shared_ptr<ast::Call> expr) override;
+    std::any visit(std::shared_ptr<ast::FieldAccess> expr) override;
+    std::any visit(std::shared_ptr<ast::FieldAssign> expr) override;
 
 private:
     std::stringstream out;
     int indentLevel = 0;
     std::map<std::string, std::shared_ptr<ast::Literal>> constants;
+    std::map<std::string, std::shared_ptr<ast::ConstrainedVarDeclStmt>> constrainedVars; // Track constrained variables
     
     void indent();
     std::string pascalType(const Token& token);
     std::string evaluate(std::shared_ptr<ast::Expr> expr);
     void execute(std::shared_ptr<ast::Stmt> stmt);
+    std::string generateConstraintCheck(std::shared_ptr<ast::ConstrainedVarDeclStmt> constrainedVar);
 };
 
 } // namespace notal

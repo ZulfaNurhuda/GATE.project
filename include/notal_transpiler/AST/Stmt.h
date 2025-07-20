@@ -18,6 +18,9 @@ struct AlgoritmaStmt;
 struct VarDeclStmt;
 struct ConstDeclStmt; // Added
 struct InputStmt;     // Added
+struct RecordTypeDeclStmt; // Added for record types
+struct EnumTypeDeclStmt;   // Added for enum types
+struct ConstrainedVarDeclStmt; // Added for constrained variables
 struct IfStmt;
 struct WhileStmt;
 struct RepeatUntilStmt;
@@ -35,6 +38,9 @@ public:
     virtual std::any visit(std::shared_ptr<VarDeclStmt> stmt) = 0;
     virtual std::any visit(std::shared_ptr<ConstDeclStmt> stmt) = 0; // Added
     virtual std::any visit(std::shared_ptr<InputStmt> stmt) = 0;     // Added
+    virtual std::any visit(std::shared_ptr<RecordTypeDeclStmt> stmt) = 0; // Added
+    virtual std::any visit(std::shared_ptr<EnumTypeDeclStmt> stmt) = 0;   // Added
+    virtual std::any visit(std::shared_ptr<ConstrainedVarDeclStmt> stmt) = 0; // Added
     virtual std::any visit(std::shared_ptr<IfStmt> stmt) = 0;
     virtual std::any visit(std::shared_ptr<WhileStmt> stmt) = 0;
     virtual std::any visit(std::shared_ptr<RepeatUntilStmt> stmt) = 0;
@@ -215,6 +221,53 @@ struct DependOnStmt : Stmt, public std::enable_shared_from_this<DependOnStmt> {
 
     DependOnStmt(std::shared_ptr<Expr> expression, std::vector<Case> cases, std::shared_ptr<Stmt> otherwiseBranch)
         : expression(std::move(expression)), cases(std::move(cases)), otherwiseBranch(std::move(otherwiseBranch)) {}
+
+    std::any accept(StmtVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
+// Record type declaration statement node
+struct RecordTypeDeclStmt : Stmt, public std::enable_shared_from_this<RecordTypeDeclStmt> {
+    struct Field {
+        Token name;
+        Token type;
+        
+        Field(Token name, Token type) : name(std::move(name)), type(std::move(type)) {}
+    };
+
+    Token typeName;
+    std::vector<Field> fields;
+
+    RecordTypeDeclStmt(Token typeName, std::vector<Field> fields)
+        : typeName(std::move(typeName)), fields(std::move(fields)) {}
+
+    std::any accept(StmtVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
+// Enum type declaration statement node
+struct EnumTypeDeclStmt : Stmt, public std::enable_shared_from_this<EnumTypeDeclStmt> {
+    Token typeName;
+    std::vector<Token> values;
+
+    EnumTypeDeclStmt(Token typeName, std::vector<Token> values)
+        : typeName(std::move(typeName)), values(std::move(values)) {}
+
+    std::any accept(StmtVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
+// Constrained variable declaration statement node
+struct ConstrainedVarDeclStmt : Stmt, public std::enable_shared_from_this<ConstrainedVarDeclStmt> {
+    Token name;
+    Token type;
+    std::shared_ptr<Expr> constraint; // The constraint expression after |
+
+    ConstrainedVarDeclStmt(Token name, Token type, std::shared_ptr<Expr> constraint)
+        : name(std::move(name)), type(std::move(type)), constraint(std::move(constraint)) {}
 
     std::any accept(StmtVisitor& visitor) override {
         return visitor.visit(shared_from_this());

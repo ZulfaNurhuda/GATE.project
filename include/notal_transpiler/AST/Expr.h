@@ -17,6 +17,8 @@ struct Variable;
 struct Grouping;
 struct Assign;
 struct Call;
+struct FieldAccess;
+struct FieldAssign;
 
 // Visitor interface for expressions
 class ExprVisitor {
@@ -28,6 +30,8 @@ public:
     virtual std::any visit(std::shared_ptr<Grouping> expr) = 0;
     virtual std::any visit(std::shared_ptr<Assign> expr) = 0;
     virtual std::any visit(std::shared_ptr<Call> expr) = 0;
+    virtual std::any visit(std::shared_ptr<FieldAccess> expr) = 0;
+    virtual std::any visit(std::shared_ptr<FieldAssign> expr) = 0;
     virtual ~ExprVisitor() = default;
 };
 
@@ -119,6 +123,32 @@ struct Call : Expr, public std::enable_shared_from_this<Call> {
 
     Call(std::shared_ptr<Expr> callee, Token paren, std::vector<std::shared_ptr<Expr>> arguments)
         : callee(std::move(callee)), paren(std::move(paren)), arguments(std::move(arguments)) {}
+
+    std::any accept(ExprVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
+// Field access expression node (e.g., student.name)
+struct FieldAccess : Expr, public std::enable_shared_from_this<FieldAccess> {
+    std::shared_ptr<Expr> object;
+    Token name; // The field name
+    
+    FieldAccess(std::shared_ptr<Expr> object, Token name)
+        : object(std::move(object)), name(std::move(name)) {}
+
+    std::any accept(ExprVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
+// Field assignment expression node (e.g., student.name <- value)
+struct FieldAssign : Expr, public std::enable_shared_from_this<FieldAssign> {
+    std::shared_ptr<FieldAccess> target;
+    std::shared_ptr<Expr> value;
+    
+    FieldAssign(std::shared_ptr<FieldAccess> target, std::shared_ptr<Expr> value)
+        : target(std::move(target)), value(std::move(value)) {}
 
     std::any accept(ExprVisitor& visitor) override {
         return visitor.visit(shared_from_this());

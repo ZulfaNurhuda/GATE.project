@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include <cctype>
 
 namespace notal {
 
@@ -25,6 +26,7 @@ std::string CodeGenerator::pascalType(const Token& token) {
         case TokenType::STRING: return "string";
         case TokenType::BOOLEAN: return "boolean";
         case TokenType::CHARACTER: return "char";
+        case TokenType::IDENTIFIER: return token.lexeme; // Custom types use their name directly
         default: throw std::runtime_error("Unknown type for code generation: " + token.lexeme);
     }
 }
@@ -51,18 +53,37 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::ProgramStmt> stmt) {
 std::any CodeGenerator::visit(std::shared_ptr<ast::KamusStmt> stmt) {
     if (stmt->declarations.empty()) return {};
 
-    // Separate const and var declarations
+    // Separate different kinds of declarations
     std::vector<std::shared_ptr<ast::Stmt>> constDecls;
+    std::vector<std::shared_ptr<ast::Stmt>> typeDecls;
     std::vector<std::shared_ptr<ast::Stmt>> varDecls;
+    std::vector<std::shared_ptr<ast::Stmt>> constrainedVarDecls;
 
     for (const auto& decl : stmt->declarations) {
         if (std::dynamic_pointer_cast<ast::ConstDeclStmt>(decl)) {
             constDecls.push_back(decl);
+        } else if (std::dynamic_pointer_cast<ast::RecordTypeDeclStmt>(decl) || 
+                   std::dynamic_pointer_cast<ast::EnumTypeDeclStmt>(decl)) {
+            typeDecls.push_back(decl);
+        } else if (std::dynamic_pointer_cast<ast::ConstrainedVarDeclStmt>(decl)) {
+            constrainedVarDecls.push_back(decl);
         } else {
             varDecls.push_back(decl);
         }
     }
 
+    // Output type declarations first
+    if (!typeDecls.empty()) {
+        out << "type\n";
+        indentLevel++;
+        for (const auto& decl : typeDecls) {
+            execute(decl);
+        }
+        indentLevel--;
+        out << "\n";
+    }
+
+    // Output const declarations
     if (!constDecls.empty()) {
         out << "const\n";
         indentLevel++;
@@ -73,16 +94,53 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::KamusStmt> stmt) {
         out << "\n";
     }
 
-    if (!varDecls.empty()) {
+    // Output var declarations and constrained vars
+    if (!varDecls.empty() || !constrainedVarDecls.empty()) {
         out << "var\n";
         indentLevel++;
+        
+        // Regular variables first
         for (const auto& decl : varDecls) {
             indent();
             execute(decl);
             out << ";\n";
         }
+        
+        // Constrained variables
+        for (const auto& decl : constrainedVarDecls) {
+            auto constrainedVar = std::dynamic_pointer_cast<ast::ConstrainedVarDeclStmt>(decl);
+            if (constrainedVar) {
+                constrainedVars[constrainedVar->name.lexeme] = constrainedVar; // Track this variable
+            }
+            indent();
+            execute(decl);
+            out << ";\n";
+        }
+        
         indentLevel--;
         out << "\n";
+    }
+
+    // Generate setter procedures for constrained variables
+    if (!constrainedVarDecls.empty()) {
+        for (const auto& decl : constrainedVarDecls) {
+            auto constrainedVar = std::dynamic_pointer_cast<ast::ConstrainedVarDeclStmt>(decl);
+            if (constrainedVar) {
+                // Generate setter procedure
+                out << "procedure Set" << constrainedVar->name.lexeme << "(var " << constrainedVar->name.lexeme << ": " << pascalType(constrainedVar->type) << "; value: " << pascalType(constrainedVar->type) << ");\n";
+                out << "begin\n";
+                indentLevel++;
+                indent();
+                
+                // Generate Assert statement with constraint validation
+                std::string constraintExpr = generateConstraintCheck(constrainedVar);
+                out << "Assert(" << constraintExpr << ", 'Error: " << constrainedVar->name.lexeme << " constraint violation!');\n";
+                indent();
+                out << constrainedVar->name.lexeme << " := value;\n";
+                indentLevel--;
+                out << "end;\n\n";
+            }
+        }
     }
 
     return {};
@@ -155,7 +213,14 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::OutputStmt> stmt) {
 // --- Expression Visitors ---
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::Assign> expr) {
-    return expr->name.lexeme + " := " + evaluate(expr->value);
+    // Check if this is a constrained variable
+    if (constrainedVars.find(expr->name.lexeme) != constrainedVars.end()) {
+        // Use setter procedure for constrained variables
+        return "Set" + expr->name.lexeme + "(" + expr->name.lexeme + ", " + evaluate(expr->value) + ")";
+    } else {
+        // Regular assignment
+        return expr->name.lexeme + " := " + evaluate(expr->value);
+    }
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::Binary> expr) {
@@ -357,6 +422,87 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::DependOnStmt> stmt) {
 std::any CodeGenerator::visit(std::shared_ptr<ast::Call> expr) {
     (void)expr; // Suppress unused parameter warning
     return std::string("{ call expression not implemented }");
+}
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::FieldAccess> expr) {
+    return evaluate(expr->object) + "." + expr->name.lexeme;
+}
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::FieldAssign> expr) {
+    return evaluate(expr->target) + " := " + evaluate(expr->value);
+}
+
+// --- New Statement Visitors ---
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::RecordTypeDeclStmt> stmt) {
+    indent();
+    out << stmt->typeName.lexeme << " = record\n";
+    indentLevel++;
+    
+    for (const auto& field : stmt->fields) {
+        indent();
+        out << field.name.lexeme << ": " << pascalType(field.type) << ";\n";
+    }
+    
+    indentLevel--;
+    indent();
+    out << "end;\n\n";
+    return {};
+}
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::EnumTypeDeclStmt> stmt) {
+    indent();
+    out << stmt->typeName.lexeme << " = (";
+    
+    for (size_t i = 0; i < stmt->values.size(); ++i) {
+        out << stmt->values[i].lexeme;
+        if (i < stmt->values.size() - 1) {
+            out << ", ";
+        }
+    }
+    
+    out << ");\n";
+    return {};
+}
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::ConstrainedVarDeclStmt> stmt) {
+    out << stmt->name.lexeme << ": " << pascalType(stmt->type);
+    // The constraint handling is done in KamusStmt visitor through setter procedures
+    return {};
+}
+
+std::string CodeGenerator::generateConstraintCheck(std::shared_ptr<ast::ConstrainedVarDeclStmt> constrainedVar) {
+    // Generate Pascal Assert statement from constraint expression
+    // The constraint should be checked using the 'value' parameter, not the variable name
+    std::string constraintExpr = evaluate(constrainedVar->constraint);
+    
+    // Replace variable name with 'value' in the constraint expression
+    // This is a simple replacement - for more complex cases, we'd need better expression rewriting
+    std::string result = constraintExpr;
+    
+    // Find all instances of the variable name and replace with 'value'
+    size_t pos = 0;
+    std::string varName = constrainedVar->name.lexeme;
+    while ((pos = result.find(varName, pos)) != std::string::npos) {
+        // Make sure we're replacing whole words, not parts of other words
+        bool isWholeWord = true;
+        if (pos > 0 && (std::isalnum(result[pos-1]) || result[pos-1] == '_')) {
+            isWholeWord = false;
+        }
+        if (pos + varName.length() < result.length() && 
+            (std::isalnum(result[pos + varName.length()]) || result[pos + varName.length()] == '_')) {
+            isWholeWord = false;
+        }
+        
+        if (isWholeWord) {
+            result.replace(pos, varName.length(), "value");
+            pos += 5; // length of "value"
+        } else {
+            pos += varName.length();
+        }
+    }
+    
+    return "(" + result + ")";
 }
 
 } // namespace notal

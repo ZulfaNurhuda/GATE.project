@@ -1,0 +1,12 @@
+PROGRAM ConstraintExample
+{ Test constraint declarations }
+KAMUS
+    age: integer | age >= 0 and age <= 150
+    score: real | score >= 0.0 and score <= 100.0
+    grade: character | grade = 'A' or grade = 'B' or grade = 'C' or grade = 'D' or grade = 'F'
+    
+ALGORITMA
+    age <- 25
+    score <- 95.5
+    grade <- 'A'
+    output('Age: ', age, ', Score: ', score, ', Grade: ', grade)
