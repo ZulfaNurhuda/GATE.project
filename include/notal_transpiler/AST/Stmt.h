@@ -38,6 +38,9 @@ public:
     virtual std::any visit(std::shared_ptr<VarDeclStmt> stmt) = 0;
     virtual std::any visit(std::shared_ptr<ConstDeclStmt> stmt) = 0; // Added
     virtual std::any visit(std::shared_ptr<InputStmt> stmt) = 0;     // Added
+    virtual std::any visit(std::shared_ptr<RecordTypeDeclStmt> stmt) = 0; // Added
+    virtual std::any visit(std::shared_ptr<EnumTypeDeclStmt> stmt) = 0;   // Added
+    virtual std::any visit(std::shared_ptr<ConstrainedVarDeclStmt> stmt) = 0; // Added
     virtual std::any visit(std::shared_ptr<IfStmt> stmt) = 0;
     virtual std::any visit(std::shared_ptr<WhileStmt> stmt) = 0;
     virtual std::any visit(std::shared_ptr<RepeatUntilStmt> stmt) = 0;
