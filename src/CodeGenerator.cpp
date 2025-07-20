@@ -130,7 +130,18 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::KamusStmt> stmt) {
                 out << "begin\n";
                 indentLevel++;
                 indent();
-                out << "Assert((" << evaluate(constrainedVar->constraint) << "), 'Error: " << constrainedVar->name.lexeme << " constraint violation!');\n";
+                
+                // Replace variable names with 'value' in constraint expression
+                std::string constraintCode = evaluate(constrainedVar->constraint);
+                // Simple replacement - in a more sophisticated version, we'd need proper expression rewriting
+                size_t pos = 0;
+                std::string varName = constrainedVar->name.lexeme;
+                while ((pos = constraintCode.find(varName, pos)) != std::string::npos) {
+                    constraintCode.replace(pos, varName.length(), "value");
+                    pos += 5; // length of "value"
+                }
+                
+                out << "Assert((" << constraintCode << "), 'Error: " << constrainedVar->name.lexeme << " constraint violation!');\n";
                 indent();
                 out << constrainedVar->name.lexeme << " := value;\n";
                 indentLevel--;
