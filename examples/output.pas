@@ -1,16 +1,19 @@
-program EnumExample;
+program RecordExample;
 
 type
-  Day = (monday, tuesday, wednesday, thursday, friday, saturday, sunday);
-  Grade = (A, B, C, D, E, F);
+  Student = record
+    name: string;
+    age: integer;
+    gpa: real;
+  end;
+
 
 var
-  today: Day;
-  myGrade: Grade;
+  student1: Student;
 
 begin
-  today := monday;
-  myGrade := A;
-  writeln('Today is: ', today);
-  writeln('My grade is: ', myGrade);
+  student1.name := 'John Doe';
+  student1.age := 20;
+  student1.gpa := 3.75;
+  writeln('Student: ', student1.name, ', Age: ', student1.age);
 end.
