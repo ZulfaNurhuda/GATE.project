@@ -139,7 +139,7 @@ std::shared_ptr<ast::Stmt> Parser::typeDeclaration() {
     }
 }
 
-// varDeclaration -> IDENTIFIER ":" type
+// varDeclaration -> IDENTIFIER ":" type [ "|" constraint ]
 std::shared_ptr<ast::Stmt> Parser::varDeclaration() {
     Token name = consume(TokenType::IDENTIFIER, "Expect variable name.");
     consume(TokenType::COLON, "Expect ':' after variable name.");
@@ -150,6 +150,12 @@ std::shared_ptr<ast::Stmt> Parser::varDeclaration() {
         type.type != TokenType::CHARACTER) {
             throw error(type, "Expect a type name.");
         }
+
+    // Check for constraint: age: integer | age >= 0 and age <= 150
+    if (match({TokenType::PIPE})) {
+        std::shared_ptr<ast::Expr> constraint = expression();
+        return std::make_shared<ast::ConstrainedVarDeclStmt>(name, type, constraint);
+    }
 
     return std::make_shared<ast::VarDeclStmt>(name, type);
 }
