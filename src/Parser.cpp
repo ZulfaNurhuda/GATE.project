@@ -59,10 +59,13 @@ std::shared_ptr<ast::AlgoritmaStmt> Parser::algoritma() {
     return std::make_shared<ast::AlgoritmaStmt>(body);
 }
 
-// declaration -> constantDeclaration | varDeclaration
+// declaration -> constantDeclaration | typeDeclaration | varDeclaration
 std::shared_ptr<ast::Stmt> Parser::declaration() {
     if (match({TokenType::CONSTANT})) {
         return constantDeclaration();
+    }
+    if (match({TokenType::TYPE})) {
+        return typeDeclaration();
     }
     return varDeclaration();
 }
