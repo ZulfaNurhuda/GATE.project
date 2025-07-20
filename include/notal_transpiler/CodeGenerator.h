@@ -40,6 +40,7 @@ public:
     std::any visit(std::shared_ptr<ast::Assign> expr) override;
     std::any visit(std::shared_ptr<ast::Call> expr) override;
     std::any visit(std::shared_ptr<ast::FieldAccess> expr) override;
+    std::any visit(std::shared_ptr<ast::FieldAssign> expr) override;
 
 private:
     std::stringstream out;
