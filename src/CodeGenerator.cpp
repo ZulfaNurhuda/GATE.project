@@ -132,8 +132,9 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::KamusStmt> stmt) {
                 indentLevel++;
                 indent();
                 
-                // For safety, use hardcoded constraint examples for common cases
-                out << "{ TODO: Add constraint validation here }\n";
+                // Generate Assert statement with constraint validation
+                std::string constraintExpr = generateConstraintCheck(constrainedVar);
+                out << "Assert(" << constraintExpr << ", 'Error: " << constrainedVar->name.lexeme << " constraint violation!');\n";
                 indent();
                 out << constrainedVar->name.lexeme << " := value;\n";
                 indentLevel--;
