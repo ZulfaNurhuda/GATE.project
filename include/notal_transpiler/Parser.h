@@ -27,6 +27,7 @@ private:
     std::shared_ptr<ast::Stmt> declaration();
     std::shared_ptr<ast::Stmt> varDeclaration();
     std::shared_ptr<ast::Stmt> constantDeclaration(); // Added
+    std::shared_ptr<ast::Stmt> typeDeclaration();     // Added for type declarations
     std::shared_ptr<ast::Stmt> statement();
     std::shared_ptr<ast::Stmt> inputStatement();      // Added
     std::shared_ptr<ast::Stmt> ifStatement();
