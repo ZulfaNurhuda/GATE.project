@@ -44,6 +44,7 @@ private:
     std::stringstream out;
     int indentLevel = 0;
     std::map<std::string, std::shared_ptr<ast::Literal>> constants;
+    std::map<std::string, std::shared_ptr<ast::ConstrainedVarDeclStmt>> constrainedVars; // Track constrained variables
     
     void indent();
     std::string pascalType(const Token& token);
