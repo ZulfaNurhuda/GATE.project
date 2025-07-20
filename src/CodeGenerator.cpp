@@ -424,6 +424,10 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::Call> expr) {
     return std::string("{ call expression not implemented }");
 }
 
+std::any CodeGenerator::visit(std::shared_ptr<ast::FieldAccess> expr) {
+    return evaluate(expr->object) + "." + expr->name.lexeme;
+}
+
 // --- New Statement Visitors ---
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::RecordTypeDeclStmt> stmt) {
