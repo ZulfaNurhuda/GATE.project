@@ -127,6 +127,19 @@ struct Call : Expr, public std::enable_shared_from_this<Call> {
     }
 };
 
+// Field access expression node (e.g., student.name)
+struct FieldAccess : Expr, public std::enable_shared_from_this<FieldAccess> {
+    std::shared_ptr<Expr> object;
+    Token name; // The field name
+    
+    FieldAccess(std::shared_ptr<Expr> object, Token name)
+        : object(std::move(object)), name(std::move(name)) {}
+
+    std::any accept(ExprVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
 
 } // namespace ast
 } // namespace notal
