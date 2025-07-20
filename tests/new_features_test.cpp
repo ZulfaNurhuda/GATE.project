@@ -196,5 +196,5 @@ ALGORITMA
     EXPECT_TRUE(result.find("currentStatus: Status;") != std::string::npos);
     EXPECT_TRUE(result.find("validAge: integer;") != std::string::npos);
     EXPECT_TRUE(result.find("procedure SetvalidAge") != std::string::npos);
-    EXPECT_TRUE(result.find("validAge := 25;") != std::string::npos);
+    EXPECT_TRUE(result.find("SetvalidAge(validAge, 25);") != std::string::npos);
 }
