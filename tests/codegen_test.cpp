@@ -235,8 +235,6 @@ begin
   end;
 end.
 )";
-    std::cout << "Result:\n" << result << std::endl;
-    std::cout << "Expected:\n" << expected << std::endl;
     EXPECT_EQ(normalizeCode(result), normalizeCode(expected));
 }
 

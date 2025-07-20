@@ -1,8 +1,0 @@
-PROGRAM NoConstraintTest
-{ Test without constraints }
-KAMUS
-    age: integer
-    
-ALGORITMA
-    age <- 25
-    output('Age: ', age)

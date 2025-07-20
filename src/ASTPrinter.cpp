@@ -95,14 +95,17 @@ std::any ASTPrinter::visit(std::shared_ptr<ast::Literal> expr) {
 // --- Unimplemented Visitors (for now) ---
 
 std::any ASTPrinter::visit(std::shared_ptr<ast::IfStmt> stmt) {
+    (void)stmt;
     return std::string("(if ...)");
 }
 
 std::any ASTPrinter::visit(std::shared_ptr<ast::WhileStmt> stmt) {
+    (void)stmt;
     return std::string("(while ...)");
 }
 
 std::any ASTPrinter::visit(std::shared_ptr<ast::Call> expr) {
+    (void)expr;
     return std::string("(call ...)");
 }
 
