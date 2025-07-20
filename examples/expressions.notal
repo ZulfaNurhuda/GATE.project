@@ -1,18 +1,18 @@
-PROGRAM Example
+PROGRAM ExpressionsExample
 
 KAMUS
-  a: integer
-  b: integer
-  c: integer
-  d: real
+    a: integer
+    b: integer
+    c: integer
+    d: real
 
 ALGORITMA
-  a <- 10
-  b <- 5
-  c <- a + b * 2
-  d <- (a + b) / 2.0
+    a <- 10
+    b <- 5
+    c <- a + b * 2
+    d <- (a + b) / 2.0
 
-  output('c = ')
-  output(c)
-  output('d = ')
-  output(d)
+    output('c = ')
+    output(c)
+    output('d = ')
+    output(d)

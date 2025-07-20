@@ -1,15 +1,15 @@
-PROGRAM Example
+PROGRAM VariableDeclarationExample
 
 KAMUS
-  age: integer
-  name: string
-  isStudent: boolean
-  gpa: real
+    age: integer
+    name: string
+    isStudent: boolean
+    gpa: real
 
 ALGORITMA
-  age <- 25
-  name <- 'John Doe'
-  isStudent <- true
-  gpa <- 3.8
+    age <- 25
+    name <- 'John Doe'
+    isStudent <- true
+    gpa <- 3.8
 
-  output('Variable declaration and initialization example')
+    output('Variable declaration and initialization example')

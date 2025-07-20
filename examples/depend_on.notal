@@ -1,5 +1,4 @@
 PROGRAM DependOnExample
-{ Contoh penggunaan struktur depend on }
 
 KAMUS
     nilai: integer

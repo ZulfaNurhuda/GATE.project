@@ -1,4 +1,4 @@
-PROGRAM TestOutput
+PROGRAM OutputExample
 
 KAMUS
     message: string

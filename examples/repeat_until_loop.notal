@@ -1,11 +1,11 @@
-PROGRAM Example
+PROGRAM RepeatUntilExample
 
 KAMUS
-  num: integer
+    num: integer
 
 ALGORITMA
-  num <- 0
-  repeat
-    num <- num + 1
-    output(num)
-  until num > 5
+    num <- 0
+    repeat
+        num <- num + 1
+        output(num)
+    until num > 5

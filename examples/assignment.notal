@@ -1,12 +1,12 @@
-PROGRAM Example
+PROGRAM AssignmentExample
 
 KAMUS
-  x: integer
-  y: integer
+    x: integer
+    y: integer
 
 ALGORITMA
-  x <- 10
-  y <- 500
+    x <- 10
+    y <- 500
 
-  output('The value of y is: ')
-  output(y)
+    output('The value of y is: ')
+    output(y)

@@ -1,5 +1,5 @@
 PROGRAM EnumExample
-{ Test enum type declarations }
+
 KAMUS
     type Day: (monday, tuesday, wednesday, thursday, friday, saturday, sunday)
     type Grade: (A, B, C, D, E, F)

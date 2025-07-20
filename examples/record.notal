@@ -1,5 +1,5 @@
 PROGRAM RecordExample
-{ Test record type declarations }
+
 KAMUS
     type Student: <
         name: string,

@@ -1,5 +1,5 @@
 PROGRAM ConstraintExample
-{ Test constraint declarations }
+
 KAMUS
     age: integer | age >= 0 and age <= 150
     score: real | score >= 0.0 and score <= 100.0
