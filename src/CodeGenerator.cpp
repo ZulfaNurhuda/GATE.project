@@ -131,10 +131,35 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::KamusStmt> stmt) {
                 indentLevel++;
                 indent();
                 
-                // For now, we'll use a simple approach - generate the constraint using 'value'
-                // In the constraint: age >= 0 and age <= 150, replace 'age' with 'value'
-                std::string constraintExpr = "{ constraint validation for " + constrainedVar->name.lexeme + " }";
-                out << "{ Assert with constraint validation would go here }\n";
+                // Generate constraint assertion
+                // We need to evaluate the constraint but replace the variable with 'value'
+                // For now, let's create a simple text-based replacement
+                std::string originalConstraint = evaluate(constrainedVar->constraint);
+                std::string valueConstraint = originalConstraint;
+                
+                // Replace variable name with 'value' in the constraint
+                std::string varName = constrainedVar->name.lexeme;
+                size_t pos = 0;
+                while ((pos = valueConstraint.find(varName, pos)) != std::string::npos) {
+                    // Make sure we're replacing whole words, not parts of words
+                    bool isWholeWord = true;
+                    if (pos > 0 && (std::isalnum(valueConstraint[pos-1]) || valueConstraint[pos-1] == '_')) {
+                        isWholeWord = false;
+                    }
+                    if (pos + varName.length() < valueConstraint.length() && 
+                        (std::isalnum(valueConstraint[pos + varName.length()]) || valueConstraint[pos + varName.length()] == '_')) {
+                        isWholeWord = false;
+                    }
+                    
+                    if (isWholeWord) {
+                        valueConstraint.replace(pos, varName.length(), "value");
+                        pos += 5; // length of "value"
+                    } else {
+                        pos += varName.length();
+                    }
+                }
+                
+                out << "Assert(" << valueConstraint << ", 'Error: " << constrainedVar->name.lexeme << " constraint violation!');\n";
                 indent();
                 out << constrainedVar->name.lexeme << " := value;\n";
                 indentLevel--;
