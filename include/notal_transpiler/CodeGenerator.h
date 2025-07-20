@@ -22,6 +22,9 @@ public:
     std::any visit(std::shared_ptr<ast::VarDeclStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::ConstDeclStmt> stmt) override; // Added
     std::any visit(std::shared_ptr<ast::InputStmt> stmt) override;     // Added
+    std::any visit(std::shared_ptr<ast::RecordTypeDeclStmt> stmt) override; // Added
+    std::any visit(std::shared_ptr<ast::EnumTypeDeclStmt> stmt) override;   // Added
+    std::any visit(std::shared_ptr<ast::ConstrainedVarDeclStmt> stmt) override; // Added
     std::any visit(std::shared_ptr<ast::IfStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::WhileStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::RepeatUntilStmt> stmt) override;
