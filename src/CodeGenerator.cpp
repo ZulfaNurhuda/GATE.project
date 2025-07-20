@@ -453,7 +453,7 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::EnumTypeDeclStmt> stmt) {
         }
     }
     
-    out << ");\n\n";
+    out << ");\n";
     return {};
 }
 
