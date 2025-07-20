@@ -209,14 +209,9 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::OutputStmt> stmt) {
 // --- Expression Visitors ---
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::Assign> expr) {
-    // Check if this is a constrained variable
-    if (constrainedVariables.find(expr->name.lexeme) != constrainedVariables.end()) {
-        // Use setter procedure for constrained variables
-        return "Set" + expr->name.lexeme + "(" + expr->name.lexeme + ", " + evaluate(expr->value) + ")";
-    } else {
-        // Regular assignment
-        return expr->name.lexeme + " := " + evaluate(expr->value);
-    }
+    // For now, we'll always use regular assignment
+    // TODO: Implement constraint checking by looking up variable declarations
+    return expr->name.lexeme + " := " + evaluate(expr->value);
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::Binary> expr) {
