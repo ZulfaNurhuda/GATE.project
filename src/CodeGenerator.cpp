@@ -25,6 +25,7 @@ std::string CodeGenerator::pascalType(const Token& token) {
         case TokenType::STRING: return "string";
         case TokenType::BOOLEAN: return "boolean";
         case TokenType::CHARACTER: return "char";
+        case TokenType::IDENTIFIER: return token.lexeme; // Custom types use their name directly
         default: throw std::runtime_error("Unknown type for code generation: " + token.lexeme);
     }
 }
