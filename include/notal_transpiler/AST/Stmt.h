@@ -18,6 +18,9 @@ struct AlgoritmaStmt;
 struct VarDeclStmt;
 struct ConstDeclStmt; // Added
 struct InputStmt;     // Added
+struct RecordTypeDeclStmt; // Added for record types
+struct EnumTypeDeclStmt;   // Added for enum types
+struct ConstrainedVarDeclStmt; // Added for constrained variables
 struct IfStmt;
 struct WhileStmt;
 struct RepeatUntilStmt;
