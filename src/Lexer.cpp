@@ -56,13 +56,10 @@ Token Lexer::nextToken() {
             if (match('-')) return makeToken(TokenType::ASSIGN);
             if (match('>')) return makeToken(TokenType::NOT_EQUAL);
             if (match('=')) return makeToken(TokenType::LESS_EQUAL);
-            // Check context: if we're in a type declaration, return LANGLE
-            // For now, we'll use heuristics based on previous tokens
-            // In a more sophisticated implementation, we'd track parser state
-            return makeToken(TokenType::LESS); // Default to comparison operator
+            return makeToken(TokenType::LESS);
         case '>':
             if (match('=')) return makeToken(TokenType::GREATER_EQUAL);
-            return makeToken(TokenType::GREATER); // Default to comparison operator
+            return makeToken(TokenType::GREATER);
         case '\'': return stringLiteral('\'');
         case '"': return stringLiteral('"');
     }
