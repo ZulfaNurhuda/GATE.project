@@ -1,7 +1,36 @@
+# ===================================================================
+# General-purpose .gitignore for C/C++ projects
+#
+# The following rules are designed to ignore compiled artifacts,
+# temporary files, and local configuration files.
+# ===================================================================
+
+# -------------------------------------------------------------------
+# Whitelist approach: Ignore everything by default, then un-ignore
+# specific files. This is an advanced pattern. Consider a more
+# traditional blacklist approach if this causes issues.
+# -------------------------------------------------------------------
+# Ignore all files and directories
+*
+# Un-ignore directories to allow traversal
+!*/
+# Un-ignore files with an extension
+!*.*
+# Un-ignore this .gitignore file
+!.gitignore
+# Un-ignore Makefiles, which may not have an extension
+!makefile
+!Makefile
+!*.mk
+
+# -------------------------------------------------------------------
+# Build artifacts & Compiled files
+# -------------------------------------------------------------------
+
 # Prerequisites
 *.d
 
-# Compiled Object files
+# Object files
 *.slo
 *.lo
 *.o
@@ -11,22 +40,12 @@
 *.gch
 *.pch
 
-# Linker files
-*.ilk
-
-# Debugger Files
-*.pdb
-
-# Compiled Dynamic libraries
+# Dynamic libraries
 *.so
 *.dylib
 *.dll
 
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
+# Static libraries
 *.lai
 *.la
 *.a
@@ -37,9 +56,16 @@
 *.out
 *.app
 
-# debug information files
+# Other build-related files
+*.ilk
+*.pdb
+*.mod
+*.smod
 *.dwo
 
+# -------------------------------------------------------------------
+# Local configuration
+# -------------------------------------------------------------------
 # Environment variables
 *.env
 *.env.*
