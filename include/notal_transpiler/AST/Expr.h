@@ -142,6 +142,19 @@ struct FieldAccess : Expr, public std::enable_shared_from_this<FieldAccess> {
     }
 };
 
+// Field assignment expression node (e.g., student.name <- value)
+struct FieldAssign : Expr, public std::enable_shared_from_this<FieldAssign> {
+    std::shared_ptr<FieldAccess> target;
+    std::shared_ptr<Expr> value;
+    
+    FieldAssign(std::shared_ptr<FieldAccess> target, std::shared_ptr<Expr> value)
+        : target(std::move(target)), value(std::move(value)) {}
+
+    std::any accept(ExprVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
 
 } // namespace ast
 } // namespace notal
