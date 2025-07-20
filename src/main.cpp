@@ -2,7 +2,6 @@
 #include <fstream>
 #include <sstream>
 #include <regex>
-#include <cxxopts.hpp>
 
 #include "notal_transpiler/Lexer.h"
 #include "notal_transpiler/Parser.h"
@@ -19,31 +18,13 @@ std::string removeComments(const std::string& source) {
 }
 
 int main(int argc, char* argv[]) {
-    cxxopts::Options options("notal_transpiler", "A transpiler from NOTAL to Pascal.");
-
-    options.add_options()
-        ("i,input", "Input NOTAL file", cxxopts::value<std::string>())
-        ("o,output", "Output Pascal file (optional)", cxxopts::value<std::string>()->default_value(""))
-        ("h,help", "Print usage");
-    
-    options.parse_positional("input");
-    options.positional_help("[<input file>]");
-
-    auto result = options.parse(argc, argv);
-
-    if (result.count("help")) {
-        std::cout << options.help() << std::endl;
-        return 0;
-    }
-
-    if (!result.count("input")) {
-        std::cerr << "Error: Input file not specified." << std::endl;
-        std::cerr << options.help() << std::endl;
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0] << " <input_file> [output_file]" << std::endl;
         return 1;
     }
 
-    std::string inputFile = result["input"].as<std::string>();
-    std::string outputFile = result["output"].as<std::string>();
+    std::string inputFile = argv[1];
+    std::string outputFile = (argc >= 3) ? argv[2] : "";
 
     std::cout << "NOTAL Transpiler" << std::endl;
     std::cout << "Input file: " << inputFile << std::endl;
