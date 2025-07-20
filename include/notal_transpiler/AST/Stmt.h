@@ -227,6 +227,53 @@ struct DependOnStmt : Stmt, public std::enable_shared_from_this<DependOnStmt> {
     }
 };
 
+// Record type declaration statement node
+struct RecordTypeDeclStmt : Stmt, public std::enable_shared_from_this<RecordTypeDeclStmt> {
+    struct Field {
+        Token name;
+        Token type;
+        
+        Field(Token name, Token type) : name(std::move(name)), type(std::move(type)) {}
+    };
+
+    Token typeName;
+    std::vector<Field> fields;
+
+    RecordTypeDeclStmt(Token typeName, std::vector<Field> fields)
+        : typeName(std::move(typeName)), fields(std::move(fields)) {}
+
+    std::any accept(StmtVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
+// Enum type declaration statement node
+struct EnumTypeDeclStmt : Stmt, public std::enable_shared_from_this<EnumTypeDeclStmt> {
+    Token typeName;
+    std::vector<Token> values;
+
+    EnumTypeDeclStmt(Token typeName, std::vector<Token> values)
+        : typeName(std::move(typeName)), values(std::move(values)) {}
+
+    std::any accept(StmtVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
+// Constrained variable declaration statement node
+struct ConstrainedVarDeclStmt : Stmt, public std::enable_shared_from_this<ConstrainedVarDeclStmt> {
+    Token name;
+    Token type;
+    std::shared_ptr<Expr> constraint; // The constraint expression after |
+
+    ConstrainedVarDeclStmt(Token name, Token type, std::shared_ptr<Expr> constraint)
+        : name(std::move(name)), type(std::move(type)), constraint(std::move(constraint)) {}
+
+    std::any accept(StmtVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
 } // namespace ast
 } // namespace notal
 
