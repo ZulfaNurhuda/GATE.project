@@ -147,7 +147,7 @@ std::shared_ptr<ast::Stmt> Parser::varDeclaration() {
     Token type = advance();
     if (type.type != TokenType::INTEGER && type.type != TokenType::REAL &&
         type.type != TokenType::STRING && type.type != TokenType::BOOLEAN &&
-        type.type != TokenType::CHARACTER) {
+        type.type != TokenType::CHARACTER && type.type != TokenType::IDENTIFIER) {
             throw error(type, "Expect a type name.");
         }
 
