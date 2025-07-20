@@ -108,7 +108,7 @@ std::shared_ptr<ast::Stmt> Parser::typeDeclaration() {
                 
                 if (fieldType.type != TokenType::INTEGER && fieldType.type != TokenType::REAL &&
                     fieldType.type != TokenType::STRING && fieldType.type != TokenType::BOOLEAN &&
-                    fieldType.type != TokenType::CHARACTER) {
+                    fieldType.type != TokenType::CHARACTER && fieldType.type != TokenType::IDENTIFIER) {
                     throw error(fieldType, "Expect a basic type name or custom type.");
                 }
                 
