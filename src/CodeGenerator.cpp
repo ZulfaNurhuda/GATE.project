@@ -107,6 +107,10 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::KamusStmt> stmt) {
         
         // Constrained variables
         for (const auto& decl : constrainedVarDecls) {
+            auto constrainedVar = std::dynamic_pointer_cast<ast::ConstrainedVarDeclStmt>(decl);
+            if (constrainedVar) {
+                constrainedVariables.insert(constrainedVar->name.lexeme); // Track this variable
+            }
             indent();
             execute(decl);
             out << ";\n";
