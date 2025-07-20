@@ -39,6 +39,7 @@ public:
     std::any visit(std::shared_ptr<ast::Grouping> expr) override;
     std::any visit(std::shared_ptr<ast::Assign> expr) override;
     std::any visit(std::shared_ptr<ast::Call> expr) override;
+    std::any visit(std::shared_ptr<ast::FieldAccess> expr) override;
 
 private:
     std::stringstream out;
