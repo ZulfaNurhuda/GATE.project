@@ -463,4 +463,38 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::ConstrainedVarDeclStmt> stmt)
     return {};
 }
 
+std::string CodeGenerator::generateConstraintCheck(std::shared_ptr<ast::ConstrainedVarDeclStmt> constrainedVar) {
+    // Generate Pascal Assert statement from constraint expression
+    // The constraint should be checked using the 'value' parameter, not the variable name
+    std::string constraintExpr = evaluate(constrainedVar->constraint);
+    
+    // Replace variable name with 'value' in the constraint expression
+    // This is a simple replacement - for more complex cases, we'd need better expression rewriting
+    std::string result = constraintExpr;
+    
+    // Find all instances of the variable name and replace with 'value'
+    size_t pos = 0;
+    std::string varName = constrainedVar->name.lexeme;
+    while ((pos = result.find(varName, pos)) != std::string::npos) {
+        // Make sure we're replacing whole words, not parts of other words
+        bool isWholeWord = true;
+        if (pos > 0 && (std::isalnum(result[pos-1]) || result[pos-1] == '_')) {
+            isWholeWord = false;
+        }
+        if (pos + varName.length() < result.length() && 
+            (std::isalnum(result[pos + varName.length()]) || result[pos + varName.length()] == '_')) {
+            isWholeWord = false;
+        }
+        
+        if (isWholeWord) {
+            result.replace(pos, varName.length(), "value");
+            pos += 5; // length of "value"
+        } else {
+            pos += varName.length();
+        }
+    }
+    
+    return "(" + result + ")";
+}
+
 } // namespace notal
