@@ -473,7 +473,22 @@ std::shared_ptr<ast::Expr> Parser::unary() {
         std::shared_ptr<ast::Expr> right = unary();
         return std::make_shared<ast::Unary>(op, right);
     }
-    return primary();
+    return call();
+}
+
+std::shared_ptr<ast::Expr> Parser::call() {
+    std::shared_ptr<ast::Expr> expr = primary();
+    
+    while (true) {
+        if (match({TokenType::DOT})) {
+            Token name = consume(TokenType::IDENTIFIER, "Expect field name after '.'.");
+            expr = std::make_shared<ast::FieldAccess>(expr, name);
+        } else {
+            break;
+        }
+    }
+    
+    return expr;
 }
 
 std::shared_ptr<ast::Expr> Parser::primary() {
