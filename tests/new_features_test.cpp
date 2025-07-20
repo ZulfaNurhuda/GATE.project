@@ -153,10 +153,10 @@ ALGORITMA
     EXPECT_TRUE(result.find("procedure Setage(var age: integer; value: integer);") != std::string::npos);
     EXPECT_TRUE(result.find("procedure Setscore(var score: real; value: real);") != std::string::npos);
     EXPECT_TRUE(result.find("Assert(") != std::string::npos);
-    EXPECT_TRUE(result.find("age >= 0") != std::string::npos);
-    EXPECT_TRUE(result.find("age <= 150") != std::string::npos);
-    EXPECT_TRUE(result.find("score >= 0") != std::string::npos);
-    EXPECT_TRUE(result.find("score <= 100") != std::string::npos);
+    EXPECT_TRUE(result.find("value >= 0") != std::string::npos);
+    EXPECT_TRUE(result.find("value <= 150") != std::string::npos);
+    EXPECT_TRUE(result.find("value >= 0") != std::string::npos);
+    EXPECT_TRUE(result.find("value <= 100") != std::string::npos);
 }
 
 TEST(NewFeaturesTest, ComplexExample) {
