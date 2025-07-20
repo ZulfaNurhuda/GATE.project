@@ -2,7 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <regex>
-#include "cxxopts.hpp"
+#include <cxxopts.hpp>
 
 #include "notal_transpiler/Lexer.h"
 #include "notal_transpiler/Parser.h"
