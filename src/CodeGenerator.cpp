@@ -51,18 +51,37 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::ProgramStmt> stmt) {
 std::any CodeGenerator::visit(std::shared_ptr<ast::KamusStmt> stmt) {
     if (stmt->declarations.empty()) return {};
 
-    // Separate const and var declarations
+    // Separate different kinds of declarations
     std::vector<std::shared_ptr<ast::Stmt>> constDecls;
+    std::vector<std::shared_ptr<ast::Stmt>> typeDecls;
     std::vector<std::shared_ptr<ast::Stmt>> varDecls;
+    std::vector<std::shared_ptr<ast::Stmt>> constrainedVarDecls;
 
     for (const auto& decl : stmt->declarations) {
         if (std::dynamic_pointer_cast<ast::ConstDeclStmt>(decl)) {
             constDecls.push_back(decl);
+        } else if (std::dynamic_pointer_cast<ast::RecordTypeDeclStmt>(decl) || 
+                   std::dynamic_pointer_cast<ast::EnumTypeDeclStmt>(decl)) {
+            typeDecls.push_back(decl);
+        } else if (std::dynamic_pointer_cast<ast::ConstrainedVarDeclStmt>(decl)) {
+            constrainedVarDecls.push_back(decl);
         } else {
             varDecls.push_back(decl);
         }
     }
 
+    // Output type declarations first
+    if (!typeDecls.empty()) {
+        out << "type\n";
+        indentLevel++;
+        for (const auto& decl : typeDecls) {
+            execute(decl);
+        }
+        indentLevel--;
+        out << "\n";
+    }
+
+    // Output const declarations
     if (!constDecls.empty()) {
         out << "const\n";
         indentLevel++;
@@ -73,16 +92,46 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::KamusStmt> stmt) {
         out << "\n";
     }
 
-    if (!varDecls.empty()) {
+    // Output var declarations and constrained vars
+    if (!varDecls.empty() || !constrainedVarDecls.empty()) {
         out << "var\n";
         indentLevel++;
+        
+        // Regular variables first
         for (const auto& decl : varDecls) {
             indent();
             execute(decl);
             out << ";\n";
         }
+        
+        // Constrained variables
+        for (const auto& decl : constrainedVarDecls) {
+            indent();
+            execute(decl);
+            out << ";\n";
+        }
+        
         indentLevel--;
         out << "\n";
+    }
+
+    // Generate setter procedures for constrained variables
+    if (!constrainedVarDecls.empty()) {
+        for (const auto& decl : constrainedVarDecls) {
+            auto constrainedVar = std::dynamic_pointer_cast<ast::ConstrainedVarDeclStmt>(decl);
+            if (constrainedVar) {
+                // Generate setter procedure
+                out << "procedure Set" << constrainedVar->name.lexeme << "(var " << constrainedVar->name.lexeme << ": " << pascalType(constrainedVar->type) << "; value: " << pascalType(constrainedVar->type) << ");\n";
+                out << "begin\n";
+                indentLevel++;
+                indent();
+                out << "Assert((" << evaluate(constrainedVar->constraint) << "), 'Error: " << constrainedVar->name.lexeme << " constraint violation!');\n";
+                indent();
+                out << constrainedVar->name.lexeme << " := value;\n";
+                indentLevel--;
+                out << "end;\n\n";
+            }
+        }
     }
 
     return {};
