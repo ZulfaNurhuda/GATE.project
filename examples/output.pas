@@ -2,9 +2,7 @@ program EnumExample;
 
 type
   Day = (monday, tuesday, wednesday, thursday, friday, saturday, sunday);
-
   Grade = (A, B, C, D, E, F);
-
 
 var
   today: Day;
