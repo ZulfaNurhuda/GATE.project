@@ -18,6 +18,7 @@ struct Grouping;
 struct Assign;
 struct Call;
 struct FieldAccess;
+struct FieldAssign;
 
 // Visitor interface for expressions
 class ExprVisitor {
