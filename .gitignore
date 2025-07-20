@@ -22,6 +22,8 @@
 !makefile
 !Makefile
 !*.mk
+# Un-ignore the LICENSE file
+!LICENSE
 
 # -------------------------------------------------------------------
 # Build artifacts & Compiled files
