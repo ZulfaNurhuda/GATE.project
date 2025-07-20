@@ -50,6 +50,7 @@ private:
     std::shared_ptr<ast::Expr> term();
     std::shared_ptr<ast::Expr> factor();
     std::shared_ptr<ast::Expr> unary();
+    std::shared_ptr<ast::Expr> call();
     std::shared_ptr<ast::Expr> primary();
 
 
