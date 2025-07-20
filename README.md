@@ -31,10 +31,12 @@ GATE (Ganesha Algorithmic Transpiler Engine) is a super cool "translation compil
 Ready to bring your NOTAL creations to life? Here's how to get GATE up and running in a flash:
 
 1.  **Clone the magic!** ✨
+    
     ```bash
     git clone https://github.com/your-username/GATE.project.git
     cd GATE.project
     ```
+
 2.  **Install GCC Toolchain (Get Ready to Compile! ⚙️)**
 
     To build GATE, you'll need a C++ compiler and `make`. We recommend the GCC toolchain. Here's how to get it on your system:
@@ -44,17 +46,25 @@ Ready to bring your NOTAL creations to life? Here's how to get GATE up and runni
     MSYS2 provides a Unix-like environment and a package manager (pacman) to easily install GCC and other development tools on Windows.
 
     1.  **Download MSYS2:** Visit [https://www.msys2.org/](https://www.msys2.org/) and download the installer.
+    
     2.  **Run the Installer:** Follow the installation wizard. It's recommended to install it to a short path like `C:\msys64`.
+    
     3.  **Update MSYS2 Packages:** Open the MSYS2 MSYS terminal (from your Start Menu) and run:
+        
         ```bash
         pacman -Syu
         ```
+        
         If prompted to close the terminal, do so and reopen it, then run `pacman -Syu` again until no more updates are available.
+
     4.  **Install GCC and Make:** In the MSYS2 MSYS terminal, install the `mingw-w64-x86_64-toolchain` (for 64-bit) which includes `g++` and `make`:
+        
         ```bash
         pacman -S --needed base-devel mingw-w64-x86_64-toolchain
         ```
+        
         When prompted to select packages, usually pressing Enter to select all defaults is fine.
+
     5.  **Add to PATH (Optional but Recommended):** To use `g++` and `make` from any command prompt (CMD/PowerShell), add the `mingw64/bin` directory to your system's PATH environment variable (e.g., `C:\msys64\mingw64\bin`).
 
     #### **Linux**
@@ -62,15 +72,20 @@ Ready to bring your NOTAL creations to life? Here's how to get GATE up and runni
     For most Linux distributions, you can install the build-essential package, which includes `g++` and `make`:
 
     - **Debian/Ubuntu-based:**
+      
       ```bash
       sudo apt update
       sudo apt install build-essential
       ```
+
     - **Fedora/RHEL-based:**
+      
       ```bash
       sudo dnf groupinstall "Development Tools"
       ```
+
     - **Arch Linux:**
+      
       ```bash
       sudo pacman -S base-devel
       ```
@@ -97,9 +112,11 @@ Ready to bring your NOTAL creations to life? Here's how to get GATE up and runni
     If you see version information for both, you're ready to build GATE! 🎉
 
 3.  **Build the engine!** 🏗️
+    
     ```bash
     make
     ```
+    
     (This command compiles everything and gets GATE ready to work its transpilation wonders!)
 
 ---
@@ -123,24 +140,32 @@ To truly bring your transpiled Pascal code to life, you'll need a Pascal compile
 #### **Windows**
 
 1.  **Download the Installer:** Head over to the official Free Pascal website's download page: [https://www.freepascal.org/download.html](https://www.freepascal.org/download.html)
+
 2.  **Find the Windows Installer:** Look for the "Windows" section and download the appropriate installer (usually a `.exe` file). Choose the version that matches your system architecture (32-bit or 64-bit).
+
 3.  **Run the Installer:** Once downloaded, double-click the `.exe` file to start the installation wizard. Follow the on-screen prompts.
-    - **Important Tip:** During installation, make sure to select the option to "Add Free Pascal to the system PATH" or similar. This will allow you to run `fpc` commands directly from your command prompt! If you miss this, you might need to add it manually later.
+    > [!IMPORTANT]
+    > During installation, make sure to select the option to "Add Free Pascal to the system PATH" or similar. This will allow you to run `fpc` commands directly from your command prompt! If you miss this, you might need to add it manually later.
 
 #### **Linux**
 
 For most Linux distributions, you can install FPC using your package manager. Here are some common commands:
 
 - **Debian/Ubuntu-based:**
+  
   ```bash
   sudo apt update
   sudo apt install fpc
   ```
+
 - **Fedora/RHEL-based:**
+  
   ```bash
   sudo dnf install fpc
   ```
+
 - **Arch Linux:**
+  
   ```bash
   sudo pacman -S fpc
   ```
@@ -150,10 +175,13 @@ For most Linux distributions, you can install FPC using your package manager. He
 On macOS, the easiest way to install FPC is using Homebrew:
 
 1.  **Install Homebrew (if you haven't already):**
+    
     ```bash
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     ```
+
 2.  **Install FPC:**
+    
     ```bash
     brew install fpc
     ```
@@ -185,15 +213,19 @@ fpc example.pas
 ```
 
 - **On Windows:** This will magically generate an executable file named `example.exe` in the same directory. ✨
+
 - **On Linux/macOS:** This will create an executable file named `example` (or `example.out` depending on your FPC version/configuration) in the same spot. 🐧🍎
 
 Now, for the grand finale! You can run your Pascal program directly from your terminal! Just type the name of the executable and watch it go! 🤩
 
 - **On Windows:**
+  
   ```bash
   .\example.exe
   ```
+
 - **On Linux/macOS:**
+  
   ```bash
   ./example
   ```
