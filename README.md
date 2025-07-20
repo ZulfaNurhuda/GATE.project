@@ -144,8 +144,9 @@ To truly bring your transpiled Pascal code to life, you'll need a Pascal compile
 2.  **Find the Windows Installer:** Look for the "Windows" section and download the appropriate installer (usually a `.exe` file). Choose the version that matches your system architecture (32-bit or 64-bit).
 
 3.  **Run the Installer:** Once downloaded, double-click the `.exe` file to start the installation wizard. Follow the on-screen prompts.
-    > [!IMPORTANT]
-    > During installation, make sure to select the option to "Add Free Pascal to the system PATH" or similar. This will allow you to run `fpc` commands directly from your command prompt! If you miss this, you might need to add it manually later.
+
+> [!IMPORTANT]
+> During installation, make sure to select the option to "Add Free Pascal to the system PATH" or similar. This will allow you to run `fpc` commands directly from your command prompt! If you miss this, you might need to add it manually later.
 
 #### **Linux**
 
