@@ -52,6 +52,7 @@ namespace notal {
         // Punctuation
         LPAREN, RPAREN,     // ( )
         LBRACKET, RBRACKET, // [ ]
+        LANGLE, RANGLE,     // < > (for record types)
         COLON, COMMA, DOT,  // : , .
         PIPE, // |
 
