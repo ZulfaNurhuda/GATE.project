@@ -1,0 +1,13 @@
+PROGRAM TestConstraints
+KAMUS
+    age: integer | age >= 18 and age <= 65
+    score: real | score >= 0.0 and score <= 10.0
+    grade: character | grade = 'A' or grade = 'B' or grade = 'C' or grade = 'D' or grade = 'F'
+    percentage: real | percentage >= 0.0 and percentage <= 100.0
+    
+ALGORITMA
+    age <- 30
+    score <- 8.5
+    grade <- 'A'
+    percentage <- 95.5
+    output('Age: ', age, ', Score: ', score, ', Grade: ', grade, ', Percentage: ', percentage)
