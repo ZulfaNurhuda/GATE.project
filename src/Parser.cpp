@@ -89,6 +89,56 @@ std::shared_ptr<ast::Stmt> Parser::constantDeclaration() {
     return std::make_shared<ast::ConstDeclStmt>(name, type, initializer);
 }
 
+// typeDeclaration -> "type" IDENTIFIER ":" recordType | enumType
+std::shared_ptr<ast::Stmt> Parser::typeDeclaration() {
+    Token name = consume(TokenType::IDENTIFIER, "Expect type name.");
+    consume(TokenType::COLON, "Expect ':' after type name.");
+    
+    if (check(TokenType::LESS)) {
+        // Record type: type Student: < name: string, age: integer >
+        advance(); // consume <
+        
+        std::vector<ast::RecordTypeDeclStmt::Field> fields;
+        
+        if (!check(TokenType::GREATER)) {
+            do {
+                Token fieldName = consume(TokenType::IDENTIFIER, "Expect field name.");
+                consume(TokenType::COLON, "Expect ':' after field name.");
+                Token fieldType = advance();
+                
+                if (fieldType.type != TokenType::INTEGER && fieldType.type != TokenType::REAL &&
+                    fieldType.type != TokenType::STRING && fieldType.type != TokenType::BOOLEAN &&
+                    fieldType.type != TokenType::CHARACTER) {
+                    throw error(fieldType, "Expect a basic type name or custom type.");
+                }
+                
+                fields.emplace_back(fieldName, fieldType);
+            } while (match({TokenType::COMMA}));
+        }
+        
+        consume(TokenType::GREATER, "Expect '>' after record fields.");
+        return std::make_shared<ast::RecordTypeDeclStmt>(name, fields);
+        
+    } else if (check(TokenType::LPAREN)) {
+        // Enum type: type Day: (monday, tuesday, wednesday)
+        advance(); // consume (
+        
+        std::vector<Token> values;
+        
+        if (!check(TokenType::RPAREN)) {
+            do {
+                Token value = consume(TokenType::IDENTIFIER, "Expect enum value name.");
+                values.push_back(value);
+            } while (match({TokenType::COMMA}));
+        }
+        
+        consume(TokenType::RPAREN, "Expect ')' after enum values.");
+        return std::make_shared<ast::EnumTypeDeclStmt>(name, values);
+    } else {
+        throw error(peek(), "Expect '<' for record type or '(' for enum type.");
+    }
+}
+
 // varDeclaration -> IDENTIFIER ":" type
 std::shared_ptr<ast::Stmt> Parser::varDeclaration() {
     Token name = consume(TokenType::IDENTIFIER, "Expect variable name.");
