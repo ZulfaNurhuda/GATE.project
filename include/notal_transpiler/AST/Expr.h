@@ -29,6 +29,7 @@ public:
     virtual std::any visit(std::shared_ptr<Grouping> expr) = 0;
     virtual std::any visit(std::shared_ptr<Assign> expr) = 0;
     virtual std::any visit(std::shared_ptr<Call> expr) = 0;
+    virtual std::any visit(std::shared_ptr<FieldAccess> expr) = 0;
     virtual ~ExprVisitor() = default;
 };
 
