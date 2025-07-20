@@ -390,7 +390,7 @@ std::shared_ptr<ast::Expr> Parser::expression() {
 }
 
 std::shared_ptr<ast::Expr> Parser::assignment() {
-    std::shared_ptr<ast::Expr> expr = equality();
+    std::shared_ptr<ast::Expr> expr = logic_or();
 
     if (match({TokenType::ASSIGN})) {
         Token equals = previous();
@@ -404,6 +404,26 @@ std::shared_ptr<ast::Expr> Parser::assignment() {
         throw error(equals, "Invalid assignment target.");
     }
 
+    return expr;
+}
+
+std::shared_ptr<ast::Expr> Parser::logic_or() {
+    std::shared_ptr<ast::Expr> expr = logic_and();
+    while (match({TokenType::OR})) {
+        Token op = previous();
+        std::shared_ptr<ast::Expr> right = logic_and();
+        expr = std::make_shared<ast::Binary>(expr, op, right);
+    }
+    return expr;
+}
+
+std::shared_ptr<ast::Expr> Parser::logic_and() {
+    std::shared_ptr<ast::Expr> expr = equality();
+    while (match({TokenType::AND})) {
+        Token op = previous();
+        std::shared_ptr<ast::Expr> right = equality();
+        expr = std::make_shared<ast::Binary>(expr, op, right);
+    }
     return expr;
 }
 
