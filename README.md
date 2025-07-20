@@ -13,6 +13,7 @@ Welcome to GATE! This awesome project is your magical bridge, transforming your 
 - **⚙️・<a href="#install-gcc-toolchain" style="text-decoration: none;">Install GCC Toolchain</a>**
 - **🗺️・<a href="#how-to-use" style="text-decoration: none;">How to Use</a>**
 - **💻・<a href="#install-fpc" style="text-decoration: none;">Installing Free Pascal Compiler (FPC)</a>**
+- **✨・<a href="#compile-pascal" style="text-decoration: none;">Compiling Your Pascal Code</a>**
 - **💖・<a href="#contributing" style="text-decoration: none;">Contributing</a>**
 - **📜・<a href="#license" style="text-decoration: none;">License</a>**
 
@@ -37,7 +38,7 @@ Ready to bring your NOTAL creations to life? Here's how to get GATE up and runni
 
     To build GATE, you'll need a C++ compiler and `make`. We recommend the GCC toolchain. Here's how to get it on your system:
 
-    ##### **Windows (using MSYS2)**
+    #### **Windows (using MSYS2)**
 
     MSYS2 provides a Unix-like environment and a package manager (pacman) to easily install GCC and other development tools on Windows.
 
@@ -55,7 +56,7 @@ Ready to bring your NOTAL creations to life? Here's how to get GATE up and runni
         When prompted to select packages, usually pressing Enter to select all defaults is fine.
     5.  **Add to PATH (Optional but Recommended):** To use `g++` and `make` from any command prompt (CMD/PowerShell), add the `mingw64/bin` directory to your system's PATH environment variable (e.g., `C:\msys64\mingw64\bin`).
 
-    ##### **Linux**
+    #### **Linux**
 
     For most Linux distributions, you can install the build-essential package, which includes `g++` and `make`:
 
@@ -73,7 +74,7 @@ Ready to bring your NOTAL creations to life? Here's how to get GATE up and runni
         sudo pacman -S base-devel
         ```
 
-    ##### **macOS**
+    #### **macOS**
 
     On macOS, you can install the Xcode Command Line Tools, which include `clang` (Apple's default C/C++ compiler, compatible with GCC standards) and `make`:
 
@@ -82,7 +83,7 @@ Ready to bring your NOTAL creations to life? Here's how to get GATE up and runni
     ```
     Follow the on-screen prompts to complete the installation.
 
-    ##### **Verify Installation (for all OS)**
+    #### **Verify Installation (for all OS)**
 
     After installation, open a new terminal (or reopen an existing one) and type:
 
@@ -109,8 +110,6 @@ Once GATE is built, you're just one command away from seeing your NOTAL algorith
 ```
 
 Simply replace `<your_notal_file.notal>` with the path to your NOTAL source file, and `<your_pascal_output.pas>` with the name you want for your shiny new Pascal file. This Pascal file will contain the fully translated, executable version of your algorithm, ready to be compiled and run by any Pascal compiler!
-
----
 
 ---
 
@@ -168,6 +167,38 @@ If you see information about the FPC version, congratulations! You're all set to
 
 ---
 
+### <div id="compile-pascal">**✨・Compiling Your Pascal Code (Time to See it Run! 🚀)**</div>
+
+Once you have your shiny new Pascal file (like `my_program.pas` from the previous step) and Free Pascal Compiler (FPC) installed, it's super easy to turn it into an executable program! Here's how to make your code *zoom*! 💨
+
+```bash
+fpc <your_pascal_output.pas>
+```
+
+For example, if your transpiled file is named `example.pas`:
+
+```bash
+fpc example.pas
+```
+
+*   **On Windows:** This will magically generate an executable file named `example.exe` in the same directory. ✨
+*   **On Linux/macOS:** This will create an executable file named `example` (or `example.out` depending on your FPC version/configuration) in the same spot. 🐧🍎
+
+Now, for the grand finale! You can run your Pascal program directly from your terminal! Just type the name of the executable and watch it go! 🤩
+
+*   **On Windows:**
+    ```bash
+    .\example.exe
+    ```
+*   **On Linux/macOS:**
+    ```bash
+    ./example
+    ```
+
+And voilà! Your NOTAL algorithm, now a Pascal executable, is running and ready to impress! 🎉🥳
+
+---
+
 ### <div id="contributing">**💖・Contributing (Join the Fun! 🎉)**</div>
 
 Got cool ideas? Found a pesky bug? Want to add an awesome new feature? We'd absolutely love your help! GATE is a community effort, and every contribution, big or small, makes a difference. Check out our `CONTRIBUTING.md` for all the details on how you can jump in and make GATE even better. Let's build something amazing together!
@@ -177,3 +208,12 @@ Got cool ideas? Found a pesky bug? Want to add an awesome new feature? We'd abso
 ### <div id="license">**📜・License (The Legal Bits, but Still Friendly! 🤝)**</div>
 
 This project is open-source and proudly distributed under the MIT License. This means you're free to explore, use, modify, and share GATE! You can find all the nitty-gritty details in the `LICENSE` file. Happy coding!
+
+---
+
+### <div id="about-me">**👋・About Me!**</div>
+
+**Muhammad Zulfa Fauzan Nurhuda** (18224064)   
+Saya hanyalah seorang manusia biasa yang kebetulan masuk STI ITB :)
+
+<img src="https://i.imgur.com/Zp8msEG.png" alt="Logo ITB" height="90" style="border-radius: 10px">
