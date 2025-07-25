@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include "test_helpers.h"
 #include "notal_transpiler/Lexer.h"
 #include "notal_transpiler/Parser.h"
 #include "notal_transpiler/CodeGenerator.h"
@@ -21,22 +22,25 @@ ALGORITMA
     output('Record declared')
 )";
 
+    // Use transpile from test_helpers.h
+    std::string generated_pascal = transpile(source);
+
+    // Parse the source to check AST structure
     notal::Lexer lexer(source);
     std::vector<notal::Token> tokens = lexer.allTokens();
-
     notal::Parser parser(tokens);
     std::shared_ptr<notal::ast::ProgramStmt> program = parser.parse();
     ASSERT_NE(program, nullptr);
 
     // Check that we have the expected declarations
     ASSERT_NE(program->kamus, nullptr);
-    ASSERT_EQ(program->kamus->declarations.size(), 2);
+    ASSERT_EQ(static_cast<long long>(program->kamus->declarations.size()), 2LL);
 
     // Check first declaration is a record type
     auto recordDecl = std::dynamic_pointer_cast<notal::ast::RecordTypeDeclStmt>(program->kamus->declarations[0]);
     ASSERT_NE(recordDecl, nullptr);
     EXPECT_EQ(recordDecl->typeName.lexeme, "Student");
-    EXPECT_EQ(recordDecl->fields.size(), 3);
+    EXPECT_EQ(static_cast<long long>(recordDecl->fields.size()), 3LL);
     EXPECT_EQ(recordDecl->fields[0].name.lexeme, "name");
     EXPECT_EQ(recordDecl->fields[0].type.type, notal::TokenType::STRING);
     EXPECT_EQ(recordDecl->fields[1].name.lexeme, "age");
@@ -44,17 +48,13 @@ ALGORITMA
     EXPECT_EQ(recordDecl->fields[2].name.lexeme, "gpa");
     EXPECT_EQ(recordDecl->fields[2].type.type, notal::TokenType::REAL);
 
-    // Generate Pascal code
-    notal::CodeGenerator generator;
-    std::string result = generator.generate(program);
-
     // Check that Pascal record is generated correctly
-    EXPECT_TRUE(result.find("Student = record") != std::string::npos);
-    EXPECT_TRUE(result.find("name: string;") != std::string::npos);
-    EXPECT_TRUE(result.find("age: integer;") != std::string::npos);
-    EXPECT_TRUE(result.find("gpa: real;") != std::string::npos);
-    EXPECT_TRUE(result.find("end;") != std::string::npos);
-    EXPECT_TRUE(result.find("student1: Student;") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("Student = record") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("name: string;") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("age: integer;") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("gpa: real;") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("end;") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("student1: Student;") != std::string::npos);
 }
 
 TEST(NewFeaturesTest, EnumTypeDeclaration) {
@@ -71,22 +71,25 @@ ALGORITMA
     output('Enums declared')
 )";
 
+    // Use transpile from test_helpers.h
+    std::string generated_pascal = transpile(source);
+
+    // Parse the source to check AST structure
     notal::Lexer lexer(source);
     std::vector<notal::Token> tokens = lexer.allTokens();
-
     notal::Parser parser(tokens);
     std::shared_ptr<notal::ast::ProgramStmt> program = parser.parse();
     ASSERT_NE(program, nullptr);
 
     // Check that we have the expected declarations
     ASSERT_NE(program->kamus, nullptr);
-    ASSERT_EQ(program->kamus->declarations.size(), 4);
+    ASSERT_EQ(static_cast<long long>(program->kamus->declarations.size()), 4LL);
 
     // Check first declaration is an enum type
     auto enumDecl1 = std::dynamic_pointer_cast<notal::ast::EnumTypeDeclStmt>(program->kamus->declarations[0]);
     ASSERT_NE(enumDecl1, nullptr);
     EXPECT_EQ(enumDecl1->typeName.lexeme, "Day");
-    EXPECT_EQ(enumDecl1->values.size(), 5);
+    EXPECT_EQ(static_cast<long long>(enumDecl1->values.size()), 5LL);
     EXPECT_EQ(enumDecl1->values[0].lexeme, "monday");
     EXPECT_EQ(enumDecl1->values[4].lexeme, "friday");
 
@@ -94,19 +97,15 @@ ALGORITMA
     auto enumDecl2 = std::dynamic_pointer_cast<notal::ast::EnumTypeDeclStmt>(program->kamus->declarations[1]);
     ASSERT_NE(enumDecl2, nullptr);
     EXPECT_EQ(enumDecl2->typeName.lexeme, "Grade");
-    EXPECT_EQ(enumDecl2->values.size(), 5);
+    EXPECT_EQ(static_cast<long long>(enumDecl2->values.size()), 5LL);
     EXPECT_EQ(enumDecl2->values[0].lexeme, "A");
     EXPECT_EQ(enumDecl2->values[4].lexeme, "F");
 
-    // Generate Pascal code
-    notal::CodeGenerator generator;
-    std::string result = generator.generate(program);
-
     // Check that Pascal enums are generated correctly
-    EXPECT_TRUE(result.find("Day = (monday, tuesday, wednesday, thursday, friday);") != std::string::npos);
-    EXPECT_TRUE(result.find("Grade = (A, B, C, D, F);") != std::string::npos);
-    EXPECT_TRUE(result.find("today: Day;") != std::string::npos);
-    EXPECT_TRUE(result.find("myGrade: Grade;") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("Day = (monday, tuesday, wednesday, thursday, friday);") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("Grade = (A, B, C, D, F);") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("today: Day;") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("myGrade: Grade;") != std::string::npos);
 }
 
 TEST(NewFeaturesTest, ConstrainedVariableDeclaration) {
@@ -120,16 +119,19 @@ ALGORITMA
     output('Constraints declared')
 )";
 
+    // Use transpile from test_helpers.h
+    std::string generated_pascal = transpile(source);
+
+    // Parse the source to check AST structure
     notal::Lexer lexer(source);
     std::vector<notal::Token> tokens = lexer.allTokens();
-
     notal::Parser parser(tokens);
     std::shared_ptr<notal::ast::ProgramStmt> program = parser.parse();
     ASSERT_NE(program, nullptr);
 
     // Check that we have the expected declarations
     ASSERT_NE(program->kamus, nullptr);
-    ASSERT_EQ(program->kamus->declarations.size(), 2);
+    ASSERT_EQ(static_cast<long long>(program->kamus->declarations.size()), 2LL);
 
     // Check first declaration is a constrained variable
     auto constrainedVar1 = std::dynamic_pointer_cast<notal::ast::ConstrainedVarDeclStmt>(program->kamus->declarations[0]);
@@ -145,18 +147,14 @@ ALGORITMA
     EXPECT_EQ(constrainedVar2->type.type, notal::TokenType::REAL);
     ASSERT_NE(constrainedVar2->constraint, nullptr);
 
-    // Generate Pascal code
-    notal::CodeGenerator generator;
-    std::string result = generator.generate(program);
-
     // Check that Pascal constraint setters are generated correctly
-    EXPECT_TRUE(result.find("procedure Setage(var age: integer; value: integer);") != std::string::npos);
-    EXPECT_TRUE(result.find("procedure Setscore(var score: real; value: real);") != std::string::npos);
-    EXPECT_TRUE(result.find("Assert(") != std::string::npos);
-    EXPECT_TRUE(result.find("value >= 0") != std::string::npos);
-    EXPECT_TRUE(result.find("value <= 150") != std::string::npos);
-    EXPECT_TRUE(result.find("value >= 0") != std::string::npos);
-    EXPECT_TRUE(result.find("value <= 100") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("procedure Setage(var age: integer; value: integer);") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("procedure Setscore(var score: real; value: real);") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("Assert(") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("value >= 0") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("value <= 150") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("value >= 0") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("value <= 100") != std::string::npos);
 }
 
 TEST(NewFeaturesTest, ComplexExample) {
@@ -178,23 +176,26 @@ ALGORITMA
     output('Complex example works')
 )";
 
+    // Use transpile from test_helpers.h
+    std::string generated_pascal = transpile(source);
+
+    // Parse the source to check AST structure
     notal::Lexer lexer(source);
     std::vector<notal::Token> tokens = lexer.allTokens();
-
     notal::Parser parser(tokens);
     std::shared_ptr<notal::ast::ProgramStmt> program = parser.parse();
     ASSERT_NE(program, nullptr);
 
-    // Generate Pascal code
-    notal::CodeGenerator generator;
-    std::string result = generator.generate(program);
+    // Check that we have the expected declarations
+    ASSERT_NE(program->kamus, nullptr);
+    ASSERT_EQ(static_cast<long long>(program->kamus->declarations.size()), 5LL);
 
     // Check that all features work together
-    EXPECT_TRUE(result.find("Person = record") != std::string::npos);
-    EXPECT_TRUE(result.find("Status = (active, inactive, pending);") != std::string::npos);
-    EXPECT_TRUE(result.find("person1: Person;") != std::string::npos);
-    EXPECT_TRUE(result.find("currentStatus: Status;") != std::string::npos);
-    EXPECT_TRUE(result.find("validAge: integer;") != std::string::npos);
-    EXPECT_TRUE(result.find("procedure SetvalidAge") != std::string::npos);
-    EXPECT_TRUE(result.find("SetvalidAge(validAge, 25);") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("Person = record") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("Status = (active, inactive, pending);") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("person1: Person;") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("currentStatus: Status;") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("validAge: integer;") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("procedure SetvalidAge") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("SetvalidAge(validAge, 25);") != std::string::npos);
 }

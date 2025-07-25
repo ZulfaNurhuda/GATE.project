@@ -109,6 +109,16 @@ std::any ASTPrinter::visit(std::shared_ptr<ast::Call> expr) {
     return std::string("(call ...)");
 }
 
+std::any ASTPrinter::visit(std::shared_ptr<ast::FieldAccess> expr) {
+    (void)expr;
+    return std::string("(field access ...)");
+}
+
+std::any ASTPrinter::visit(std::shared_ptr<ast::FieldAssign> expr) {
+    (void)expr;
+    return std::string("(field assign ...)");
+}
+
 std::any ASTPrinter::visit(std::shared_ptr<ast::RepeatUntilStmt> stmt) {
 	(void)stmt;
 	return std::string("(repeat ... until ...)");
@@ -117,6 +127,21 @@ std::any ASTPrinter::visit(std::shared_ptr<ast::RepeatUntilStmt> stmt) {
 std::any ASTPrinter::visit(std::shared_ptr<ast::DependOnStmt> stmt) {
 	(void)stmt;
 	return std::string("(depend on ...)");
+}
+
+std::any ASTPrinter::visit(std::shared_ptr<ast::TraversalStmt> stmt) {
+    (void)stmt;
+    return std::string("(traversal ...)");
+}
+
+std::any ASTPrinter::visit(std::shared_ptr<ast::IterateStopStmt> stmt) {
+    (void)stmt;
+    return std::string("(iterate ... stop ...)");
+}
+
+std::any ASTPrinter::visit(std::shared_ptr<ast::RepeatNTimesStmt> stmt) {
+    (void)stmt;
+    return std::string("(repeat N times ...)");
 }
 
 std::any ASTPrinter::visit(std::shared_ptr<ast::RecordTypeDeclStmt> stmt) {

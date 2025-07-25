@@ -26,6 +26,9 @@ struct WhileStmt;
 struct RepeatUntilStmt;
 struct OutputStmt;
 struct DependOnStmt;
+struct TraversalStmt;
+struct IterateStopStmt;
+struct RepeatNTimesStmt;
 
 // Visitor interface for statements
 class StmtVisitor {
@@ -46,6 +49,9 @@ public:
     virtual std::any visit(std::shared_ptr<RepeatUntilStmt> stmt) = 0;
     virtual std::any visit(std::shared_ptr<OutputStmt> stmt) = 0;
     virtual std::any visit(std::shared_ptr<DependOnStmt> stmt) = 0;
+    virtual std::any visit(std::shared_ptr<TraversalStmt> stmt) = 0;
+    virtual std::any visit(std::shared_ptr<IterateStopStmt> stmt) = 0;
+    virtual std::any visit(std::shared_ptr<RepeatNTimesStmt> stmt) = 0;
     virtual ~StmtVisitor() = default;
 };
 
@@ -268,6 +274,48 @@ struct ConstrainedVarDeclStmt : Stmt, public std::enable_shared_from_this<Constr
 
     ConstrainedVarDeclStmt(Token name, Token type, std::shared_ptr<Expr> constraint)
         : name(std::move(name)), type(std::move(type)), constraint(std::move(constraint)) {}
+
+    std::any accept(StmtVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
+// Traversal loop statement node
+struct TraversalStmt : Stmt, public std::enable_shared_from_this<TraversalStmt> {
+    Token iterator;
+    std::shared_ptr<Expr> start;
+    std::shared_ptr<Expr> end;
+    std::shared_ptr<Expr> step; // Can be null
+    std::shared_ptr<BlockStmt> body;
+
+    TraversalStmt(Token iterator, std::shared_ptr<Expr> start, std::shared_ptr<Expr> end, std::shared_ptr<Expr> step, std::shared_ptr<BlockStmt> body)
+        : iterator(std::move(iterator)), start(std::move(start)), end(std::move(end)), step(std::move(step)), body(std::move(body)) {}
+
+    std::any accept(StmtVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
+// Iterate-stop loop statement node
+struct IterateStopStmt : Stmt, public std::enable_shared_from_this<IterateStopStmt> {
+    std::shared_ptr<BlockStmt> body;
+    std::shared_ptr<Expr> condition;
+
+    IterateStopStmt(std::shared_ptr<BlockStmt> body, std::shared_ptr<Expr> condition)
+        : body(std::move(body)), condition(std::move(condition)) {}
+
+    std::any accept(StmtVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
+// Repeat N times statement node
+struct RepeatNTimesStmt : Stmt, public std::enable_shared_from_this<RepeatNTimesStmt> {
+    std::shared_ptr<Expr> times;
+    std::shared_ptr<BlockStmt> body;
+
+    RepeatNTimesStmt(std::shared_ptr<Expr> times, std::shared_ptr<BlockStmt> body)
+        : times(std::move(times)), body(std::move(body)) {}
 
     std::any accept(StmtVisitor& visitor) override {
         return visitor.visit(shared_from_this());

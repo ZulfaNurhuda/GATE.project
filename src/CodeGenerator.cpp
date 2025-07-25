@@ -9,8 +9,37 @@ namespace notal {
 
 std::string CodeGenerator::generate(std::shared_ptr<ast::ProgramStmt> program) {
     if (!program) return "";
+    preScan(program->algoritma);
     execute(program);
     return out.str();
+}
+
+void CodeGenerator::preScan(std::shared_ptr<ast::Stmt> stmt) {
+    if (!stmt) return;
+
+    if (auto algoritma = std::dynamic_pointer_cast<ast::AlgoritmaStmt>(stmt)) {
+        preScan(algoritma->body);
+    } else if (auto block = std::dynamic_pointer_cast<ast::BlockStmt>(stmt)) {
+        for (const auto& s : block->statements) {
+            preScan(s);
+        }
+    } else if (auto repeat = std::dynamic_pointer_cast<ast::RepeatNTimesStmt>(stmt)) {
+        loopVariables.push_back("_loop_iterator_" + std::to_string(loopVariables.size()));
+    } else if (auto ifStmt = std::dynamic_pointer_cast<ast::IfStmt>(stmt)) {
+        preScan(ifStmt->thenBranch);
+        preScan(ifStmt->elseBranch);
+    } else if (auto whileStmt = std::dynamic_pointer_cast<ast::WhileStmt>(stmt)) {
+        preScan(whileStmt->body);
+    } else if (auto traversalStmt = std::dynamic_pointer_cast<ast::TraversalStmt>(stmt)) {
+        preScan(traversalStmt->body);
+    } else if (auto iterateStmt = std::dynamic_pointer_cast<ast::IterateStopStmt>(stmt)) {
+        preScan(iterateStmt->body);
+    } else if (auto dependOnStmt = std::dynamic_pointer_cast<ast::DependOnStmt>(stmt)) {
+        for (const auto& c : dependOnStmt->cases) {
+            preScan(c.body);
+        }
+        preScan(dependOnStmt->otherwiseBranch);
+    }
 }
 
 void CodeGenerator::indent() {
@@ -51,7 +80,7 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::ProgramStmt> stmt) {
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::KamusStmt> stmt) {
-    if (stmt->declarations.empty()) return {};
+    
 
     // Separate different kinds of declarations
     std::vector<std::shared_ptr<ast::Stmt>> constDecls;
@@ -95,7 +124,7 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::KamusStmt> stmt) {
     }
 
     // Output var declarations and constrained vars
-    if (!varDecls.empty() || !constrainedVarDecls.empty()) {
+    if (!varDecls.empty() || !constrainedVarDecls.empty() || !loopVariables.empty()) {
         out << "var\n";
         indentLevel++;
         
@@ -115,6 +144,12 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::KamusStmt> stmt) {
             indent();
             execute(decl);
             out << ";\n";
+        }
+
+        // Loop variables
+        for (const auto& var : loopVariables) {
+            indent();
+            out << var << ": integer;\n";
         }
         
         indentLevel--;
@@ -416,6 +451,62 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::DependOnStmt> stmt) {
         }
     }
 
+    return {};
+}
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::TraversalStmt> stmt) {
+    std::string iterator = stmt->iterator.lexeme;
+    std::string start = evaluate(stmt->start);
+    std::string end = evaluate(stmt->end);
+    std::string step = "1";
+    if (stmt->step) {
+        step = evaluate(stmt->step);
+    }
+
+    indent();
+    out << iterator << " := " << start << ";\n";
+    indent();
+    out << "while (" << iterator << " <= " << end << ") do\n";
+    indent();
+    out << "begin\n";
+    indentLevel++;
+    execute(stmt->body);
+    indent();
+    out << "Inc(" << iterator << ", " << step << ");\n";
+    indentLevel--;
+    indent();
+    out << "end;\n";
+
+    return {};
+}
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::IterateStopStmt> stmt) {
+    indent();
+    out << "while true do\n";
+    indent();
+    out << "begin\n";
+    indentLevel++;
+    execute(stmt->body);
+    indent();
+    out << "if " << evaluate(stmt->condition) << " then break;\n";
+    indentLevel--;
+    indent();
+    out << "end;\n";
+    return {};
+}
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::RepeatNTimesStmt> stmt) {
+    std::string iterator = loopVariables[loopCounter++];
+    
+    indent();
+    out << "for " << iterator << " := 1 to " << evaluate(stmt->times) << " do\n";
+    indent();
+    out << "begin\n";
+    indentLevel++;
+    execute(stmt->body);
+    indentLevel--;
+    indent();
+    out << "end;\n";
     return {};
 }
 

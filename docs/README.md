@@ -717,7 +717,7 @@ until num > 0;
     output('Odd number: ', i)
   ```
 
-- **With 3-Step**
+- **With 5-Step**
 
   ```
   i traversal [1..50 step 5]
@@ -748,7 +748,7 @@ begin
 end;
 ```
 
-- **With 3-Step**
+- **With 5-Step**
 
 ```pascal
 i := 1;

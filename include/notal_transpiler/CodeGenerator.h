@@ -28,16 +28,19 @@ public:
     std::any visit(std::shared_ptr<ast::IfStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::WhileStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::RepeatUntilStmt> stmt) override;
-    std::any visit(std::shared_ptr<ast::OutputStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::DependOnStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::OutputStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::TraversalStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::IterateStopStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::RepeatNTimesStmt> stmt) override;
 
-    // Expression visitors
+    // Expression Visitors
+    std::any visit(std::shared_ptr<ast::Assign> expr) override;
     std::any visit(std::shared_ptr<ast::Binary> expr) override;
     std::any visit(std::shared_ptr<ast::Unary> expr) override;
+    std::any visit(std::shared_ptr<ast::Grouping> expr) override;
     std::any visit(std::shared_ptr<ast::Literal> expr) override;
     std::any visit(std::shared_ptr<ast::Variable> expr) override;
-    std::any visit(std::shared_ptr<ast::Grouping> expr) override;
-    std::any visit(std::shared_ptr<ast::Assign> expr) override;
     std::any visit(std::shared_ptr<ast::Call> expr) override;
     std::any visit(std::shared_ptr<ast::FieldAccess> expr) override;
     std::any visit(std::shared_ptr<ast::FieldAssign> expr) override;
@@ -45,14 +48,17 @@ public:
 private:
     std::stringstream out;
     int indentLevel = 0;
+    int loopCounter = 0;
     std::map<std::string, std::shared_ptr<ast::Literal>> constants;
     std::map<std::string, std::shared_ptr<ast::ConstrainedVarDeclStmt>> constrainedVars; // Track constrained variables
+    std::vector<std::string> loopVariables; // Track loop variables
     
     void indent();
     std::string pascalType(const Token& token);
     std::string evaluate(std::shared_ptr<ast::Expr> expr);
     void execute(std::shared_ptr<ast::Stmt> stmt);
     std::string generateConstraintCheck(std::shared_ptr<ast::ConstrainedVarDeclStmt> constrainedVar);
+    void preScan(std::shared_ptr<ast::Stmt> stmt);
 };
 
 } // namespace notal

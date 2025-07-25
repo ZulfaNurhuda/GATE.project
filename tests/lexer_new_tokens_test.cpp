@@ -17,7 +17,7 @@ TEST(LexerNewTokensTest, RecordSyntaxTokens) {
         notal::TokenType::END_OF_FILE
     };
 
-    ASSERT_EQ(tokens.size(), expected_types.size());
+    ASSERT_EQ(static_cast<long long>(tokens.size()), static_cast<long long>(expected_types.size()));
     for (size_t i = 0; i < tokens.size(); ++i) {
         EXPECT_EQ(tokens[i].type, expected_types[i]) << "Token " << i << " has wrong type. Lexeme: " << tokens[i].lexeme;
     }
@@ -38,7 +38,7 @@ TEST(LexerNewTokensTest, EnumSyntaxTokens) {
         notal::TokenType::END_OF_FILE
     };
 
-    ASSERT_EQ(tokens.size(), expected_types.size());
+    ASSERT_EQ(static_cast<long long>(tokens.size()), static_cast<long long>(expected_types.size()));
     for (size_t i = 0; i < tokens.size(); ++i) {
         EXPECT_EQ(tokens[i].type, expected_types[i]) << "Token " << i << " has wrong type. Lexeme: " << tokens[i].lexeme;
     }
@@ -58,7 +58,7 @@ TEST(LexerNewTokensTest, ConstraintSyntaxTokens) {
         notal::TokenType::END_OF_FILE
     };
 
-    ASSERT_EQ(tokens.size(), expected_types.size());
+    ASSERT_EQ(static_cast<long long>(tokens.size()), static_cast<long long>(expected_types.size()));
     for (size_t i = 0; i < tokens.size(); ++i) {
         EXPECT_EQ(tokens[i].type, expected_types[i]) << "Token " << i << " has wrong type. Lexeme: " << tokens[i].lexeme;
     }

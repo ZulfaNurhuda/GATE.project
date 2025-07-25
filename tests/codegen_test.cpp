@@ -1,28 +1,10 @@
 #include <gtest/gtest.h>
+#include "test_helpers.h"
 #include "notal_transpiler/Lexer.h"
 #include "notal_transpiler/Parser.h"
 #include "notal_transpiler/CodeGenerator.h"
 #include <vector>
 #include <string>
-#include <regex>
-#include <algorithm>
-#include <cctype>
-
-// Helper function to normalize whitespace and remove case sensitivity for comparison
-std::string normalizeCode(const std::string& s) {
-    std::string result = s;
-    // Convert to lower case
-    std::transform(result.begin(), result.end(), result.begin(),
-                   [](unsigned char c){ return std::tolower(c); });
-    // Remove newlines, tabs, and carriage returns
-    result = std::regex_replace(result, std::regex("[\n\t\r]"), " ");
-    // Replace multiple spaces with a single space
-    result = std::regex_replace(result, std::regex(" +"), " ");
-    // Trim leading/trailing space
-    result = std::regex_replace(result, std::regex("^ +| +$"), "");
-    return result;
-}
-
 
 TEST(CodeGenTest, BasicProgram) {
     std::string source = R"(

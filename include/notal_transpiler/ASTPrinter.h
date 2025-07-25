@@ -29,6 +29,9 @@ public:
     std::any visit(std::shared_ptr<ast::RepeatUntilStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::DependOnStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::OutputStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::TraversalStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::IterateStopStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::RepeatNTimesStmt> stmt) override;
 
     // Expression visitors
     std::any visit(std::shared_ptr<ast::Binary> expr) override;
@@ -38,6 +41,8 @@ public:
     std::any visit(std::shared_ptr<ast::Grouping> expr) override;
     std::any visit(std::shared_ptr<ast::Assign> expr) override;
     std::any visit(std::shared_ptr<ast::Call> expr) override;
+    std::any visit(std::shared_ptr<ast::FieldAccess> expr) override;
+    std::any visit(std::shared_ptr<ast::FieldAssign> expr) override;
 
 private:
     std::string parenthesize(const std::string& name, const std::vector<std::shared_ptr<ast::Expr>>& exprs);

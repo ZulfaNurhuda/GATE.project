@@ -191,7 +191,10 @@ std::shared_ptr<notal::ast::Stmt> Parser::statement() {
     if (check(TokenType::WHILE)) {
         return whileStatement();
     }
-    if (check(TokenType::REPEAT)) {
+    if (match({TokenType::REPEAT})) {
+        if (peek().type == TokenType::INTEGER_LITERAL) {
+            return repeatNTimesStatement();
+        }
         return repeatUntilStatement();
     }
     if (check(TokenType::DEPEND)) {
@@ -202,6 +205,12 @@ std::shared_ptr<notal::ast::Stmt> Parser::statement() {
     }
     if (check(TokenType::INPUT)) {
         return inputStatement();
+    }
+    if (peek().type == TokenType::IDENTIFIER && peekNext().type == TokenType::TRAVERSAL) {
+        return traversalStatement();
+    }
+    if (check(TokenType::ITERATE)) {
+        return iterateStopStatement();
     }
     return expressionStatement();
 }
@@ -288,7 +297,7 @@ std::shared_ptr<notal::ast::Stmt> Parser::whileStatement() {
 }
 
 std::shared_ptr<ast::Stmt> Parser::repeatUntilStatement() {
-    Token repeatToken = consume(TokenType::REPEAT, "Expect 'repeat'.");
+    Token repeatToken = previous(); // 'repeat' was already matched
 
     int bodyIndent = 0;
     if (!isAtEnd()) {
@@ -307,6 +316,84 @@ std::shared_ptr<ast::Stmt> Parser::repeatUntilStatement() {
 
     return std::make_shared<ast::RepeatUntilStmt>(body, condition);
 }
+
+// i traversal [1..10 step 2]
+std::shared_ptr<ast::Stmt> Parser::traversalStatement() {
+    Token iterator = consume(TokenType::IDENTIFIER, "Expect iterator name.");
+    consume(TokenType::TRAVERSAL, "Expect 'traversal'.");
+    consume(TokenType::LBRACKET, "Expect '[' after 'traversal'.");
+    
+    std::shared_ptr<ast::Expr> start = primary();
+    consume(TokenType::DOT, "Expect '..' between start and end values.");
+    consume(TokenType::DOT, "Expect '..' between start and end values.");
+    std::shared_ptr<ast::Expr> end = primary();
+    
+    std::shared_ptr<ast::Expr> step = nullptr;
+    if (match({TokenType::STEP})) {
+        step = primary();
+    }
+    
+    consume(TokenType::RBRACKET, "Expect ']' after range.");
+
+    int bodyIndent = 0;
+    if (!isAtEnd()) {
+        bodyIndent = peek().column;
+    }
+
+    if (bodyIndent <= iterator.column) {
+        throw error(peek(), "The body of a traversal loop must be indented.");
+    }
+
+    auto body = std::make_shared<ast::BlockStmt>(parseBlockByIndentation(bodyIndent));
+    
+    return std::make_shared<ast::TraversalStmt>(iterator, start, end, step, body);
+}
+
+// iterate ... stop (condition)
+std::shared_ptr<ast::Stmt> Parser::iterateStopStatement() {
+    Token iterateToken = consume(TokenType::ITERATE, "Expect 'iterate'.");
+
+    int bodyIndent = 0;
+    if (!isAtEnd()) {
+        bodyIndent = peek().column;
+    }
+
+    if (bodyIndent <= iterateToken.column) {
+        throw error(peek(), "The body of an iterate-stop loop must be indented.");
+    }
+
+    auto body = std::make_shared<ast::BlockStmt>(parseBlockByIndentation(bodyIndent));
+
+    consume(TokenType::STOP, "Expect 'stop' after iterate block.");
+    consume(TokenType::LPAREN, "Expect '(' after 'stop'.");
+    std::shared_ptr<ast::Expr> condition = expression();
+    consume(TokenType::RPAREN, "Expect ')' after stop condition.");
+
+    return std::make_shared<ast::IterateStopStmt>(body, condition);
+}
+
+// repeat 5 times
+std::shared_ptr<ast::Stmt> Parser::repeatNTimesStatement() {
+    // 'repeat' token was matched in statement(). It's the previous token.
+    Token repeatToken = previous();
+
+    std::shared_ptr<ast::Expr> times = primary();
+    consume(TokenType::TIMES, "Expect 'times' after number.");
+
+    int bodyIndent = 0;
+    if (!isAtEnd()) {
+        bodyIndent = peek().column;
+    }
+
+    if (bodyIndent <= repeatToken.column) {
+        throw error(peek(), "The body of a repeat N times loop must be indented.");
+    }
+
+    auto body = std::make_shared<ast::BlockStmt>(parseBlockByIndentation(bodyIndent));
+
+    return std::make_shared<ast::RepeatNTimesStmt>(times, body);
+}
+
 
 std::shared_ptr<ast::Stmt> Parser::dependOnStatement() {
     Token dependToken = consume(TokenType::DEPEND, "Expect 'depend'.");
@@ -511,6 +598,7 @@ std::shared_ptr<ast::Expr> Parser::primary() {
 
 bool Parser::isAtEnd() { return peek().type == TokenType::END_OF_FILE; }
 Token Parser::peek() { return tokens[current]; }
+Token Parser::peekNext() { if (isAtEnd() || current + 1 >= tokens.size()) return peek(); return tokens[current + 1]; }
 Token Parser::previous() { return tokens[current - 1]; }
 Token Parser::advance() { if (!isAtEnd()) current++; return previous(); }
 bool Parser::check(TokenType type) { if (isAtEnd()) return false; return peek().type == type; }

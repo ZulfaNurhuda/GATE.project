@@ -34,6 +34,9 @@ private:
     std::shared_ptr<ast::Stmt> ifStatementBody(int parentIndentLevel); // Helper for recursion
     std::shared_ptr<ast::Stmt> whileStatement();
     std::shared_ptr<ast::Stmt> repeatUntilStatement();
+    std::shared_ptr<ast::Stmt> traversalStatement();
+    std::shared_ptr<ast::Stmt> iterateStopStatement();
+    std::shared_ptr<ast::Stmt> repeatNTimesStatement();
     std::shared_ptr<ast::Stmt> dependOnStatement();
     std::shared_ptr<ast::Stmt> expressionStatement();
     std::shared_ptr<ast::Stmt> outputStatement();
@@ -57,6 +60,7 @@ private:
     // --- Helper Methods ---
     bool isAtEnd();
     Token peek();
+    Token peekNext();
     Token previous();
     Token advance();
     bool check(TokenType type);
