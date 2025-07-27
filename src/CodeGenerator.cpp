@@ -312,25 +312,37 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::IfStmt> stmt) {
     out << "end";
 
     if (stmt->elseBranch != nullptr) {
-        out << "\n";
-        indent();
-        
-        if (auto elseIf = std::dynamic_pointer_cast<ast::IfStmt>(stmt->elseBranch)) {
-            out << "else ";
-            execute(elseIf);
+        out << " else ";
+        // If the else branch is another if, it's an "else if"
+        if (std::dynamic_pointer_cast<ast::IfStmt>(stmt->elseBranch)) {
+            execute(stmt->elseBranch);
         } else {
-            out << "else\n";
+            // It's a final "else" block
+            out << "\n";
             indent();
             out << "begin\n";
             indentLevel++;
             execute(stmt->elseBranch);
             indentLevel--;
             indent();
-            out << "end;\n";
+            out << "end";
         }
-    } else {
+    }
+
+    // Only add the final semicolon if this is not a nested `elif` statement
+    bool isPartOfElif = false;
+    if (auto parent = stmt->parent.lock()) {
+        if (auto parentIf = std::dynamic_pointer_cast<ast::IfStmt>(parent)) {
+            if (parentIf->elseBranch.get() == stmt.get()) {
+                isPartOfElif = true;
+            }
+        }
+    }
+
+    if (!isPartOfElif) {
         out << ";\n";
     }
+
     return {};
 }
 
@@ -507,6 +519,18 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::RepeatNTimesStmt> stmt) {
     indentLevel--;
     indent();
     out << "end;\n";
+    return {};
+}
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::StopStmt> stmt) {
+    (void)stmt;
+    out << "break;\n";
+    return {};
+}
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::SkipStmt> stmt) {
+    (void)stmt;
+    out << "continue;\n";
     return {};
 }
 

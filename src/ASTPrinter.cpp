@@ -168,6 +168,16 @@ std::any ASTPrinter::visit(std::shared_ptr<ast::ConstrainedVarDeclStmt> stmt) {
     return parenthesize("CONSTRAINED_VAR_DECL " + stmt->name.lexeme + " : " + stmt->type.lexeme, {stmt->constraint});
 }
 
+std::any ASTPrinter::visit(std::shared_ptr<ast::StopStmt> stmt) {
+    (void)stmt;
+    return "(stop)";
+}
+
+std::any ASTPrinter::visit(std::shared_ptr<ast::SkipStmt> stmt) {
+    (void)stmt;
+    return "(skip)";
+}
+
 
 // --- Helper Methods ---
 

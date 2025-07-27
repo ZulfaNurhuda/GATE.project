@@ -32,6 +32,8 @@ public:
     std::any visit(std::shared_ptr<ast::TraversalStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::IterateStopStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::RepeatNTimesStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::StopStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::SkipStmt> stmt) override;
 
     // Expression visitors
     std::any visit(std::shared_ptr<ast::Binary> expr) override;

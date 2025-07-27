@@ -40,6 +40,8 @@ private:
     std::shared_ptr<ast::Stmt> dependOnStatement();
     std::shared_ptr<ast::Stmt> expressionStatement();
     std::shared_ptr<ast::Stmt> outputStatement();
+    std::shared_ptr<ast::Stmt> stopStatement();
+    std::shared_ptr<ast::Stmt> skipStatement();
     std::vector<std::shared_ptr<ast::Stmt>> block();
     std::vector<std::shared_ptr<ast::Stmt>> parseBlockByIndentation(int expectedIndentLevel);
 

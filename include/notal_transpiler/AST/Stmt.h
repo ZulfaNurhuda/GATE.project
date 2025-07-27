@@ -29,6 +29,8 @@ struct DependOnStmt;
 struct TraversalStmt;
 struct IterateStopStmt;
 struct RepeatNTimesStmt;
+struct StopStmt;
+struct SkipStmt;
 
 // Visitor interface for statements
 class StmtVisitor {
@@ -52,12 +54,15 @@ public:
     virtual std::any visit(std::shared_ptr<TraversalStmt> stmt) = 0;
     virtual std::any visit(std::shared_ptr<IterateStopStmt> stmt) = 0;
     virtual std::any visit(std::shared_ptr<RepeatNTimesStmt> stmt) = 0;
+    virtual std::any visit(std::shared_ptr<StopStmt> stmt) = 0;
+    virtual std::any visit(std::shared_ptr<SkipStmt> stmt) = 0;
     virtual ~StmtVisitor() = default;
 };
 
 // Base class for all statement nodes
 class Stmt {
 public:
+    std::weak_ptr<Stmt> parent;
     virtual ~Stmt() = default;
     virtual std::any accept(StmtVisitor& visitor) = 0;
 };
@@ -316,6 +321,24 @@ struct RepeatNTimesStmt : Stmt, public std::enable_shared_from_this<RepeatNTimes
 
     RepeatNTimesStmt(std::shared_ptr<Expr> times, std::shared_ptr<BlockStmt> body)
         : times(std::move(times)), body(std::move(body)) {}
+
+    std::any accept(StmtVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
+// Stop statement node
+struct StopStmt : Stmt, public std::enable_shared_from_this<StopStmt> {
+    StopStmt() {}
+
+    std::any accept(StmtVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
+// Skip statement node
+struct SkipStmt : Stmt, public std::enable_shared_from_this<SkipStmt> {
+    SkipStmt() {}
 
     std::any accept(StmtVisitor& visitor) override {
         return visitor.visit(shared_from_this());

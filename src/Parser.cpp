@@ -212,6 +212,12 @@ std::shared_ptr<notal::ast::Stmt> Parser::statement() {
     if (check(TokenType::ITERATE)) {
         return iterateStopStatement();
     }
+    if (match({TokenType::STOP})) {
+        return std::make_shared<ast::StopStmt>();
+    }
+    if (match({TokenType::SKIP})) {
+        return std::make_shared<ast::SkipStmt>();
+    }
     return expressionStatement();
 }
 
@@ -233,7 +239,7 @@ std::shared_ptr<notal::ast::Stmt> Parser::ifStatement() {
 }
 
 std::shared_ptr<notal::ast::Stmt> Parser::ifStatementBody(int parentIndentLevel) {
-    std::shared_ptr<notal::ast::Expr> condition = expression();
+    auto condition = expression();
     consume(TokenType::THEN, "Expect 'then' after condition.");
     
     int thenBranchIndent = 0;
@@ -271,7 +277,11 @@ std::shared_ptr<notal::ast::Stmt> Parser::ifStatementBody(int parentIndentLevel)
         }
     }
 
-    return std::make_shared<notal::ast::IfStmt>(condition, thenBranch, elseBranch);
+    auto ifStmt = std::make_shared<notal::ast::IfStmt>(condition, thenBranch, elseBranch);
+    if (thenBranch) thenBranch->parent = ifStmt;
+    if (elseBranch) elseBranch->parent = ifStmt;
+
+    return ifStmt;
 }
 
 std::shared_ptr<notal::ast::Stmt> Parser::whileStatement() {

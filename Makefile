@@ -46,7 +46,7 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp | $(BUILD_DIR)
 
 # Rule to build the test runner
 tests: $(TEST_EXECUTABLE)
-$(TEST_EXECUTABLE): $(OBJECTS) $(TEST_OBJECTS) $(GTEST_LIB) | $(BIN_DIR)
+$(TEST_EXECUTABLE): $(filter-out $(BUILD_DIR)/main.o,$(OBJECTS)) $(TEST_OBJECTS) $(GTEST_LIB) | $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -I$(GTEST_INCLUDE_DIR) -o $@ $(filter-out $(BUILD_DIR)/main.o,$(OBJECTS)) $(TEST_OBJECTS) $(GTEST_LIB) -pthread
 
 # Rule to compile test source files

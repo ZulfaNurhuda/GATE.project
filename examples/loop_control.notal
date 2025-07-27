@@ -1,0 +1,20 @@
+PROGRAM LoopControlExample
+{ Example demonstrating 'stop' and 'skip' loop control }
+
+KAMUS
+  i: integer
+  sum: integer
+
+ALGORITMA
+  sum <- 0
+  i traversal [1..10]
+    if i = 3 then
+      skip
+    
+    if i = 8 then
+      stop
+      
+    sum <- sum + i
+    output('Current i: ', i, ', Current sum: ', sum)
+  
+  output('Final sum: ', sum)
