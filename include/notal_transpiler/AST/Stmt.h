@@ -31,6 +31,9 @@ struct IterateStopStmt;
 struct RepeatNTimesStmt;
 struct StopStmt;
 struct SkipStmt;
+struct ProcedureStmt;
+struct FunctionStmt;
+struct ReturnStmt;
 
 // Visitor interface for statements
 class StmtVisitor {
@@ -56,6 +59,9 @@ public:
     virtual std::any visit(std::shared_ptr<RepeatNTimesStmt> stmt) = 0;
     virtual std::any visit(std::shared_ptr<StopStmt> stmt) = 0;
     virtual std::any visit(std::shared_ptr<SkipStmt> stmt) = 0;
+    virtual std::any visit(std::shared_ptr<ProcedureStmt> stmt) = 0;
+    virtual std::any visit(std::shared_ptr<FunctionStmt> stmt) = 0;
+    virtual std::any visit(std::shared_ptr<ReturnStmt> stmt) = 0;
     virtual ~StmtVisitor() = default;
 };
 
@@ -119,9 +125,10 @@ struct ProgramStmt : Stmt, public std::enable_shared_from_this<ProgramStmt> {
     Token name;
     std::shared_ptr<KamusStmt> kamus;
     std::shared_ptr<AlgoritmaStmt> algoritma;
+    std::vector<std::shared_ptr<Stmt>> subprograms;
 
-    ProgramStmt(Token name, std::shared_ptr<KamusStmt> kamus, std::shared_ptr<AlgoritmaStmt> algoritma)
-        : name(std::move(name)), kamus(std::move(kamus)), algoritma(std::move(algoritma)) {}
+    ProgramStmt(Token name, std::shared_ptr<KamusStmt> kamus, std::shared_ptr<AlgoritmaStmt> algoritma, std::vector<std::shared_ptr<Stmt>> subprograms)
+        : name(std::move(name)), kamus(std::move(kamus)), algoritma(std::move(algoritma)), subprograms(std::move(subprograms)) {}
 
     std::any accept(StmtVisitor& visitor) override {
         return visitor.visit(shared_from_this());
@@ -344,6 +351,67 @@ struct SkipStmt : Stmt, public std::enable_shared_from_this<SkipStmt> {
         return visitor.visit(shared_from_this());
     }
 };
+
+// Parameter mode for functions/procedures
+enum class ParameterMode {
+    INPUT,
+    OUTPUT,
+    INPUT_OUTPUT
+};
+
+// Parameter struct for functions/procedures
+struct Parameter {
+    ParameterMode mode;
+    Token name;
+    Token type;
+
+    Parameter(ParameterMode mode, Token name, Token type)
+        : mode(mode), name(std::move(name)), type(std::move(type)) {}
+};
+
+// Procedure statement node
+struct ProcedureStmt : Stmt, public std::enable_shared_from_this<ProcedureStmt> {
+    Token name;
+    std::vector<Parameter> params;
+    std::shared_ptr<KamusStmt> kamus; // Optional
+    std::shared_ptr<AlgoritmaStmt> body;
+
+    ProcedureStmt(Token name, std::vector<Parameter> params, std::shared_ptr<KamusStmt> kamus, std::shared_ptr<AlgoritmaStmt> body)
+        : name(std::move(name)), params(std::move(params)), kamus(std::move(kamus)), body(std::move(body)) {}
+
+    std::any accept(StmtVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
+// Function statement node
+struct FunctionStmt : Stmt, public std::enable_shared_from_this<FunctionStmt> {
+    Token name;
+    std::vector<Parameter> params;
+    Token returnType;
+    std::shared_ptr<KamusStmt> kamus; // Optional
+    std::shared_ptr<AlgoritmaStmt> body;
+
+    FunctionStmt(Token name, std::vector<Parameter> params, Token returnType, std::shared_ptr<KamusStmt> kamus, std::shared_ptr<AlgoritmaStmt> body)
+        : name(std::move(name)), params(std::move(params)), returnType(std::move(returnType)), kamus(std::move(kamus)), body(std::move(body)) {}
+
+    std::any accept(StmtVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
+// Return statement node
+struct ReturnStmt : Stmt, public std::enable_shared_from_this<ReturnStmt> {
+    Token keyword; // The '->' token
+    std::shared_ptr<Expr> value;
+
+    explicit ReturnStmt(Token keyword, std::shared_ptr<Expr> value) : keyword(std::move(keyword)), value(std::move(value)) {}
+
+    std::any accept(StmtVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
 
 } // namespace ast
 } // namespace notal

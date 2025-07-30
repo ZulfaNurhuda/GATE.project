@@ -7,6 +7,7 @@
 #include <vector>
 #include <memory>
 #include <stdexcept>
+#include <map>
 
 namespace notal {
 
@@ -19,6 +20,7 @@ public:
 private:
     std::vector<Token> tokens;
     size_t current = 0;
+    std::map<std::string, std::shared_ptr<ast::Stmt>> subprogramDeclarations;
 
     // --- Grammar Rule Methods ---
     std::shared_ptr<ast::ProgramStmt> program();
@@ -44,6 +46,12 @@ private:
     std::shared_ptr<ast::Stmt> skipStatement();
     std::vector<std::shared_ptr<ast::Stmt>> block();
     std::vector<std::shared_ptr<ast::Stmt>> parseBlockByIndentation(int expectedIndentLevel);
+    std::shared_ptr<ast::Stmt> subprogramDeclaration();
+    std::shared_ptr<ast::Stmt> procedureDeclaration();
+    std::shared_ptr<ast::Stmt> functionDeclaration();
+    void subprogramImplementation(const Token& subprogramKeyword, const Token& subprogramName);
+    std::vector<ast::Parameter> parameterList();
+    std::shared_ptr<ast::Stmt> returnStatement();
 
 
     std::shared_ptr<ast::Expr> expression();
@@ -56,6 +64,7 @@ private:
     std::shared_ptr<ast::Expr> factor();
     std::shared_ptr<ast::Expr> unary();
     std::shared_ptr<ast::Expr> call();
+    std::shared_ptr<ast::Expr> finishCall(std::shared_ptr<ast::Expr> callee);
     std::shared_ptr<ast::Expr> primary();
 
 

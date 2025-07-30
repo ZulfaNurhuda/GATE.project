@@ -44,7 +44,9 @@ Token Lexer::nextToken() {
         case ',': return makeToken(TokenType::COMMA);
         case '.': return makeToken(TokenType::DOT);
         case '+': return makeToken(TokenType::PLUS);
-        case '-': return makeToken(TokenType::MINUS);
+        case '-':
+            if (match('>')) return makeToken(TokenType::ARROW);
+            return makeToken(TokenType::MINUS);
         case '*': return makeToken(TokenType::MULTIPLY);
         case '/': return makeToken(TokenType::DIVIDE);
         case '^': return makeToken(TokenType::POWER);

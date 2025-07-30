@@ -178,6 +178,21 @@ std::any ASTPrinter::visit(std::shared_ptr<ast::SkipStmt> stmt) {
     return "(skip)";
 }
 
+std::any ASTPrinter::visit(std::shared_ptr<ast::ProcedureStmt> stmt) {
+    (void)stmt;
+    return "(procedure ...)";
+}
+
+std::any ASTPrinter::visit(std::shared_ptr<ast::FunctionStmt> stmt) {
+    (void)stmt;
+    return "(function ...)";
+}
+
+std::any ASTPrinter::visit(std::shared_ptr<ast::ReturnStmt> stmt) {
+    (void)stmt;
+    return "(return ...)";
+}
+
 
 // --- Helper Methods ---
 
