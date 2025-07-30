@@ -49,6 +49,7 @@ namespace notal {
         EQUAL, NOT_EQUAL, GREATER, GREATER_EQUAL, LESS, LESS_EQUAL, // = <> > >= < <=
         AMPERSAND, // &
         AT, // @
+        ARROW, // ->
 
         // Punctuation
         LPAREN, RPAREN,     // ( )

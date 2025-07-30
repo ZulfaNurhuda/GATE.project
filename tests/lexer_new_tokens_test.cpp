@@ -23,6 +23,23 @@ TEST(LexerNewTokensTest, RecordSyntaxTokens) {
     }
 }
 
+TEST(LexerNewTokensTest, FunctionArrowToken) {
+    std::string source = "-> integer";
+    notal::Lexer lexer(source);
+    std::vector<notal::Token> tokens = lexer.allTokens();
+
+    std::vector<notal::TokenType> expected_types = {
+        notal::TokenType::ARROW,
+        notal::TokenType::INTEGER,
+        notal::TokenType::END_OF_FILE
+    };
+
+    ASSERT_EQ(static_cast<long long>(tokens.size()), static_cast<long long>(expected_types.size()));
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        EXPECT_EQ(tokens[i].type, expected_types[i]) << "Token " << i << " has wrong type. Lexeme: " << tokens[i].lexeme;
+    }
+}
+
 TEST(LexerNewTokensTest, EnumSyntaxTokens) {
     std::string source = "type Day: (monday, tuesday, wednesday)";
     notal::Lexer lexer(source);

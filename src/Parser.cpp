@@ -31,14 +31,33 @@ std::shared_ptr<ast::ProgramStmt> Parser::program() {
     consume(TokenType::PROGRAM, "Expect 'PROGRAM'.");
     Token name = consume(TokenType::IDENTIFIER, "Expect program name.");
     
+    // The kamus() method will now populate the `subprogramDeclarations` map
     std::shared_ptr<ast::KamusStmt> kamusBlock = kamus();
+
     std::shared_ptr<ast::AlgoritmaStmt> algoritmaBlock = algoritma();
 
-    if (!isAtEnd()) {
-        // Handle trailing procedures/functions later
+    std::vector<std::shared_ptr<ast::Stmt>> subprograms;
+    while (!isAtEnd()) {
+        Token subprogramKeyword = peek();
+        if (subprogramKeyword.type != TokenType::PROCEDURE && subprogramKeyword.type != TokenType::FUNCTION) {
+            throw error(peek(), "Expect procedure or function implementation after main algorithm.");
+        }
+        advance(); // consume PROCEDURE or FUNCTION
+
+        Token subprogramName = consume(TokenType::IDENTIFIER, "Expect procedure or function name for implementation.");
+
+        // Find declaration and parse the implementation
+        subprogramImplementation(subprogramKeyword, subprogramName);
     }
 
-    return std::make_shared<ast::ProgramStmt>(name, kamusBlock, algoritmaBlock);
+    // Move completed subprograms from the map to the vector
+    for (auto const& [key, val] : subprogramDeclarations) {
+        subprograms.push_back(val);
+    }
+
+    // TODO: Check if any declarations were not implemented.
+
+    return std::make_shared<ast::ProgramStmt>(name, kamusBlock, algoritmaBlock, subprograms);
 }
 
 // kamus -> "KAMUS" declaration*
@@ -61,6 +80,9 @@ std::shared_ptr<ast::AlgoritmaStmt> Parser::algoritma() {
 
 // declaration -> constantDeclaration | typeDeclaration | varDeclaration
 std::shared_ptr<ast::Stmt> Parser::declaration() {
+    if (check(TokenType::PROCEDURE) || check(TokenType::FUNCTION)) {
+        return subprogramDeclaration();
+    }
     if (match({TokenType::CONSTANT})) {
         return constantDeclaration();
     }
@@ -174,12 +196,19 @@ std::vector<std::shared_ptr<notal::ast::Stmt>> Parser::block() {
 
 std::vector<std::shared_ptr<notal::ast::Stmt>> Parser::parseBlockByIndentation(int expectedIndentLevel) {
     std::vector<std::shared_ptr<notal::ast::Stmt>> statements;
+    // std::cout << "--> Parsing indented block, expected indent >= " << expectedIndentLevel << "\n";
     while (!isAtEnd() && peek().column >= expectedIndentLevel) {
+        // std::cout << "--> In block loop, current token: " << peek().lexeme << ", column: " << peek().column << "\n";
+        if (peek().column == expectedIndentLevel &&
+            (peek().type == TokenType::PROCEDURE || peek().type == TokenType::FUNCTION)) {
+            break;
+        }
         if (peek().column < expectedIndentLevel) {
             break;
         }
         statements.push_back(statement());
     }
+    // std::cout << "--> Exiting indented block\n";
     return statements;
 }
 
@@ -217,6 +246,9 @@ std::shared_ptr<notal::ast::Stmt> Parser::statement() {
     }
     if (match({TokenType::SKIP})) {
         return std::make_shared<ast::SkipStmt>();
+    }
+    if (check(TokenType::ARROW)) {
+        return returnStatement();
     }
     return expressionStatement();
 }
@@ -480,6 +512,138 @@ std::shared_ptr<ast::Stmt> Parser::expressionStatement() {
     return std::make_shared<ast::ExpressionStmt>(expr);
 }
 
+
+// --- Subprogram Parsing ---
+
+std::shared_ptr<ast::Stmt> Parser::subprogramDeclaration() {
+    if (check(TokenType::PROCEDURE)) {
+        return procedureDeclaration();
+    }
+    if (check(TokenType::FUNCTION)) {
+        return functionDeclaration();
+    }
+    // Should not be reached if called correctly
+    throw error(peek(), "Expect 'procedure' or 'function'.");
+}
+
+std::shared_ptr<ast::Stmt> Parser::procedureDeclaration() {
+    consume(TokenType::PROCEDURE, "Expect 'procedure'.");
+    Token name = consume(TokenType::IDENTIFIER, "Expect procedure name.");
+
+    std::vector<ast::Parameter> params = parameterList();
+
+    if (subprogramDeclarations.count(name.lexeme)) {
+        throw error(name, "Procedure with this name already declared.");
+    }
+
+    // Create a procedure statement with an empty body for now.
+    // The body will be filled in when the implementation is parsed.
+    auto procStmt = std::make_shared<ast::ProcedureStmt>(name, params, nullptr, nullptr);
+    subprogramDeclarations[name.lexeme] = procStmt;
+
+    return procStmt;
+}
+
+std::shared_ptr<ast::Stmt> Parser::functionDeclaration() {
+    consume(TokenType::FUNCTION, "Expect 'function'.");
+    Token name = consume(TokenType::IDENTIFIER, "Expect function name.");
+
+    std::vector<ast::Parameter> params = parameterList();
+
+    consume(TokenType::ARROW, "Expect '->' for function return type.");
+    Token returnType = advance();
+    if (returnType.type != TokenType::INTEGER && returnType.type != TokenType::REAL &&
+        returnType.type != TokenType::STRING && returnType.type != TokenType::BOOLEAN &&
+        returnType.type != TokenType::CHARACTER && returnType.type != TokenType::IDENTIFIER) {
+            throw error(returnType, "Expect a valid return type name.");
+    }
+
+    if (subprogramDeclarations.count(name.lexeme)) {
+        throw error(name, "Function with this name already declared.");
+    }
+
+    auto funcStmt = std::make_shared<ast::FunctionStmt>(name, params, returnType, nullptr, nullptr);
+    subprogramDeclarations[name.lexeme] = funcStmt;
+
+    return funcStmt;
+}
+
+std::vector<ast::Parameter> Parser::parameterList() {
+    consume(TokenType::LPAREN, "Expect '(' after subprogram name.");
+    std::vector<ast::Parameter> params;
+    if (!check(TokenType::RPAREN)) {
+        do {
+            ast::ParameterMode mode = ast::ParameterMode::INPUT; // Default mode
+
+            if (peek().type == TokenType::INPUT) {
+                advance(); // consume 'input'
+                if (match({TokenType::DIVIDE})) {
+                    consume(TokenType::OUTPUT, "Expect 'output' after '/' for 'input/output' parameter.");
+                    mode = ast::ParameterMode::INPUT_OUTPUT;
+                } else {
+                    mode = ast::ParameterMode::INPUT;
+                }
+            } else if (peek().type == TokenType::OUTPUT) {
+                advance(); // consume 'output'
+                mode = ast::ParameterMode::OUTPUT;
+            }
+
+            Token name = consume(TokenType::IDENTIFIER, "Expect parameter name.");
+            consume(TokenType::COLON, "Expect ':' after parameter name.");
+            Token type = advance();
+             if (type.type != TokenType::INTEGER && type.type != TokenType::REAL &&
+                type.type != TokenType::STRING && type.type != TokenType::BOOLEAN &&
+                type.type != TokenType::CHARACTER && type.type != TokenType::IDENTIFIER) {
+                    throw error(type, "Expect a valid type name for parameter.");
+            }
+            params.emplace_back(mode, name, type);
+        } while (match({TokenType::COMMA}));
+    }
+    consume(TokenType::RPAREN, "Expect ')' after parameter list.");
+    return params;
+}
+
+void Parser::subprogramImplementation(const Token& subprogramKeyword, const Token& subprogramName) {
+    auto it = subprogramDeclarations.find(subprogramName.lexeme);
+    if (it == subprogramDeclarations.end()) {
+        throw error(subprogramName, "Implementation provided for an undeclared subprogram.");
+    }
+
+    // Parse the parameter list again to consume the tokens correctly.
+    // The result is discarded, but this keeps the parser state valid.
+    // TODO: A better implementation would verify this signature against the declaration.
+    parameterList();
+
+    if (subprogramKeyword.type == TokenType::FUNCTION) {
+        consume(TokenType::ARROW, "Expect '->' for function implementation signature.");
+        // Also discard the return type token
+        advance();
+    }
+
+
+    std::shared_ptr<ast::KamusStmt> kamus = nullptr;
+    if (check(TokenType::KAMUS)) {
+        kamus = this->kamus();
+    }
+
+    std::shared_ptr<ast::AlgoritmaStmt> algoritma = this->algoritma();
+
+    if (auto proc = std::dynamic_pointer_cast<ast::ProcedureStmt>(it->second)) {
+        proc->kamus = kamus;
+        proc->body = algoritma;
+    } else if (auto func = std::dynamic_pointer_cast<ast::FunctionStmt>(it->second)) {
+        func->kamus = kamus;
+        func->body = algoritma;
+    }
+}
+
+std::shared_ptr<ast::Stmt> Parser::returnStatement() {
+    Token keyword = consume(TokenType::ARROW, "Expect '->'.");
+    std::shared_ptr<ast::Expr> value = expression();
+    return std::make_shared<ast::ReturnStmt>(keyword, value);
+}
+
+
 // --- Expression Parsing ---
 
 std::shared_ptr<ast::Expr> Parser::expression() {
@@ -579,7 +743,9 @@ std::shared_ptr<ast::Expr> Parser::call() {
     std::shared_ptr<ast::Expr> expr = primary();
     
     while (true) {
-        if (match({TokenType::DOT})) {
+        if (match({TokenType::LPAREN})) {
+            expr = finishCall(expr);
+        } else if (match({TokenType::DOT})) {
             Token name = consume(TokenType::IDENTIFIER, "Expect field name after '.'.");
             expr = std::make_shared<ast::FieldAccess>(expr, name);
         } else {
@@ -588,6 +754,23 @@ std::shared_ptr<ast::Expr> Parser::call() {
     }
     
     return expr;
+}
+
+std::shared_ptr<ast::Expr> Parser::finishCall(std::shared_ptr<ast::Expr> callee) {
+    std::vector<std::shared_ptr<ast::Expr>> arguments;
+    if (!check(TokenType::RPAREN)) {
+        do {
+            // NOTAL doesn't have a hard limit, but good practice to prevent infinite loops.
+            if (arguments.size() >= 255) {
+                error(peek(), "Cannot have more than 255 arguments.");
+            }
+            arguments.push_back(expression());
+        } while (match({TokenType::COMMA}));
+    }
+
+    Token paren = consume(TokenType::RPAREN, "Expect ')' after arguments.");
+
+    return std::make_shared<ast::Call>(callee, paren, arguments);
 }
 
 std::shared_ptr<ast::Expr> Parser::primary() {

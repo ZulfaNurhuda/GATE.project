@@ -73,22 +73,45 @@ void CodeGenerator::execute(std::shared_ptr<ast::Stmt> stmt) {
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::ProgramStmt> stmt) {
     out << "program " << stmt->name.lexeme << ";\n\n";
+
+    // Generate global declarations (types, consts, vars)
     execute(stmt->kamus);
+
+    // Generate forward declarations for all subprograms
+    if (!stmt->subprograms.empty()) {
+        forwardDeclare = true;
+        for (const auto& sub : stmt->subprograms) {
+            execute(sub);
+        }
+        forwardDeclare = false;
+        out << "\n";
+    }
+
+    // Generate full implementations for all subprograms
+    for (const auto& sub : stmt->subprograms) {
+        execute(sub);
+        out << "\n";
+    }
+
+    // Generate main algorithm block at the very end
     execute(stmt->algoritma);
-    out << ".\n";
+    out << ".\n"; // Final end of program
     return {};
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::KamusStmt> stmt) {
-    
-
     // Separate different kinds of declarations
     std::vector<std::shared_ptr<ast::Stmt>> constDecls;
     std::vector<std::shared_ptr<ast::Stmt>> typeDecls;
     std::vector<std::shared_ptr<ast::Stmt>> varDecls;
     std::vector<std::shared_ptr<ast::Stmt>> constrainedVarDecls;
+    // Subprogram declarations are handled separately in ProgramStmt visitor
 
     for (const auto& decl : stmt->declarations) {
+        if (std::dynamic_pointer_cast<ast::ProcedureStmt>(decl) || std::dynamic_pointer_cast<ast::FunctionStmt>(decl)) {
+            // These are handled in the ProgramStmt visitor, so we skip them here.
+            continue;
+        }
         if (std::dynamic_pointer_cast<ast::ConstDeclStmt>(decl)) {
             constDecls.push_back(decl);
         } else if (std::dynamic_pointer_cast<ast::RecordTypeDeclStmt>(decl) || 
@@ -101,75 +124,45 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::KamusStmt> stmt) {
         }
     }
 
-    // Output type declarations first
     if (!typeDecls.empty()) {
         out << "type\n";
         indentLevel++;
-        for (const auto& decl : typeDecls) {
-            execute(decl);
-        }
+        for (const auto& decl : typeDecls) { execute(decl); }
         indentLevel--;
         out << "\n";
     }
 
-    // Output const declarations
     if (!constDecls.empty()) {
         out << "const\n";
         indentLevel++;
-        for (const auto& decl : constDecls) {
-            execute(decl);
-        }
+        for (const auto& decl : constDecls) { execute(decl); }
         indentLevel--;
         out << "\n";
     }
 
-    // Output var declarations and constrained vars
     if (!varDecls.empty() || !constrainedVarDecls.empty() || !loopVariables.empty()) {
         out << "var\n";
         indentLevel++;
-        
-        // Regular variables first
-        for (const auto& decl : varDecls) {
-            indent();
-            execute(decl);
-            out << ";\n";
-        }
-        
-        // Constrained variables
+        for (const auto& decl : varDecls) { indent(); execute(decl); out << ";\n"; }
         for (const auto& decl : constrainedVarDecls) {
             auto constrainedVar = std::dynamic_pointer_cast<ast::ConstrainedVarDeclStmt>(decl);
-            if (constrainedVar) {
-                constrainedVars[constrainedVar->name.lexeme] = constrainedVar; // Track this variable
-            }
-            indent();
-            execute(decl);
-            out << ";\n";
+            if (constrainedVar) constrainedVars[constrainedVar->name.lexeme] = constrainedVar;
+            indent(); execute(decl); out << ";\n";
         }
-
-        // Loop variables
-        for (const auto& var : loopVariables) {
-            indent();
-            out << var << ": integer;\n";
-        }
-        
+        for (const auto& var : loopVariables) { indent(); out << var << ": integer;\n"; }
         indentLevel--;
         out << "\n";
     }
 
-    // Generate setter procedures for constrained variables
     if (!constrainedVarDecls.empty()) {
         for (const auto& decl : constrainedVarDecls) {
             auto constrainedVar = std::dynamic_pointer_cast<ast::ConstrainedVarDeclStmt>(decl);
             if (constrainedVar) {
-                // Generate setter procedure
                 out << "procedure Set" << constrainedVar->name.lexeme << "(var " << constrainedVar->name.lexeme << ": " << pascalType(constrainedVar->type) << "; value: " << pascalType(constrainedVar->type) << ");\n";
                 out << "begin\n";
                 indentLevel++;
                 indent();
-                
-                // Generate Assert statement with constraint validation
-                std::string constraintExpr = generateConstraintCheck(constrainedVar);
-                out << "Assert(" << constraintExpr << ", 'Error: " << constrainedVar->name.lexeme << " constraint violation!');\n";
+                out << "Assert(" << generateConstraintCheck(constrainedVar) << ", 'Error: " << constrainedVar->name.lexeme << " constraint violation!');\n";
                 indent();
                 out << constrainedVar->name.lexeme << " := value;\n";
                 indentLevel--;
@@ -188,16 +181,15 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::VarDeclStmt> stmt) {
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::ConstDeclStmt> stmt) {
     auto literal = std::dynamic_pointer_cast<ast::Literal>(stmt->initializer);
-    if (literal) {
-        constants[stmt->name.lexeme] = literal;
-    }
+    if (literal) constants[stmt->name.lexeme] = literal;
     indent();
-    out << stmt->name.lexeme << " = " << evaluate(stmt->initializer) << ";" << std::endl;
+    out << stmt->name.lexeme << " = " << evaluate(stmt->initializer) << ";\n";
     return {};
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::InputStmt> stmt) {
-    out << "readln(" << stmt->variable->name.lexeme << ");" << std::endl;
+    indent();
+    out << "readln(" << stmt->variable->name.lexeme << ");\n";
     return {};
 }
 
@@ -206,6 +198,7 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::AlgoritmaStmt> stmt) {
     indentLevel++;
     execute(stmt->body);
     indentLevel--;
+    indent();
     out << "end";
     return {};
 }
@@ -219,11 +212,13 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::BlockStmt> stmt) {
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::ExpressionStmt> stmt) {
+    indent();
     out << evaluate(stmt->expression) << ";\n";
     return {};
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::OutputStmt> stmt) {
+    indent();
     out << "writeln(";
     for (size_t i = 0; i < stmt->expressions.size(); ++i) {
         if (auto varExpr = std::dynamic_pointer_cast<ast::Variable>(stmt->expressions[i])) {
@@ -535,8 +530,15 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::SkipStmt> stmt) {
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::Call> expr) {
-    (void)expr; // Suppress unused parameter warning
-    return std::string("{ call expression not implemented }");
+    std::string callee = evaluate(expr->callee);
+    std::string args;
+    for (size_t i = 0; i < expr->arguments.size(); ++i) {
+        args += evaluate(expr->arguments[i]);
+        if (i < expr->arguments.size() - 1) {
+            args += ", ";
+        }
+    }
+    return callee + "(" + args + ")";
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::FieldAccess> expr) {
@@ -583,6 +585,81 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::EnumTypeDeclStmt> stmt) {
 std::any CodeGenerator::visit(std::shared_ptr<ast::ConstrainedVarDeclStmt> stmt) {
     out << stmt->name.lexeme << ": " << pascalType(stmt->type);
     // The constraint handling is done in KamusStmt visitor through setter procedures
+    return {};
+}
+
+void CodeGenerator::generateParameterList(const std::vector<ast::Parameter>& params) {
+    out << "(";
+    for (size_t i = 0; i < params.size(); ++i) {
+        const auto& p = params[i];
+        switch (p.mode) {
+            case ast::ParameterMode::INPUT:
+                // No keyword for pass-by-value
+                break;
+            case ast::ParameterMode::OUTPUT:
+            case ast::ParameterMode::INPUT_OUTPUT:
+                out << "var ";
+                break;
+        }
+        out << p.name.lexeme << ": " << pascalType(p.type);
+        if (i < params.size() - 1) {
+            out << "; ";
+        }
+    }
+    out << ")";
+}
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::ProcedureStmt> stmt) {
+    if (forwardDeclare) {
+        indent();
+        out << "procedure " << stmt->name.lexeme;
+        generateParameterList(stmt->params);
+        out << "; forward;\n";
+    } else {
+        indent();
+        out << "procedure " << stmt->name.lexeme;
+        generateParameterList(stmt->params);
+        out << ";\n";
+
+        if (stmt->kamus) {
+            execute(stmt->kamus);
+        }
+
+        execute(stmt->body);
+        out << ";\n";
+    }
+    return {};
+}
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::FunctionStmt> stmt) {
+    if (forwardDeclare) {
+        indent();
+        out << "function " << stmt->name.lexeme;
+        generateParameterList(stmt->params);
+        out << ": " << pascalType(stmt->returnType) << "; forward;\n";
+    } else {
+        indent();
+        out << "function " << stmt->name.lexeme;
+        generateParameterList(stmt->params);
+        out << ": " << pascalType(stmt->returnType) << ";\n";
+
+        if (stmt->kamus) {
+            execute(stmt->kamus);
+        }
+
+        currentFunctionName = stmt->name.lexeme;
+        execute(stmt->body);
+        currentFunctionName = "";
+        out << ";\n";
+    }
+    return {};
+}
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::ReturnStmt> stmt) {
+    if (currentFunctionName.empty()) {
+        throw std::runtime_error("Return statement used outside of a function.");
+    }
+    out << currentFunctionName << " := " << evaluate(stmt->value) << ";\n";
     return {};
 }
 

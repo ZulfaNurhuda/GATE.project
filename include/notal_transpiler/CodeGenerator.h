@@ -35,6 +35,9 @@ public:
     std::any visit(std::shared_ptr<ast::RepeatNTimesStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::StopStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::SkipStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::ProcedureStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::FunctionStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::ReturnStmt> stmt) override;
 
     // Expression Visitors
     std::any visit(std::shared_ptr<ast::Assign> expr) override;
@@ -51,11 +54,14 @@ private:
     std::stringstream out;
     int indentLevel = 0;
     int loopCounter = 0;
+    bool forwardDeclare = false;
+    std::string currentFunctionName;
     std::map<std::string, std::shared_ptr<ast::Literal>> constants;
     std::map<std::string, std::shared_ptr<ast::ConstrainedVarDeclStmt>> constrainedVars; // Track constrained variables
     std::vector<std::string> loopVariables; // Track loop variables
     
     void indent();
+    void generateParameterList(const std::vector<ast::Parameter>& params);
     std::string pascalType(const Token& token);
     std::string evaluate(std::shared_ptr<ast::Expr> expr);
     void execute(std::shared_ptr<ast::Stmt> stmt);
