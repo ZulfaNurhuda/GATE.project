@@ -1,0 +1,39 @@
+function StringHexToInteger(const inStr: string; var outInt: Int64): Boolean;
+var
+  code: Integer;
+  trimmedS: string;
+begin
+  trimmedS := Trim(inStr);
+  if trimmedS = '' then
+  begin
+    outInt := 0;
+    StringHexToInteger := False;
+    Exit;
+  end;
+  Val('$' + trimmedS, outInt, code);
+  StringHexToInteger := (code = 0);
+end;
+
+function StringHexToInteger(const inStr: string; var outInt: Integer): Boolean;
+var
+  tempInt64: Int64;
+begin
+  if StringHexToInteger(inStr, tempInt64) then
+  begin
+    if (tempInt64 >= Low(Integer)) and (tempInt64 <= High(Integer)) then
+    begin
+      outInt := Integer(tempInt64);
+      StringHexToInteger := True;
+    end
+    else
+    begin
+      outInt := 0;
+      StringHexToInteger := False; 
+    end;
+  end
+  else
+  begin
+    outInt := 0;
+    StringHexToInteger := False;
+  end;
+end;

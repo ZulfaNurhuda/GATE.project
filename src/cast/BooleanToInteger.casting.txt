@@ -1,0 +1,7 @@
+procedure BooleanToInteger(inBool: Boolean; var outInt: Integer);
+begin
+  if inBool then
+    outInt := 1
+  else
+    outInt := 0;
+end;

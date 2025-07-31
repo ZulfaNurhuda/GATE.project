@@ -1,0 +1,21 @@
+function RealToChar(inReal: Double; var outChar: Char): Boolean;
+var
+  intValue: Int64;
+begin
+  if (inReal = Trunc(inReal)) and (inReal >= 0) and (inReal <= 9) then
+  begin
+    intValue := Trunc(inReal);
+    outChar := Chr(Ord('0') + intValue);
+    Result := True;
+  end
+  else
+  begin
+    outChar := #0;
+    Result := False;
+  end;
+end;
+
+function RealToChar(inReal: Real; var outChar: Char): Boolean;
+begin
+  Result := RealToChar(Double(inReal), outChar);
+end;

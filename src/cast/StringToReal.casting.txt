@@ -1,0 +1,31 @@
+function StringToReal(const inStr: string; var outReal: Double): Boolean;
+var
+  code: Integer;
+  trimmedS: string;
+begin
+  trimmedS := Trim(inStr);
+  if trimmedS = '' then
+  begin
+    outReal := 0.0;
+    StringToReal := False;
+    Exit;
+  end;
+  Val(trimmedS, outReal, code);
+  StringToReal := (code = 0);
+end;
+
+function StringToReal(const inStr: string; var outReal: Real): Boolean;
+var
+  tempDouble: Double;
+begin
+  if StringToReal(inStr, tempDouble) then
+  begin
+    outReal := tempDouble;
+    StringToReal := True;
+  end
+  else
+  begin
+    outReal := 0.0;
+    StringToReal := False;
+  end;
+end;

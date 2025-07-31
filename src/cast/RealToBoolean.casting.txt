@@ -1,0 +1,9 @@
+procedure RealToBoolean(inReal: Double; var outBool: Boolean);
+begin
+  outBool := (inReal <> 0.0);
+end;
+
+procedure RealToBoolean(inReal: Real; var outBool: Boolean);
+begin
+  RealToBoolean(Double(inReal), outBool);
+end;

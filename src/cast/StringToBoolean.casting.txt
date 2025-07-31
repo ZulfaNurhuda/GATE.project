@@ -1,0 +1,31 @@
+function StringToBoolean(const inStr: string; var outBool: Boolean): Boolean;
+var
+  lowerS: string;
+  numValue: Int64;
+  code: Integer;
+begin
+  lowerS := LowerCase(Trim(inStr));
+
+  Val(lowerS, numValue, code);
+
+  if code = 0 then 
+  begin
+    outBool := (numValue <> 0); 
+    StringToBoolean := True;
+  end
+  else if (lowerS = 'true') then
+  begin
+    outBool := True;
+    StringToBoolean := True;
+  end
+  else if (lowerS = 'false') then
+  begin
+    outBool := False;
+    StringToBoolean := True;
+  end
+  else
+  begin 
+    outBool := False;
+    StringToBoolean := False;
+  end;
+end;

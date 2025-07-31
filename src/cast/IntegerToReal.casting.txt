@@ -1,0 +1,14 @@
+procedure IntegerToReal(inInt: Integer; var outReal: Real);
+begin
+  outReal := inInt;
+end;
+
+procedure IntegerToReal(inInt: Int64; var outReal: Double);
+begin
+  outReal := inInt;
+end;
+
+procedure IntegerToReal(inInt: Integer; var outReal: Double);
+begin
+  outReal := inInt;
+end;

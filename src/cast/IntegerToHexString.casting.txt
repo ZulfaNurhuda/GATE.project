@@ -1,0 +1,9 @@
+procedure IntegerToHexString(inInt: Int64; var outStr: string);
+begin
+  outStr := IntToHex(inInt, 0);
+end;
+
+procedure IntegerToHexString(inInt: Integer; var outStr: string);
+begin
+  IntegerToHexString(Int64(inInt), outStr);
+end;

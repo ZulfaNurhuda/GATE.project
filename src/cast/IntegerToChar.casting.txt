@@ -1,0 +1,18 @@
+function IntegerToChar(inInt: Int64; var outChar: Char): Boolean;
+begin
+  if (inInt >= 0) and (inInt <= 9) then
+  begin
+    outChar := Chr(Ord('0') + Trunc(inInt));
+    Result := True;
+  end
+  else
+  begin
+    outChar := #0;
+    Result := False;
+  end;
+end;
+
+function IntegerToChar(inInt: Integer; var outChar: Char): Boolean;
+begin
+  Result := IntegerToChar(Int64(inInt), outChar);
+end;

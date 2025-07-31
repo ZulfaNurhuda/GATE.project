@@ -1,0 +1,7 @@
+procedure BooleanToString(inBool: Boolean; var outStr: string);
+begin
+  if inBool then
+    outStr := 'True'
+  else
+    outStr := 'False';
+end;

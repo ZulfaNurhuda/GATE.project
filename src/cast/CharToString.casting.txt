@@ -1,0 +1,4 @@
+procedure CharToString(inChar: Char; var outStr: string);
+begin
+  outStr := inChar;
+end;

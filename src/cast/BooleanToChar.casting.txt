@@ -1,0 +1,8 @@
+function BooleanToChar(inBool: Boolean; var outChar: Char): Boolean;
+begin
+  if inBool then
+    outChar := 'T'
+  else
+    outChar := 'F';
+  BooleanToChar := True;
+end;

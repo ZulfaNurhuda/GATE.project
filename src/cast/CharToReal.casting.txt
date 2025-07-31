@@ -1,0 +1,16 @@
+function CharToReal(inChar: Char; var outReal: Real): Boolean;
+var
+  intResult: Integer;
+begin
+  if (inChar >= '0') and (inChar <= '9') then
+  begin
+    intResult := Ord(inChar) - Ord('0');
+    outReal := intResult;
+    Result := True;
+  end
+  else
+  begin
+    outReal := 0.0;
+    Result := False;
+  end;
+end;

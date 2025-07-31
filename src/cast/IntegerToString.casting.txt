@@ -1,0 +1,9 @@
+procedure IntegerToString(inInt: Int64; var outStr: string);
+begin
+  outStr := IntToStr(inInt);
+end;
+
+procedure IntegerToString(inInt: Integer; var outStr: string);
+begin
+  IntegerToString(Int64(inInt), outStr);
+end;

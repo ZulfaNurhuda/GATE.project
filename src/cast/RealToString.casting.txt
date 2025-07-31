@@ -1,0 +1,9 @@
+procedure RealToString(inReal: Double; var outStr: string);
+begin
+  outStr := FloatToStr(inReal);
+end;
+
+procedure RealToString(inReal: Real; var outStr: string);
+begin
+  RealToString(Double(inReal), outStr);
+end;

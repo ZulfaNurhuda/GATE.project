@@ -1,0 +1,16 @@
+function StringToChar(const inStr: string; var outChar: Char): Boolean;
+var
+  trimmedS: string;
+begin
+  trimmedS := Trim(inStr);
+  if Length(trimmedS) = 1 then
+  begin
+    outChar := trimmedS[1];
+    StringToChar := True;
+  end
+  else
+  begin
+    outChar := #0;
+    StringToChar := False;
+  end;
+end;

@@ -1,0 +1,25 @@
+procedure RealToInteger(inReal: Double; var outInt: Int64);
+begin
+  outInt := Round(inReal);
+end;
+
+procedure RealToInteger(inReal: Real; var outInt: Integer);
+begin
+  outInt := Round(inReal);
+end;
+
+procedure RealToInteger(inReal: Real; var outInt: Int64);
+begin
+  outInt := Round(inReal);
+end;
+
+procedure RealToInteger(inReal: Double; var outInt: Integer);
+var
+  tempInt64: Int64;
+begin
+  tempInt64 := Round(inReal);
+  if (tempInt64 >= Low(Integer)) and (tempInt64 <= High(Integer)) then
+    outInt := Integer(tempInt64)
+  else
+    outInt := 0;
+end;

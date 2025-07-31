@@ -1,0 +1,9 @@
+procedure IntegerToBoolean(inInt: Int64; var outBool: Boolean);
+begin
+  outBool := (inInt <> 0);
+end;
+
+procedure IntegerToBoolean(inInt: Integer; var outBool: Boolean);
+begin
+  IntegerToBoolean(Int64(inInt), outBool);
+end;

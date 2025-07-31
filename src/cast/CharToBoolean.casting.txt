@@ -1,0 +1,21 @@
+function CharToBoolean(inChar: Char; var outBool: Boolean): Boolean;
+var
+  upC: Char;
+begin
+  upC := UpCase(inChar);
+  if (upC = 'T') or ((inChar >= '1') and (inChar <= '9')) then
+  begin
+    outBool := True;
+    Result := True;
+  end
+  else if (upC = 'F') or (inChar = '0') then
+  begin
+    outBool := False;
+    Result := True;
+  end
+  else
+  begin
+    outBool := False;
+    Result := False;
+  end;
+end;

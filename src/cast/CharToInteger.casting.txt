@@ -1,0 +1,13 @@
+function CharToInteger(inChar: Char; var outInt: Integer): Boolean;
+begin
+  if (inChar >= '0') and (inChar <= '9') then
+  begin
+    outInt := Ord(inChar) - Ord('0');
+    Result := True;
+  end
+  else
+  begin
+    outInt := 0;
+    Result := False;
+  end;
+end;

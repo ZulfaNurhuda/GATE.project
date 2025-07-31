@@ -1,0 +1,7 @@
+procedure BooleanToReal(inBool: Boolean; var outReal: Real);
+begin
+  if inBool then
+    outReal := 1.0
+  else
+    outReal := 0.0;
+end;
