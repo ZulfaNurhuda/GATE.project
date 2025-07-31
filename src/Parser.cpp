@@ -63,8 +63,13 @@ std::shared_ptr<ast::ProgramStmt> Parser::program() {
 // kamus -> "KAMUS" declaration*
 std::shared_ptr<ast::KamusStmt> Parser::kamus() {
     consume(TokenType::KAMUS, "Expect 'KAMUS'.");
+    int kamusKeywordColumn = previous().column;
     std::vector<std::shared_ptr<ast::Stmt>> declarations;
     while (!check(TokenType::ALGORITMA) && !isAtEnd()) {
+        if ((peek().type == TokenType::PROCEDURE || peek().type == TokenType::FUNCTION) &&
+            peek().column <= kamusKeywordColumn) {
+            throw error(peek(), "Procedure or function declaration must be indented within 'KAMUS' block.");
+        }
         declarations.push_back(declaration());
     }
     return std::make_shared<ast::KamusStmt>(declarations);
@@ -573,7 +578,7 @@ std::vector<ast::Parameter> Parser::parameterList() {
     std::vector<ast::Parameter> params;
     if (!check(TokenType::RPAREN)) {
         do {
-            ast::ParameterMode mode = ast::ParameterMode::INPUT; // Default mode
+            ast::ParameterMode mode;
 
             if (peek().type == TokenType::INPUT) {
                 advance(); // consume 'input'
@@ -586,6 +591,8 @@ std::vector<ast::Parameter> Parser::parameterList() {
             } else if (peek().type == TokenType::OUTPUT) {
                 advance(); // consume 'output'
                 mode = ast::ParameterMode::OUTPUT;
+            } else {
+                throw error(peek(), "Expect 'input', 'output', or 'input/output' for parameter mode.");
             }
 
             Token name = consume(TokenType::IDENTIFIER, "Expect parameter name.");
@@ -609,10 +616,36 @@ void Parser::subprogramImplementation(const Token& subprogramKeyword, const Toke
         throw error(subprogramName, "Implementation provided for an undeclared subprogram.");
     }
 
-    // Parse the parameter list again to consume the tokens correctly.
-    // The result is discarded, but this keeps the parser state valid.
-    // TODO: A better implementation would verify this signature against the declaration.
-    parameterList();
+    // Consume the parameter list tokens based on the declaration.
+    // This ensures the parser's state is correct for parsing the subprogram body.
+    consume(TokenType::LPAREN, "Expect '(' after subprogram name in implementation.");
+    std::vector<ast::Parameter> declaredParams;
+    if (auto proc = std::dynamic_pointer_cast<ast::ProcedureStmt>(it->second)) {
+        declaredParams = proc->params;
+    } else if (auto func = std::dynamic_pointer_cast<ast::FunctionStmt>(it->second)) {
+        declaredParams = func->params;
+    }
+
+    for (size_t i = 0; i < declaredParams.size(); ++i) {
+        const auto& param = declaredParams[i];
+        if (param.mode == ast::ParameterMode::INPUT) {
+            consume(TokenType::INPUT, "Expect 'input' for parameter mode.");
+        } else if (param.mode == ast::ParameterMode::OUTPUT) {
+            consume(TokenType::OUTPUT, "Expect 'output' for parameter mode.");
+        } else if (param.mode == ast::ParameterMode::INPUT_OUTPUT) {
+            consume(TokenType::INPUT, "Expect 'input' for parameter mode.");
+            consume(TokenType::DIVIDE, "Expect '/' for 'input/output' parameter mode.");
+            consume(TokenType::OUTPUT, "Expect 'output' for 'input/output' parameter mode.");
+        }
+        consume(TokenType::IDENTIFIER, "Expect parameter name.");
+        consume(TokenType::COLON, "Expect ':' after parameter name.");
+        // Consume the type token, assuming it's valid as per declaration
+        advance(); 
+        if (i < declaredParams.size() - 1) {
+            consume(TokenType::COMMA, "Expect ',' between parameters.");
+        }
+    }
+    consume(TokenType::RPAREN, "Expect ')' after parameter list in implementation.");
 
     if (subprogramKeyword.type == TokenType::FUNCTION) {
         consume(TokenType::ARROW, "Expect '->' for function implementation signature.");

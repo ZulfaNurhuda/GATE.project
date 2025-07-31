@@ -11,7 +11,7 @@ TEST(ProcedureFunctionTest, RecursiveFunctionAndProcedureCall) {
 PROGRAM FactorialTest
 KAMUS
     result: integer
-    function factorial(n: integer) -> integer
+    function factorial(input n: integer) -> integer
     procedure printResult(input val: integer)
 
 ALGORITMA
@@ -22,7 +22,7 @@ procedure printResult(input val: integer)
 ALGORITMA
     output('Factorial is: ', val)
 
-function factorial(n: integer) -> integer
+function factorial(input n: integer) -> integer
 KAMUS
     temp: integer
 ALGORITMA

@@ -188,7 +188,6 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::ConstDeclStmt> stmt) {
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::InputStmt> stmt) {
-    indent();
     out << "readln(" << stmt->variable->name.lexeme << ");\n";
     return {};
 }
@@ -212,13 +211,11 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::BlockStmt> stmt) {
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::ExpressionStmt> stmt) {
-    indent();
     out << evaluate(stmt->expression) << ";\n";
     return {};
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::OutputStmt> stmt) {
-    indent();
     out << "writeln(";
     for (size_t i = 0; i < stmt->expressions.size(); ++i) {
         if (auto varExpr = std::dynamic_pointer_cast<ast::Variable>(stmt->expressions[i])) {

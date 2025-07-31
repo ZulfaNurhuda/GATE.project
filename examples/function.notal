@@ -1,0 +1,37 @@
+PROGRAM FunctionExample
+
+KAMUS
+  num1: integer
+  num2: integer
+  sum_result: integer
+  is_positive: boolean
+  
+  function add(input a: integer, input b: integer) -> integer
+  function checkPositive(input val: integer) -> boolean
+
+ALGORITMA
+  num1 <- 5
+  num2 <- 7
+
+  sum_result <- add(num1, num2)
+  output("Sum: ", sum_result)
+
+  is_positive <- checkPositive(sum_result)
+  output("Is sum positive? ", is_positive)
+
+  is_positive <- checkPositive(-10)
+  output("Is -10 positive? ", is_positive)
+
+function add(input a: integer, input b: integer) -> integer
+KAMUS
+  results: integer
+ALGORITMA
+  results <- a + b
+  -> results
+
+function checkPositive(input val: integer) -> boolean
+ALGORITMA
+  if val > 0 then
+    -> true
+  else
+    -> false

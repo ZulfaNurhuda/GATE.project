@@ -923,7 +923,7 @@ end;
 - **Dengan Parameter**
 
   ```
-  function factorial (n: integer) -> integer
+  function factorial (input n: integer) -> integer
 
   KAMUS
     result: integer
@@ -960,7 +960,7 @@ end;
 ### **3.4.3. Parameter Modes (input, output, input/output)**
 
 > [!NOTE]
-> In NOTAL syntax, the formal procedure parameters contain the prefixes `input`, `output`, and `input/output`. Here is the difference in the context of conversion to Pascal programming language.
+> In NOTAL syntax, the formal procedure and function parameters contain the prefixes `input`, `output`, and `input/output`. Here is the difference in the context of conversion to Pascal programming language.
 > | NOTAL | Pascal | Description |
 > | :----------------------------------------------------------------------------------------------- | :----- | :-------------------- |
 > | `input` (Only to retrieve the value of a variable without changing its value) | `-` | _`pass-by-value`_ |
@@ -988,6 +988,17 @@ end;
     name <- formatted_name
   ```
 
+- **Example 3**
+
+  ```
+  function add (input number1: integer, input number2: integer) -> integer
+  KAMUS
+    result: integer
+  ALGORITMA
+    result <- number1 + number2
+    -> result
+  ```
+
 **Pascal**
 
 - **Example 1**
@@ -1008,6 +1019,18 @@ end;
   begin
     formatted_name := name + '_' + nim;
     name := formatted_name;
+  end;
+  ```
+
+- **Example 3**
+
+  ```pascal
+  function add(number1: integer; number2: integer): integer;
+  var
+    result: integer;
+  begin
+    result := number1 + number2;
+    add := result;
   end;
   ```
 
@@ -1169,7 +1192,7 @@ end.
 - **Function**
 
 ```
-function processData (ptr: pInt) -> boolean
+function processData (input ptr: pInt) -> boolean
 { Assume, pInt = ^integer }
 KAMUS
   { Local scope }

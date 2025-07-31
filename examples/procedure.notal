@@ -1,0 +1,29 @@
+PROGRAM ProcedureExample
+
+KAMUS
+  a: integer
+  b: integer
+  c: integer
+  message: string
+  procedure calculateAndDisplay(input x: integer, input/output y: integer, output z: integer, output msg: string)
+
+ALGORITMA
+  a <- 10
+  b <- 20
+  c <- 0
+  message <- ""
+
+  calculateAndDisplay(a, b, c, message)
+
+  output("Final C: ", c)
+  output("Final Message: ", message)
+
+procedure calculateAndDisplay(input x: integer, input/output y: integer, output z: integer, output msg: string)
+KAMUS
+  temp_sum: integer
+ALGORITMA
+  temp_sum <- x + y
+  y <- y * 2 { Modifies input/output parameter }
+  z <- temp_sum { Assigns to output parameter }
+  msg <- "Calculation complete!" { Assigns to output string parameter }
+  output("Inside procedure - X: ", x, ", Y: ", y, ", Z: ", z, ", Msg: ", msg)
