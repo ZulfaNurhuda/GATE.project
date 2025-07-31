@@ -814,7 +814,7 @@ void CodeGenerator::generateCastingImplementations() {
         if (!file) {
             throw std::runtime_error("Could not open casting file: " + filePath);
         }
-        out << file.rdbuf() << "\n";
+        out << file.rdbuf() << "\n\n";
     }
 }
 
