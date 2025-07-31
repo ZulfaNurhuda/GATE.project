@@ -6,6 +6,7 @@
 #include <string>
 #include <sstream>
 #include <map>
+#include <vector>
 
 namespace notal {
 
@@ -20,6 +21,10 @@ public:
     std::any visit(std::shared_ptr<ast::KamusStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::AlgoritmaStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::VarDeclStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::StaticArrayDeclStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::DynamicArrayDeclStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::AllocateStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::DeallocateStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::ConstDeclStmt> stmt) override; // Added
     std::any visit(std::shared_ptr<ast::InputStmt> stmt) override;     // Added
     std::any visit(std::shared_ptr<ast::RecordTypeDeclStmt> stmt) override; // Added
@@ -49,6 +54,7 @@ public:
     std::any visit(std::shared_ptr<ast::Call> expr) override;
     std::any visit(std::shared_ptr<ast::FieldAccess> expr) override;
     std::any visit(std::shared_ptr<ast::FieldAssign> expr) override;
+    std::any visit(std::shared_ptr<ast::ArrayAccess> expr) override;
 
 private:
     std::stringstream out;
@@ -57,8 +63,9 @@ private:
     bool forwardDeclare = false;
     std::string currentFunctionName;
     std::map<std::string, std::shared_ptr<ast::Literal>> constants;
-    std::map<std::string, std::shared_ptr<ast::ConstrainedVarDeclStmt>> constrainedVars; // Track constrained variables
-    std::vector<std::string> loopVariables; // Track loop variables
+    std::map<std::string, std::shared_ptr<ast::ConstrainedVarDeclStmt>> constrainedVars;
+    std::map<std::string, int> dynamicArrayDimensions;
+    std::vector<std::string> loopVariables;
     
     void indent();
     void generateParameterList(const std::vector<ast::Parameter>& params);

@@ -19,6 +19,7 @@ struct Assign;
 struct Call;
 struct FieldAccess;
 struct FieldAssign;
+struct ArrayAccess;
 
 // Visitor interface for expressions
 class ExprVisitor {
@@ -32,6 +33,7 @@ public:
     virtual std::any visit(std::shared_ptr<Call> expr) = 0;
     virtual std::any visit(std::shared_ptr<FieldAccess> expr) = 0;
     virtual std::any visit(std::shared_ptr<FieldAssign> expr) = 0;
+    virtual std::any visit(std::shared_ptr<ArrayAccess> expr) = 0;
     virtual ~ExprVisitor() = default;
 };
 
@@ -104,11 +106,11 @@ struct Grouping : Expr, public std::enable_shared_from_this<Grouping> {
 
 // Assignment expression node
 struct Assign : Expr, public std::enable_shared_from_this<Assign> {
-    Token name;
+    std::shared_ptr<Expr> target; // The left-hand side of the assignment
     std::shared_ptr<Expr> value;
 
-    Assign(Token name, std::shared_ptr<Expr> value)
-        : name(std::move(name)), value(std::move(value)) {}
+    Assign(std::shared_ptr<Expr> target, std::shared_ptr<Expr> value)
+        : target(std::move(target)), value(std::move(value)) {}
 
     std::any accept(ExprVisitor& visitor) override {
         return visitor.visit(shared_from_this());
@@ -133,7 +135,7 @@ struct Call : Expr, public std::enable_shared_from_this<Call> {
 struct FieldAccess : Expr, public std::enable_shared_from_this<FieldAccess> {
     std::shared_ptr<Expr> object;
     Token name; // The field name
-    
+
     FieldAccess(std::shared_ptr<Expr> object, Token name)
         : object(std::move(object)), name(std::move(name)) {}
 
@@ -146,9 +148,23 @@ struct FieldAccess : Expr, public std::enable_shared_from_this<FieldAccess> {
 struct FieldAssign : Expr, public std::enable_shared_from_this<FieldAssign> {
     std::shared_ptr<FieldAccess> target;
     std::shared_ptr<Expr> value;
-    
+
     FieldAssign(std::shared_ptr<FieldAccess> target, std::shared_ptr<Expr> value)
         : target(std::move(target)), value(std::move(value)) {}
+
+    std::any accept(ExprVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
+// Array access expression node (e.g., myArray[index])
+struct ArrayAccess : Expr, public std::enable_shared_from_this<ArrayAccess> {
+    std::shared_ptr<Expr> callee; // The expression that evaluates to the array
+    Token bracket; // The closing ']' token, for error reporting
+    std::vector<std::shared_ptr<Expr>> indices;
+
+    ArrayAccess(std::shared_ptr<Expr> callee, Token bracket, std::vector<std::shared_ptr<Expr>> indices)
+        : callee(std::move(callee)), bracket(std::move(bracket)), indices(std::move(indices)) {}
 
     std::any accept(ExprVisitor& visitor) override {
         return visitor.visit(shared_from_this());

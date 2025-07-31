@@ -34,6 +34,11 @@ struct SkipStmt;
 struct ProcedureStmt;
 struct FunctionStmt;
 struct ReturnStmt;
+struct StaticArrayDeclStmt;
+struct DynamicArrayDeclStmt;
+struct AllocateStmt;
+struct DeallocateStmt;
+
 
 // Visitor interface for statements
 class StmtVisitor {
@@ -62,6 +67,10 @@ public:
     virtual std::any visit(std::shared_ptr<ProcedureStmt> stmt) = 0;
     virtual std::any visit(std::shared_ptr<FunctionStmt> stmt) = 0;
     virtual std::any visit(std::shared_ptr<ReturnStmt> stmt) = 0;
+    virtual std::any visit(std::shared_ptr<StaticArrayDeclStmt> stmt) = 0;
+    virtual std::any visit(std::shared_ptr<DynamicArrayDeclStmt> stmt) = 0;
+    virtual std::any visit(std::shared_ptr<AllocateStmt> stmt) = 0;
+    virtual std::any visit(std::shared_ptr<DeallocateStmt> stmt) = 0;
     virtual ~StmtVisitor() = default;
 };
 
@@ -161,10 +170,10 @@ struct AlgoritmaStmt : Stmt, public std::enable_shared_from_this<AlgoritmaStmt> 
 struct VarDeclStmt : Stmt, public std::enable_shared_from_this<VarDeclStmt> {
     Token name;
     Token type; // This will be the type keyword token, e.g., INTEGER
-    // std::shared_ptr<Expr> initializer; // NOTAL doesn't have initializers in KAMUS
+    Token pointedToType; // Used for pointer types
 
-    VarDeclStmt(Token name, Token type)
-        : name(std::move(name)), type(std::move(type)) {}
+    VarDeclStmt(Token name, Token type, Token pointedToType = {TokenType::UNKNOWN, ""})
+        : name(std::move(name)), type(std::move(type)), pointedToType(std::move(pointedToType)) {}
 
     std::any accept(StmtVisitor& visitor) override {
         return visitor.visit(shared_from_this());
@@ -406,6 +415,65 @@ struct ReturnStmt : Stmt, public std::enable_shared_from_this<ReturnStmt> {
     std::shared_ptr<Expr> value;
 
     explicit ReturnStmt(Token keyword, std::shared_ptr<Expr> value) : keyword(std::move(keyword)), value(std::move(value)) {}
+
+    std::any accept(StmtVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
+// Static array declaration statement node
+struct StaticArrayDeclStmt : Stmt, public std::enable_shared_from_this<StaticArrayDeclStmt> {
+    struct Dimension {
+        std::shared_ptr<Expr> start;
+        std::shared_ptr<Expr> end;
+    };
+
+    Token name;
+    std::vector<Dimension> dimensions;
+    Token elementType;
+
+    StaticArrayDeclStmt(Token name, std::vector<Dimension> dimensions, Token elementType)
+        : name(std::move(name)), dimensions(std::move(dimensions)), elementType(std::move(elementType)) {}
+
+    std::any accept(StmtVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
+// Dynamic array declaration statement node
+struct DynamicArrayDeclStmt : Stmt, public std::enable_shared_from_this<DynamicArrayDeclStmt> {
+    Token name;
+    int dimensions; // Number of 'array of'
+    Token elementType;
+
+    DynamicArrayDeclStmt(Token name, int dimensions, Token elementType)
+        : name(std::move(name)), dimensions(dimensions), elementType(std::move(elementType)) {}
+
+    std::any accept(StmtVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
+// Allocate statement node
+struct AllocateStmt : Stmt, public std::enable_shared_from_this<AllocateStmt> {
+    std::shared_ptr<Expr> callee; // The variable being allocated
+    std::vector<std::shared_ptr<Expr>> sizes;
+
+    AllocateStmt(std::shared_ptr<Expr> callee, std::vector<std::shared_ptr<Expr>> sizes)
+        : callee(std::move(callee)), sizes(std::move(sizes)) {}
+
+    std::any accept(StmtVisitor& visitor) override {
+        return visitor.visit(shared_from_this());
+    }
+};
+
+// Deallocate statement node
+struct DeallocateStmt : Stmt, public std::enable_shared_from_this<DeallocateStmt> {
+    std::shared_ptr<Expr> callee; // The variable being deallocated
+    int dimension; // The 'n' in deallocate[n]. -1 for simple deallocate(ptr).
+
+    DeallocateStmt(std::shared_ptr<Expr> callee, int dimension)
+        : callee(std::move(callee)), dimension(dimension) {}
 
     std::any accept(StmtVisitor& visitor) override {
         return visitor.visit(shared_from_this());

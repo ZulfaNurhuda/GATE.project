@@ -166,17 +166,28 @@ std::shared_ptr<ast::Stmt> Parser::typeDeclaration() {
     }
 }
 
-// varDeclaration -> IDENTIFIER ":" type [ "|" constraint ]
+// varDeclaration -> IDENTIFIER ":" (type | arrayDeclaration) [ "|" constraint ]
 std::shared_ptr<ast::Stmt> Parser::varDeclaration() {
     Token name = consume(TokenType::IDENTIFIER, "Expect variable name.");
     consume(TokenType::COLON, "Expect ':' after variable name.");
+
+    if (check(TokenType::ARRAY)) {
+        return arrayDeclaration(name);
+    }
     
     Token type = advance();
     if (type.type != TokenType::INTEGER && type.type != TokenType::REAL &&
         type.type != TokenType::STRING && type.type != TokenType::BOOLEAN &&
-        type.type != TokenType::CHARACTER && type.type != TokenType::IDENTIFIER) {
+        type.type != TokenType::CHARACTER && type.type != TokenType::IDENTIFIER &&
+        type.type != TokenType::POINTER) {
             throw error(type, "Expect a type name.");
-        }
+    }
+
+    if (type.type == TokenType::POINTER) {
+        consume(TokenType::TO, "Expect 'to' after 'pointer'.");
+        Token pointedType = advance();
+        return std::make_shared<ast::VarDeclStmt>(name, type, pointedType);
+    }
 
     // Check for constraint: age: integer | age >= 0 and age <= 150
     if (match({TokenType::PIPE})) {
@@ -187,11 +198,39 @@ std::shared_ptr<ast::Stmt> Parser::varDeclaration() {
     return std::make_shared<ast::VarDeclStmt>(name, type);
 }
 
+// arrayDeclaration -> "array" ( "[" dimensions "]" | "of" ) "of" type
+std::shared_ptr<ast::Stmt> Parser::arrayDeclaration(Token name) {
+    consume(TokenType::ARRAY, "Expect 'array'.");
+
+    if (check(TokenType::LBRACKET)) { // Static array
+        std::vector<ast::StaticArrayDeclStmt::Dimension> dimensions;
+        do {
+            consume(TokenType::LBRACKET, "Expect '[' for array dimension.");
+            std::shared_ptr<ast::Expr> start = unary();
+            consume(TokenType::DOT_DOT, "Expect '..' between dimension bounds.");
+            std::shared_ptr<ast::Expr> end = unary();
+            consume(TokenType::RBRACKET, "Expect ']' after array dimension.");
+            dimensions.push_back({start, end});
+        } while (check(TokenType::LBRACKET));
+
+        consume(TokenType::OF, "Expect 'of' after array dimensions.");
+        Token elementType = advance();
+        return std::make_shared<ast::StaticArrayDeclStmt>(name, dimensions, elementType);
+
+    } else { // Dynamic array
+        int dimensions = 1;
+        consume(TokenType::OF, "Expect 'of' after 'array'.");
+        while(match({TokenType::ARRAY})) {
+            dimensions++;
+            consume(TokenType::OF, "Expect 'of' after 'array'.");
+        }
+        Token elementType = advance();
+        return std::make_shared<ast::DynamicArrayDeclStmt>(name, dimensions, elementType);
+    }
+}
+
 // block -> (statement)*
 std::vector<std::shared_ptr<notal::ast::Stmt>> Parser::block() {
-    // This block is for the top-level ALGORITMA, which starts at column 0 (or whatever the initial indentation is)
-    // We'll use the column of the first statement to determine the expected indentation for subsequent statements.
-    // If the ALGORITMA block is empty, peek().column might be irrelevant, so handle that.
     int initialIndent = 0;
     if (!isAtEnd()) {
         initialIndent = peek().column;
@@ -201,9 +240,7 @@ std::vector<std::shared_ptr<notal::ast::Stmt>> Parser::block() {
 
 std::vector<std::shared_ptr<notal::ast::Stmt>> Parser::parseBlockByIndentation(int expectedIndentLevel) {
     std::vector<std::shared_ptr<notal::ast::Stmt>> statements;
-    // std::cout << "--> Parsing indented block, expected indent >= " << expectedIndentLevel << "\n";
     while (!isAtEnd() && peek().column >= expectedIndentLevel) {
-        // std::cout << "--> In block loop, current token: " << peek().lexeme << ", column: " << peek().column << "\n";
         if (peek().column == expectedIndentLevel &&
             (peek().type == TokenType::PROCEDURE || peek().type == TokenType::FUNCTION)) {
             break;
@@ -213,50 +250,102 @@ std::vector<std::shared_ptr<notal::ast::Stmt>> Parser::parseBlockByIndentation(i
         }
         statements.push_back(statement());
     }
-    // std::cout << "--> Exiting indented block\n";
     return statements;
 }
 
-// statement -> ifStatement | whileStatement | repeatUntilStatement | outputStatement | inputStatement | expressionStatement
+// statement -> ... | allocateStatement | deallocateStatement
 std::shared_ptr<notal::ast::Stmt> Parser::statement() {
-    if (check(TokenType::IF)) {
-        return ifStatement();
-    }
-    if (check(TokenType::WHILE)) {
-        return whileStatement();
-    }
+    if (check(TokenType::IF)) return ifStatement();
+    if (check(TokenType::WHILE)) return whileStatement();
     if (match({TokenType::REPEAT})) {
-        if (peek().type == TokenType::INTEGER_LITERAL) {
-            return repeatNTimesStatement();
-        }
+        if (peek().type == TokenType::INTEGER_LITERAL) return repeatNTimesStatement();
         return repeatUntilStatement();
     }
-    if (check(TokenType::DEPEND)) {
-        return dependOnStatement();
-    }
-    if (check(TokenType::OUTPUT)) {
-        return outputStatement();
-    }
-    if (check(TokenType::INPUT)) {
-        return inputStatement();
-    }
-    if (peek().type == TokenType::IDENTIFIER && peekNext().type == TokenType::TRAVERSAL) {
-        return traversalStatement();
-    }
-    if (check(TokenType::ITERATE)) {
-        return iterateStopStatement();
-    }
-    if (match({TokenType::STOP})) {
-        return std::make_shared<ast::StopStmt>();
-    }
-    if (match({TokenType::SKIP})) {
-        return std::make_shared<ast::SkipStmt>();
-    }
-    if (check(TokenType::ARROW)) {
-        return returnStatement();
-    }
+    if (check(TokenType::DEPEND)) return dependOnStatement();
+    if (check(TokenType::OUTPUT)) return outputStatement();
+    if (check(TokenType::INPUT)) return inputStatement();
+    if (check(TokenType::ALLOCATE)) return allocateStatement();
+    if (check(TokenType::DEALLOCATE)) return deallocateStatement();
+    if (peek().type == TokenType::IDENTIFIER && peekNext().type == TokenType::TRAVERSAL) return traversalStatement();
+    if (check(TokenType::ITERATE)) return iterateStopStatement();
+    if (match({TokenType::STOP})) return std::make_shared<ast::StopStmt>();
+    if (match({TokenType::SKIP})) return std::make_shared<ast::SkipStmt>();
+    if (check(TokenType::ARROW)) return returnStatement();
+
     return expressionStatement();
 }
+
+std::shared_ptr<ast::Stmt> Parser::allocateStatement() {
+    consume(TokenType::ALLOCATE, "Expect 'allocate'.");
+    consume(TokenType::LPAREN, "Expect '(' after 'allocate'.");
+
+    std::shared_ptr<ast::Expr> callee = expression();
+
+    std::vector<std::shared_ptr<ast::Expr>> sizes;
+    while (match({TokenType::COMMA})) {
+        sizes.push_back(expression());
+    }
+
+    consume(TokenType::RPAREN, "Expect ')' after allocate arguments.");
+
+    // Add the first argument to the sizes list for consistency
+    if (!sizes.empty()) {
+        auto first_arg = std::dynamic_pointer_cast<ast::Variable>(callee);
+        if (first_arg) {
+            // This is tricky. allocate(arr, 10) means arr is the callee, 10 is the size.
+            // The sizes vector already has the sizes. The callee is the variable.
+        }
+    }
+
+    // The `callee` is the variable, the rest are sizes.
+    // Let's re-parse arguments to be cleaner.
+
+    // Rewind and re-parse properly
+    current--; // go back to before RPAREN
+
+    if (check(TokenType::COMMA)) {
+        current--; // go back to before comma
+        while(previous().type != TokenType::LPAREN) {
+            current--;
+        }
+    } else {
+        while(previous().type != TokenType::LPAREN) {
+            current--;
+        }
+    }
+
+
+    callee = expression();
+    sizes.clear();
+    while (match({TokenType::COMMA})) {
+        sizes.push_back(expression());
+    }
+
+    consume(TokenType::RPAREN, "Expect ')' after allocate arguments.");
+
+    return std::make_shared<ast::AllocateStmt>(callee, sizes);
+}
+
+std::shared_ptr<ast::Stmt> Parser::deallocateStatement() {
+    consume(TokenType::DEALLOCATE, "Expect 'deallocate'.");
+
+    int dimension = -1; // -1 for pointer, >= 1 for array
+    if (match({TokenType::LBRACKET})) {
+        if (match({TokenType::INTEGER_LITERAL})) {
+            dimension = std::stoi(previous().lexeme);
+        } else {
+            dimension = 1; // for deallocate[]
+        }
+        consume(TokenType::RBRACKET, "Expect ']' after deallocate dimension.");
+    }
+
+    consume(TokenType::LPAREN, "Expect '(' after 'deallocate'.");
+    std::shared_ptr<ast::Expr> callee = expression();
+    consume(TokenType::RPAREN, "Expect ')' after deallocate argument.");
+
+    return std::make_shared<ast::DeallocateStmt>(callee, dimension);
+}
+
 
 // inputStatement -> "input" "(" IDENTIFIER ")"
 std::shared_ptr<ast::Stmt> Parser::inputStatement() {
@@ -331,16 +420,14 @@ std::shared_ptr<notal::ast::Stmt> Parser::whileStatement() {
         whileBodyIndent = peek().column;
     }
     
-    // The body must be more indented than the while statement itself.
     if (whileBodyIndent <= whileToken.column) {
-        // This could be an empty loop body.
         auto bodyBlock = std::make_shared<ast::BlockStmt>(std::vector<std::shared_ptr<ast::Stmt>>{});
         return std::make_shared<ast::WhileStmt>(condition, bodyBlock);
     }
 
     std::shared_ptr<notal::ast::BlockStmt> bodyBlock = std::make_shared<ast::BlockStmt>(parseBlockByIndentation(whileBodyIndent));
 
-    return std::make_shared<notal::ast::WhileStmt>(condition, bodyBlock);
+    return std::make_shared<ast::WhileStmt>(condition, bodyBlock);
 }
 
 std::shared_ptr<ast::Stmt> Parser::repeatUntilStatement() {
@@ -364,15 +451,13 @@ std::shared_ptr<ast::Stmt> Parser::repeatUntilStatement() {
     return std::make_shared<ast::RepeatUntilStmt>(body, condition);
 }
 
-// i traversal [1..10 step 2]
 std::shared_ptr<ast::Stmt> Parser::traversalStatement() {
     Token iterator = consume(TokenType::IDENTIFIER, "Expect iterator name.");
     consume(TokenType::TRAVERSAL, "Expect 'traversal'.");
     consume(TokenType::LBRACKET, "Expect '[' after 'traversal'.");
     
     std::shared_ptr<ast::Expr> start = primary();
-    consume(TokenType::DOT, "Expect '..' between start and end values.");
-    consume(TokenType::DOT, "Expect '..' between start and end values.");
+    consume(TokenType::DOT_DOT, "Expect '..' between start and end values.");
     std::shared_ptr<ast::Expr> end = primary();
     
     std::shared_ptr<ast::Expr> step = nullptr;
@@ -396,7 +481,6 @@ std::shared_ptr<ast::Stmt> Parser::traversalStatement() {
     return std::make_shared<ast::TraversalStmt>(iterator, start, end, step, body);
 }
 
-// iterate ... stop (condition)
 std::shared_ptr<ast::Stmt> Parser::iterateStopStatement() {
     Token iterateToken = consume(TokenType::ITERATE, "Expect 'iterate'.");
 
@@ -419,9 +503,7 @@ std::shared_ptr<ast::Stmt> Parser::iterateStopStatement() {
     return std::make_shared<ast::IterateStopStmt>(body, condition);
 }
 
-// repeat 5 times
 std::shared_ptr<ast::Stmt> Parser::repeatNTimesStatement() {
-    // 'repeat' token was matched in statement(). It's the previous token.
     Token repeatToken = previous();
 
     std::shared_ptr<ast::Expr> times = primary();
@@ -527,7 +609,6 @@ std::shared_ptr<ast::Stmt> Parser::subprogramDeclaration() {
     if (check(TokenType::FUNCTION)) {
         return functionDeclaration();
     }
-    // Should not be reached if called correctly
     throw error(peek(), "Expect 'procedure' or 'function'.");
 }
 
@@ -541,8 +622,6 @@ std::shared_ptr<ast::Stmt> Parser::procedureDeclaration() {
         throw error(name, "Procedure with this name already declared.");
     }
 
-    // Create a procedure statement with an empty body for now.
-    // The body will be filled in when the implementation is parsed.
     auto procStmt = std::make_shared<ast::ProcedureStmt>(name, params, nullptr, nullptr);
     subprogramDeclarations[name.lexeme] = procStmt;
 
@@ -615,9 +694,6 @@ void Parser::subprogramImplementation(const Token& subprogramKeyword, const Toke
     if (it == subprogramDeclarations.end()) {
         throw error(subprogramName, "Implementation provided for an undeclared subprogram.");
     }
-
-    // Consume the parameter list tokens based on the declaration.
-    // This ensures the parser's state is correct for parsing the subprogram body.
     consume(TokenType::LPAREN, "Expect '(' after subprogram name in implementation.");
     std::vector<ast::Parameter> declaredParams;
     if (auto proc = std::dynamic_pointer_cast<ast::ProcedureStmt>(it->second)) {
@@ -639,7 +715,6 @@ void Parser::subprogramImplementation(const Token& subprogramKeyword, const Toke
         }
         consume(TokenType::IDENTIFIER, "Expect parameter name.");
         consume(TokenType::COLON, "Expect ':' after parameter name.");
-        // Consume the type token, assuming it's valid as per declaration
         advance(); 
         if (i < declaredParams.size() - 1) {
             consume(TokenType::COMMA, "Expect ',' between parameters.");
@@ -649,7 +724,6 @@ void Parser::subprogramImplementation(const Token& subprogramKeyword, const Toke
 
     if (subprogramKeyword.type == TokenType::FUNCTION) {
         consume(TokenType::ARROW, "Expect '->' for function implementation signature.");
-        // Also discard the return type token
         advance();
     }
 
@@ -690,11 +764,10 @@ std::shared_ptr<ast::Expr> Parser::assignment() {
         Token equals = previous();
         std::shared_ptr<ast::Expr> value = assignment();
 
-        if (auto var = std::dynamic_pointer_cast<ast::Variable>(expr)) {
-            Token name = var->name;
-            return std::make_shared<ast::Assign>(name, value);
-        } else if (auto fieldAccess = std::dynamic_pointer_cast<ast::FieldAccess>(expr)) {
-            return std::make_shared<ast::FieldAssign>(fieldAccess, value);
+        if (std::dynamic_pointer_cast<ast::Variable>(expr) ||
+            std::dynamic_pointer_cast<ast::FieldAccess>(expr) ||
+            std::dynamic_pointer_cast<ast::ArrayAccess>(expr)) {
+            return std::make_shared<ast::Assign>(expr, value);
         }
 
         throw error(equals, "Invalid assignment target.");
@@ -778,7 +851,10 @@ std::shared_ptr<ast::Expr> Parser::call() {
     while (true) {
         if (match({TokenType::LPAREN})) {
             expr = finishCall(expr);
-        } else if (match({TokenType::DOT})) {
+        } else if (match({TokenType::LBRACKET})) {
+            expr = arrayAccess(expr);
+        }
+        else if (match({TokenType::DOT})) {
             Token name = consume(TokenType::IDENTIFIER, "Expect field name after '.'.");
             expr = std::make_shared<ast::FieldAccess>(expr, name);
         } else {
@@ -793,7 +869,6 @@ std::shared_ptr<ast::Expr> Parser::finishCall(std::shared_ptr<ast::Expr> callee)
     std::vector<std::shared_ptr<ast::Expr>> arguments;
     if (!check(TokenType::RPAREN)) {
         do {
-            // NOTAL doesn't have a hard limit, but good practice to prevent infinite loops.
             if (arguments.size() >= 255) {
                 error(peek(), "Cannot have more than 255 arguments.");
             }
@@ -805,6 +880,20 @@ std::shared_ptr<ast::Expr> Parser::finishCall(std::shared_ptr<ast::Expr> callee)
 
     return std::make_shared<ast::Call>(callee, paren, arguments);
 }
+
+std::shared_ptr<ast::Expr> Parser::arrayAccess(std::shared_ptr<ast::Expr> callee) {
+    std::vector<std::shared_ptr<ast::Expr>> indices;
+    indices.push_back(expression());
+    Token bracket = consume(TokenType::RBRACKET, "Expect ']' after array index.");
+
+    while(match({TokenType::LBRACKET})) {
+        indices.push_back(expression());
+        consume(TokenType::RBRACKET, "Expect ']' after array index.");
+    }
+
+    return std::make_shared<ast::ArrayAccess>(callee, bracket, indices);
+}
+
 
 std::shared_ptr<ast::Expr> Parser::primary() {
     if (match({TokenType::BOOLEAN_LITERAL})) return std::make_shared<ast::Literal>(previous().lexeme == "true");
