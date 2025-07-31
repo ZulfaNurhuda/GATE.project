@@ -287,6 +287,12 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::Assign> expr) {
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::Binary> expr) {
+    if (expr->op.type == TokenType::POWER) {
+        std::string base = evaluate(expr->left);
+        std::string exponent = evaluate(expr->right);
+        return "trunc(exp(" + exponent + " * ln(" + base + ")))";
+    }
+
     std::string op = expr->op.lexeme;
     if (expr->op.type == TokenType::AMPERSAND) op = "+";
     return "(" + evaluate(expr->left) + " " + op + " " + evaluate(expr->right) + ")";

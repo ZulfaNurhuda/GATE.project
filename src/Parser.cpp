@@ -827,10 +827,20 @@ std::shared_ptr<ast::Expr> Parser::term() {
 }
 
 std::shared_ptr<ast::Expr> Parser::factor() {
-    std::shared_ptr<ast::Expr> expr = unary();
+    std::shared_ptr<ast::Expr> expr = power();
     while (match({TokenType::DIVIDE, TokenType::MULTIPLY, TokenType::MOD, TokenType::DIV})) {
         Token op = previous();
-        std::shared_ptr<ast::Expr> right = unary();
+        std::shared_ptr<ast::Expr> right = power();
+        expr = std::make_shared<ast::Binary>(expr, op, right);
+    }
+    return expr;
+}
+
+std::shared_ptr<ast::Expr> Parser::power() {
+    std::shared_ptr<ast::Expr> expr = unary();
+    if (match({TokenType::POWER})) {
+        Token op = previous();
+        std::shared_ptr<ast::Expr> right = power();
         expr = std::make_shared<ast::Binary>(expr, op, right);
     }
     return expr;
