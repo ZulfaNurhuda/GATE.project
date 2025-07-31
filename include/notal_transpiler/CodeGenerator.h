@@ -7,6 +7,7 @@
 #include <sstream>
 #include <map>
 #include <vector>
+#include <set>
 
 namespace notal {
 
@@ -74,6 +75,14 @@ private:
     void execute(std::shared_ptr<ast::Stmt> stmt);
     std::string generateConstraintCheck(std::shared_ptr<ast::ConstrainedVarDeclStmt> constrainedVar);
     void preScan(std::shared_ptr<ast::Stmt> stmt);
+
+    // Casting-related helpers
+    void scanForCastingFunctions(std::shared_ptr<ast::Stmt> stmt);
+    void scanExpression(std::shared_ptr<ast::Expr> expr);
+    void generateCastingForwardDecls();
+    void generateCastingImplementations();
+
+    std::set<std::string> usedCastingFunctions;
 };
 
 } // namespace notal

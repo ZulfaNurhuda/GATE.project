@@ -1,0 +1,17 @@
+PROGRAM CastingTest
+KAMUS
+  myInt: integer
+  myStr: string
+  myBool: boolean
+  success: boolean
+
+ALGORITMA
+  myInt <- 123
+  IntegerToString(myInt, myStr)
+  output("The integer as a string is: ", myStr)
+
+  success <- StringToBoolean("True", myBool)
+  if success then
+    output("StringToBoolean was successful. The value is: ", myBool)
+  else
+    output("StringToBoolean failed.")

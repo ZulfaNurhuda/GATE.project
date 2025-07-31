@@ -4,8 +4,19 @@
 #include <sstream>
 #include <iomanip>
 #include <cctype>
+#include <set>
+#include <fstream>
+#include <vector>
 
 namespace notal {
+
+const std::set<std::string> BUILTIN_CASTING_FUNCTIONS = {
+    "BooleanToChar", "BooleanToInteger", "BooleanToReal", "BooleanToString",
+    "CharToBoolean", "CharToInteger", "CharToReal", "CharToString",
+    "IntegerToBoolean", "IntegerToChar", "IntegerToHexString", "IntegerToReal", "IntegerToString",
+    "RealToBoolean", "RealToChar", "RealToInteger", "RealToString",
+    "StringHexToInteger", "StringToBoolean", "StringToChar", "StringToInteger", "StringToReal"
+};
 
 std::string CodeGenerator::generate(std::shared_ptr<ast::ProgramStmt> program) {
     if (!program) return "";
@@ -73,20 +84,47 @@ void CodeGenerator::execute(std::shared_ptr<ast::Stmt> stmt) {
 // --- Statement Visitors ---
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::ProgramStmt> stmt) {
+    // Pre-scan for all casting function calls to populate usedCastingFunctions
+    for (const auto& sub : stmt->subprograms) {
+        scanForCastingFunctions(sub);
+    }
+    scanForCastingFunctions(stmt->algoritma);
+
     out << "program " << stmt->name.lexeme << ";\n\n";
+
+    if (!usedCastingFunctions.empty()) {
+        out << "uses SysUtils;\n\n";
+    }
+
     execute(stmt->kamus);
+
+    // Generate forward declarations for user subprograms
     if (!stmt->subprograms.empty()) {
         forwardDeclare = true;
         for (const auto& sub : stmt->subprograms) {
             execute(sub);
         }
         forwardDeclare = false;
-        out << "\n";
     }
+
+    // Generate forward declarations for casting functions
+    if (!usedCastingFunctions.empty()) {
+        generateCastingForwardDecls();
+    }
+    out << "\n";
+
+
+    // Generate implementations for user subprograms
     for (const auto& sub : stmt->subprograms) {
         execute(sub);
         out << "\n";
     }
+
+    // Generate implementations for casting functions
+    if (!usedCastingFunctions.empty()) {
+        generateCastingImplementations();
+    }
+
     execute(stmt->algoritma);
     out << ".\n";
     return {};
@@ -670,6 +708,114 @@ std::string CodeGenerator::generateConstraintCheck(std::shared_ptr<ast::Constrai
         }
     }
     return "(" + result + ")";
+}
+
+// --- Casting Function Helpers ---
+
+void CodeGenerator::scanForCastingFunctions(std::shared_ptr<ast::Stmt> stmt) {
+    if (!stmt) return;
+
+    if (auto algoritma = std::dynamic_pointer_cast<ast::AlgoritmaStmt>(stmt)) {
+        scanForCastingFunctions(algoritma->body);
+    } else if (auto block = std::dynamic_pointer_cast<ast::BlockStmt>(stmt)) {
+        for (const auto& s : block->statements) scanForCastingFunctions(s);
+    } else if (auto exprStmt = std::dynamic_pointer_cast<ast::ExpressionStmt>(stmt)) {
+        scanExpression(exprStmt->expression);
+    } else if (auto ifStmt = std::dynamic_pointer_cast<ast::IfStmt>(stmt)) {
+        scanExpression(ifStmt->condition);
+        scanForCastingFunctions(ifStmt->thenBranch);
+        scanForCastingFunctions(ifStmt->elseBranch);
+    } else if (auto whileStmt = std::dynamic_pointer_cast<ast::WhileStmt>(stmt)) {
+        scanExpression(whileStmt->condition);
+        scanForCastingFunctions(whileStmt->body);
+    } else if (auto repeatStmt = std::dynamic_pointer_cast<ast::RepeatUntilStmt>(stmt)) {
+        scanForCastingFunctions(repeatStmt->body);
+        scanExpression(repeatStmt->condition);
+    } else if (auto dependOnStmt = std::dynamic_pointer_cast<ast::DependOnStmt>(stmt)) {
+        scanExpression(dependOnStmt->expression);
+        for (const auto& c : dependOnStmt->cases) {
+            for (const auto& cond : c.conditions) scanExpression(cond);
+            scanForCastingFunctions(c.body);
+        }
+        if (dependOnStmt->otherwiseBranch) scanForCastingFunctions(dependOnStmt->otherwiseBranch);
+    } else if (auto traversalStmt = std::dynamic_pointer_cast<ast::TraversalStmt>(stmt)) {
+        scanExpression(traversalStmt->start);
+        scanExpression(traversalStmt->end);
+        if (traversalStmt->step) scanExpression(traversalStmt->step);
+        scanForCastingFunctions(traversalStmt->body);
+    } else if (auto iterateStmt = std::dynamic_pointer_cast<ast::IterateStopStmt>(stmt)) {
+        scanForCastingFunctions(iterateStmt->body);
+        scanExpression(iterateStmt->condition);
+    } else if (auto outputStmt = std::dynamic_pointer_cast<ast::OutputStmt>(stmt)) {
+        for (const auto& expr : outputStmt->expressions) scanExpression(expr);
+    } else if (auto procStmt = std::dynamic_pointer_cast<ast::ProcedureStmt>(stmt)) {
+        if (procStmt->body) scanForCastingFunctions(procStmt->body);
+    } else if (auto funcStmt = std::dynamic_pointer_cast<ast::FunctionStmt>(stmt)) {
+        if (funcStmt->body) scanForCastingFunctions(funcStmt->body);
+    } else if (auto returnStmt = std::dynamic_pointer_cast<ast::ReturnStmt>(stmt)) {
+        scanExpression(returnStmt->value);
+    }
+}
+
+void CodeGenerator::scanExpression(std::shared_ptr<ast::Expr> expr) {
+    if (!expr) return;
+
+    if (auto assign = std::dynamic_pointer_cast<ast::Assign>(expr)) {
+        scanExpression(assign->target);
+        scanExpression(assign->value);
+    } else if (auto binary = std::dynamic_pointer_cast<ast::Binary>(expr)) {
+        scanExpression(binary->left);
+        scanExpression(binary->right);
+    } else if (auto unary = std::dynamic_pointer_cast<ast::Unary>(expr)) {
+        scanExpression(unary->right);
+    } else if (auto grouping = std::dynamic_pointer_cast<ast::Grouping>(expr)) {
+        scanExpression(grouping->expression);
+    } else if (auto call = std::dynamic_pointer_cast<ast::Call>(expr)) {
+        scanExpression(call->callee);
+        for (const auto& arg : call->arguments) scanExpression(arg);
+        if (auto var = std::dynamic_pointer_cast<ast::Variable>(call->callee)) {
+            if (BUILTIN_CASTING_FUNCTIONS.count(var->name.lexeme)) {
+                usedCastingFunctions.insert(var->name.lexeme);
+            }
+        }
+    } else if (auto fieldAccess = std::dynamic_pointer_cast<ast::FieldAccess>(expr)) {
+        scanExpression(fieldAccess->object);
+    } else if (auto arrayAccess = std::dynamic_pointer_cast<ast::ArrayAccess>(expr)) {
+        scanExpression(arrayAccess->callee);
+        for (const auto& index : arrayAccess->indices) scanExpression(index);
+    }
+}
+
+
+void CodeGenerator::generateCastingForwardDecls() {
+    for (const auto& funcName : usedCastingFunctions) {
+        std::string filePath = "src/cast/" + funcName + ".casting.txt";
+        std::ifstream file(filePath);
+        if (!file) {
+            throw std::runtime_error("Could not open casting file: " + filePath);
+        }
+        std::string line;
+        while (std::getline(file, line)) {
+            if (line.rfind("function", 0) == 0 || line.rfind("procedure", 0) == 0) {
+                if (!line.empty() && line.back() == ';') {
+                    line.pop_back();
+                }
+                out << line << "; forward;\n";
+            }
+        }
+    }
+}
+
+
+void CodeGenerator::generateCastingImplementations() {
+    for (const auto& funcName : usedCastingFunctions) {
+        std::string filePath = "src/cast/" + funcName + ".casting.txt";
+        std::ifstream file(filePath);
+        if (!file) {
+            throw std::runtime_error("Could not open casting file: " + filePath);
+        }
+        out << file.rdbuf() << "\n";
+    }
 }
 
 } // namespace notal
