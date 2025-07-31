@@ -55,6 +55,7 @@ std::string CodeGenerator::pascalType(const Token& token) {
         case TokenType::STRING: return "string";
         case TokenType::BOOLEAN: return "boolean";
         case TokenType::CHARACTER: return "char";
+        case TokenType::POINTER: return "^"; // This will be combined with the type
         case TokenType::IDENTIFIER: return token.lexeme; // Custom types use their name directly
         default: throw std::runtime_error("Unknown type for code generation: " + token.lexeme);
     }
@@ -73,11 +74,7 @@ void CodeGenerator::execute(std::shared_ptr<ast::Stmt> stmt) {
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::ProgramStmt> stmt) {
     out << "program " << stmt->name.lexeme << ";\n\n";
-
-    // Generate global declarations (types, consts, vars)
     execute(stmt->kamus);
-
-    // Generate forward declarations for all subprograms
     if (!stmt->subprograms.empty()) {
         forwardDeclare = true;
         for (const auto& sub : stmt->subprograms) {
@@ -86,42 +83,23 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::ProgramStmt> stmt) {
         forwardDeclare = false;
         out << "\n";
     }
-
-    // Generate full implementations for all subprograms
     for (const auto& sub : stmt->subprograms) {
         execute(sub);
         out << "\n";
     }
-
-    // Generate main algorithm block at the very end
     execute(stmt->algoritma);
-    out << ".\n"; // Final end of program
+    out << ".\n";
     return {};
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::KamusStmt> stmt) {
-    // Separate different kinds of declarations
-    std::vector<std::shared_ptr<ast::Stmt>> constDecls;
-    std::vector<std::shared_ptr<ast::Stmt>> typeDecls;
-    std::vector<std::shared_ptr<ast::Stmt>> varDecls;
-    std::vector<std::shared_ptr<ast::Stmt>> constrainedVarDecls;
-    // Subprogram declarations are handled separately in ProgramStmt visitor
-
+    std::vector<std::shared_ptr<ast::Stmt>> constDecls, typeDecls, varDecls, constrainedVarDecls;
     for (const auto& decl : stmt->declarations) {
-        if (std::dynamic_pointer_cast<ast::ProcedureStmt>(decl) || std::dynamic_pointer_cast<ast::FunctionStmt>(decl)) {
-            // These are handled in the ProgramStmt visitor, so we skip them here.
-            continue;
-        }
-        if (std::dynamic_pointer_cast<ast::ConstDeclStmt>(decl)) {
-            constDecls.push_back(decl);
-        } else if (std::dynamic_pointer_cast<ast::RecordTypeDeclStmt>(decl) || 
-                   std::dynamic_pointer_cast<ast::EnumTypeDeclStmt>(decl)) {
-            typeDecls.push_back(decl);
-        } else if (std::dynamic_pointer_cast<ast::ConstrainedVarDeclStmt>(decl)) {
-            constrainedVarDecls.push_back(decl);
-        } else {
-            varDecls.push_back(decl);
-        }
+        if (std::dynamic_pointer_cast<ast::ProcedureStmt>(decl) || std::dynamic_pointer_cast<ast::FunctionStmt>(decl)) continue;
+        if (std::dynamic_pointer_cast<ast::ConstDeclStmt>(decl)) constDecls.push_back(decl);
+        else if (std::dynamic_pointer_cast<ast::RecordTypeDeclStmt>(decl) || std::dynamic_pointer_cast<ast::EnumTypeDeclStmt>(decl)) typeDecls.push_back(decl);
+        else if (std::dynamic_pointer_cast<ast::ConstrainedVarDeclStmt>(decl)) constrainedVarDecls.push_back(decl);
+        else varDecls.push_back(decl);
     }
 
     if (!typeDecls.empty()) {
@@ -170,14 +148,73 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::KamusStmt> stmt) {
             }
         }
     }
-
     return {};
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::VarDeclStmt> stmt) {
-    out << stmt->name.lexeme << ": " << pascalType(stmt->type);
+    out << stmt->name.lexeme << ": ";
+    if (stmt->type.type == TokenType::POINTER) {
+        out << "^" << pascalType(stmt->pointedToType);
+    } else {
+        out << pascalType(stmt->type);
+    }
     return {};
 }
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::StaticArrayDeclStmt> stmt) {
+    out << stmt->name.lexeme << ": array[";
+    for (size_t i = 0; i < stmt->dimensions.size(); ++i) {
+        out << evaluate(stmt->dimensions[i].start) << ".." << evaluate(stmt->dimensions[i].end);
+        if (i < stmt->dimensions.size() - 1) out << ", ";
+    }
+    out << "] of " << pascalType(stmt->elementType);
+    return {};
+}
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::DynamicArrayDeclStmt> stmt) {
+    dynamicArrayDimensions[stmt->name.lexeme] = stmt->dimensions;
+    out << stmt->name.lexeme << ": ";
+    for (int i = 0; i < stmt->dimensions; ++i) {
+        out << "array of ";
+    }
+    out << pascalType(stmt->elementType);
+    return {};
+}
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::AllocateStmt> stmt) {
+    if (stmt->sizes.empty()) { // Pointer allocation
+        out << "New(" << evaluate(stmt->callee) << ");\n";
+    } else { // Array allocation
+        out << "SetLength(" << evaluate(stmt->callee);
+        for (const auto& size : stmt->sizes) {
+            out << ", " << evaluate(size);
+        }
+        out << ");\n";
+    }
+    return {};
+}
+
+std::any CodeGenerator::visit(std::shared_ptr<ast::DeallocateStmt> stmt) {
+    std::string varName = evaluate(stmt->callee);
+    if (stmt->dimension == -1) { // Pointer deallocation
+        out << "Dispose(" << varName << ");\n";
+    } else { // Array deallocation
+        if (dynamicArrayDimensions.find(varName) == dynamicArrayDimensions.end()) {
+            throw std::runtime_error("Deallocating an undeclared dynamic array: " + varName);
+        }
+        int declaredDim = dynamicArrayDimensions[varName];
+        if (declaredDim != stmt->dimension) {
+             throw std::runtime_error("Deallocation dimension mismatch for '" + varName + "'. Declared: " + std::to_string(declaredDim) + ", Used: " + std::to_string(stmt->dimension));
+        }
+        out << "SetLength(" << varName;
+        for (int i = 0; i < stmt->dimension; ++i) {
+            out << ", 0";
+        }
+        out << ");\n";
+    }
+    return {};
+}
+
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::ConstDeclStmt> stmt) {
     auto literal = std::dynamic_pointer_cast<ast::Literal>(stmt->initializer);
@@ -221,12 +258,12 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::OutputStmt> stmt) {
         if (auto varExpr = std::dynamic_pointer_cast<ast::Variable>(stmt->expressions[i])) {
             auto it = constants.find(varExpr->name.lexeme);
             if (it != constants.end()) {
-                out << varExpr->name.lexeme; // Output constant name
+                out << varExpr->name.lexeme;
             } else {
-                out << evaluate(stmt->expressions[i]); // Evaluate as usual
+                out << evaluate(stmt->expressions[i]);
             }
         } else {
-            out << evaluate(stmt->expressions[i]); // Evaluate as usual
+            out << evaluate(stmt->expressions[i]);
         }
         if (i < stmt->expressions.size() - 1) {
             out << ", ";
@@ -236,25 +273,22 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::OutputStmt> stmt) {
     return {};
 }
 
-
-// --- Expression Visitors ---
-
 std::any CodeGenerator::visit(std::shared_ptr<ast::Assign> expr) {
-    // Check if this is a constrained variable
-    if (constrainedVars.find(expr->name.lexeme) != constrainedVars.end()) {
-        // Use setter procedure for constrained variables
-        return "Set" + expr->name.lexeme + "(" + expr->name.lexeme + ", " + evaluate(expr->value) + ")";
-    } else {
-        // Regular assignment
-        return expr->name.lexeme + " := " + evaluate(expr->value);
+    std::string targetStr = evaluate(expr->target);
+
+    // Check for constrained variables only if the target is a simple variable
+    if (auto var = std::dynamic_pointer_cast<ast::Variable>(expr->target)) {
+        if (constrainedVars.find(var->name.lexeme) != constrainedVars.end()) {
+            return "Set" + var->name.lexeme + "(" + var->name.lexeme + ", " + evaluate(expr->value) + ")";
+        }
     }
+
+    return targetStr + " := " + evaluate(expr->value);
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::Binary> expr) {
     std::string op = expr->op.lexeme;
-    if (expr->op.type == TokenType::AMPERSAND) {
-        op = "+"; // String concatenation
-    }
+    if (expr->op.type == TokenType::AMPERSAND) op = "+";
     return "(" + evaluate(expr->left) + " " + op + " " + evaluate(expr->right) + ")";
 }
 
@@ -271,27 +305,30 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::Variable> expr) {
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::Literal> expr) {
-    if (expr->value.type() == typeid(int)) {
-        return std::to_string(std::any_cast<int>(expr->value));
-    }
+    if (expr->value.type() == typeid(int)) return std::to_string(std::any_cast<int>(expr->value));
     if (expr->value.type() == typeid(double)) {
         std::string s = std::to_string(std::any_cast<double>(expr->value));
         s.erase(s.find_last_not_of('0') + 1, std::string::npos);
-        if (s.back() == '.') {
-            s.pop_back();
-        }
+        if (s.back() == '.') s.pop_back();
         return s;
     }
-    if (expr->value.type() == typeid(bool)) {
-        return std::any_cast<bool>(expr->value) ? std::string("true") : std::string("false");
-    }
-    if (expr->value.type() == typeid(std::string)) {
-        return "'" + std::any_cast<std::string>(expr->value) + "'";
-    }
-    return std::string("null");
+    if (expr->value.type() == typeid(bool)) return std::any_cast<bool>(expr->value) ? "true" : "false";
+    if (expr->value.type() == typeid(std::string)) return "'" + std::any_cast<std::string>(expr->value) + "'";
+    return "null";
 }
 
-// --- Unimplemented Visitors (for now) ---
+std::any CodeGenerator::visit(std::shared_ptr<ast::ArrayAccess> expr) {
+    std::string result = evaluate(expr->callee) + "[";
+    for (size_t i = 0; i < expr->indices.size(); ++i) {
+        result += evaluate(expr->indices[i]);
+        if (i < expr->indices.size() - 1) {
+            result += ", ";
+        }
+    }
+    result += "]";
+    return result;
+}
+
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::IfStmt> stmt) {
     out << "if " << evaluate(stmt->condition) << " then\n";
@@ -305,11 +342,9 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::IfStmt> stmt) {
 
     if (stmt->elseBranch != nullptr) {
         out << " else ";
-        // If the else branch is another if, it's an "else if"
         if (std::dynamic_pointer_cast<ast::IfStmt>(stmt->elseBranch)) {
             execute(stmt->elseBranch);
         } else {
-            // It's a final "else" block
             out << "\n";
             indent();
             out << "begin\n";
@@ -321,20 +356,13 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::IfStmt> stmt) {
         }
     }
 
-    // Only add the final semicolon if this is not a nested `elif` statement
     bool isPartOfElif = false;
     if (auto parent = stmt->parent.lock()) {
         if (auto parentIf = std::dynamic_pointer_cast<ast::IfStmt>(parent)) {
-            if (parentIf->elseBranch.get() == stmt.get()) {
-                isPartOfElif = true;
-            }
+            if (parentIf->elseBranch.get() == stmt.get()) isPartOfElif = true;
         }
     }
-
-    if (!isPartOfElif) {
-        out << ";\n";
-    }
-
+    if (!isPartOfElif) out << ";\n";
     return {};
 }
 
@@ -344,10 +372,10 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::WhileStmt> stmt) {
     indent();
     out << "begin\n";
     indentLevel++;
-    execute(stmt->body); // BlockStmt handles its own indentation and newlines
+    execute(stmt->body);
     indentLevel--;
     indent();
-    out << "end;\n"; // Add semicolon and newline after the block
+    out << "end;\n";
     indentLevel--;
     return {};
 }
@@ -363,7 +391,6 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::RepeatUntilStmt> stmt) {
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::DependOnStmt> stmt) {
-    // Check if all cases are literals to decide between 'case' and 'if-elif'
     bool allLiterals = true;
     for (const auto& caseItem : stmt->cases) {
         for (const auto& cond : caseItem.conditions) {
@@ -376,16 +403,13 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::DependOnStmt> stmt) {
     }
 
     if (allLiterals) {
-        // Generate a 'case' statement
         out << "case " << evaluate(stmt->expression) << " of\n";
         indentLevel++;
         for (const auto& caseItem : stmt->cases) {
             indent();
             for (size_t i = 0; i < caseItem.conditions.size(); ++i) {
                 out << evaluate(caseItem.conditions[i]);
-                if (i < caseItem.conditions.size() - 1) {
-                    out << ", ";
-                }
+                if (i < caseItem.conditions.size() - 1) out << ", ";
             }
             out << ":\n";
             indentLevel++;
@@ -415,17 +439,12 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::DependOnStmt> stmt) {
         indent();
         out << "end;\n";
     } else {
-        // Generate an 'if-elif-else' chain
         for (size_t i = 0; i < stmt->cases.size(); ++i) {
-            if (i > 0) {
-                out << "else ";
-            }
+            if (i > 0) out << "else ";
             out << "if (";
             for (size_t j = 0; j < stmt->cases[i].conditions.size(); ++j) {
                 out << evaluate(stmt->expression) << " = " << evaluate(stmt->cases[i].conditions[j]);
-                if (j < stmt->cases[i].conditions.size() - 1) {
-                    out << " or ";
-                }
+                if (j < stmt->cases[i].conditions.size() - 1) out << " or ";
             }
             out << ") then\n";
             indent();
@@ -454,7 +473,6 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::DependOnStmt> stmt) {
             out << "end;\n";
         }
     }
-
     return {};
 }
 
@@ -463,9 +481,7 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::TraversalStmt> stmt) {
     std::string start = evaluate(stmt->start);
     std::string end = evaluate(stmt->end);
     std::string step = "1";
-    if (stmt->step) {
-        step = evaluate(stmt->step);
-    }
+    if (stmt->step) step = evaluate(stmt->step);
 
     indent();
     out << iterator << " := " << start << ";\n";
@@ -480,7 +496,6 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::TraversalStmt> stmt) {
     indentLevel--;
     indent();
     out << "end;\n";
-
     return {};
 }
 
@@ -501,7 +516,6 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::IterateStopStmt> stmt) {
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::RepeatNTimesStmt> stmt) {
     std::string iterator = loopVariables[loopCounter++];
-    
     indent();
     out << "for " << iterator << " := 1 to " << evaluate(stmt->times) << " do\n";
     indent();
@@ -531,9 +545,7 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::Call> expr) {
     std::string args;
     for (size_t i = 0; i < expr->arguments.size(); ++i) {
         args += evaluate(expr->arguments[i]);
-        if (i < expr->arguments.size() - 1) {
-            args += ", ";
-        }
+        if (i < expr->arguments.size() - 1) args += ", ";
     }
     return callee + "(" + args + ")";
 }
@@ -546,18 +558,14 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::FieldAssign> expr) {
     return evaluate(expr->target) + " := " + evaluate(expr->value);
 }
 
-// --- New Statement Visitors ---
-
 std::any CodeGenerator::visit(std::shared_ptr<ast::RecordTypeDeclStmt> stmt) {
     indent();
     out << stmt->typeName.lexeme << " = record\n";
     indentLevel++;
-    
     for (const auto& field : stmt->fields) {
         indent();
         out << field.name.lexeme << ": " << pascalType(field.type) << ";\n";
     }
-    
     indentLevel--;
     indent();
     out << "end;\n\n";
@@ -567,21 +575,16 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::RecordTypeDeclStmt> stmt) {
 std::any CodeGenerator::visit(std::shared_ptr<ast::EnumTypeDeclStmt> stmt) {
     indent();
     out << stmt->typeName.lexeme << " = (";
-    
     for (size_t i = 0; i < stmt->values.size(); ++i) {
         out << stmt->values[i].lexeme;
-        if (i < stmt->values.size() - 1) {
-            out << ", ";
-        }
+        if (i < stmt->values.size() - 1) out << ", ";
     }
-    
     out << ");\n";
     return {};
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::ConstrainedVarDeclStmt> stmt) {
     out << stmt->name.lexeme << ": " << pascalType(stmt->type);
-    // The constraint handling is done in KamusStmt visitor through setter procedures
     return {};
 }
 
@@ -590,18 +593,12 @@ void CodeGenerator::generateParameterList(const std::vector<ast::Parameter>& par
     for (size_t i = 0; i < params.size(); ++i) {
         const auto& p = params[i];
         switch (p.mode) {
-            case ast::ParameterMode::INPUT:
-                // No keyword for pass-by-value
-                break;
+            case ast::ParameterMode::INPUT: break;
             case ast::ParameterMode::OUTPUT:
-            case ast::ParameterMode::INPUT_OUTPUT:
-                out << "var ";
-                break;
+            case ast::ParameterMode::INPUT_OUTPUT: out << "var "; break;
         }
         out << p.name.lexeme << ": " << pascalType(p.type);
-        if (i < params.size() - 1) {
-            out << "; ";
-        }
+        if (i < params.size() - 1) out << "; ";
     }
     out << ")";
 }
@@ -617,11 +614,7 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::ProcedureStmt> stmt) {
         out << "procedure " << stmt->name.lexeme;
         generateParameterList(stmt->params);
         out << ";\n";
-
-        if (stmt->kamus) {
-            execute(stmt->kamus);
-        }
-
+        if (stmt->kamus) execute(stmt->kamus);
         execute(stmt->body);
         out << ";\n";
     }
@@ -639,11 +632,7 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::FunctionStmt> stmt) {
         out << "function " << stmt->name.lexeme;
         generateParameterList(stmt->params);
         out << ": " << pascalType(stmt->returnType) << ";\n";
-
-        if (stmt->kamus) {
-            execute(stmt->kamus);
-        }
-
+        if (stmt->kamus) execute(stmt->kamus);
         currentFunctionName = stmt->name.lexeme;
         execute(stmt->body);
         currentFunctionName = "";
@@ -653,44 +642,27 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::FunctionStmt> stmt) {
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::ReturnStmt> stmt) {
-    if (currentFunctionName.empty()) {
-        throw std::runtime_error("Return statement used outside of a function.");
-    }
+    if (currentFunctionName.empty()) throw std::runtime_error("Return statement used outside of a function.");
     out << currentFunctionName << " := " << evaluate(stmt->value) << ";\n";
     return {};
 }
 
 std::string CodeGenerator::generateConstraintCheck(std::shared_ptr<ast::ConstrainedVarDeclStmt> constrainedVar) {
-    // Generate Pascal Assert statement from constraint expression
-    // The constraint should be checked using the 'value' parameter, not the variable name
     std::string constraintExpr = evaluate(constrainedVar->constraint);
-    
-    // Replace variable name with 'value' in the constraint expression
-    // This is a simple replacement - for more complex cases, we'd need better expression rewriting
     std::string result = constraintExpr;
-    
-    // Find all instances of the variable name and replace with 'value'
     size_t pos = 0;
     std::string varName = constrainedVar->name.lexeme;
     while ((pos = result.find(varName, pos)) != std::string::npos) {
-        // Make sure we're replacing whole words, not parts of other words
         bool isWholeWord = true;
-        if (pos > 0 && (std::isalnum(result[pos-1]) || result[pos-1] == '_')) {
-            isWholeWord = false;
-        }
-        if (pos + varName.length() < result.length() && 
-            (std::isalnum(result[pos + varName.length()]) || result[pos + varName.length()] == '_')) {
-            isWholeWord = false;
-        }
-        
+        if (pos > 0 && (std::isalnum(result[pos-1]) || result[pos-1] == '_')) isWholeWord = false;
+        if (pos + varName.length() < result.length() && (std::isalnum(result[pos + varName.length()]) || result[pos + varName.length()] == '_')) isWholeWord = false;
         if (isWholeWord) {
             result.replace(pos, varName.length(), "value");
-            pos += 5; // length of "value"
+            pos += 5;
         } else {
             pos += varName.length();
         }
     }
-    
     return "(" + result + ")";
 }
 

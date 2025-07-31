@@ -19,6 +19,10 @@ public:
     std::any visit(std::shared_ptr<ast::KamusStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::AlgoritmaStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::VarDeclStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::StaticArrayDeclStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::DynamicArrayDeclStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::AllocateStmt> stmt) override;
+    std::any visit(std::shared_ptr<ast::DeallocateStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::ConstDeclStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::InputStmt> stmt) override;
     std::any visit(std::shared_ptr<ast::RecordTypeDeclStmt> stmt) override;
@@ -48,6 +52,7 @@ public:
     std::any visit(std::shared_ptr<ast::Call> expr) override;
     std::any visit(std::shared_ptr<ast::FieldAccess> expr) override;
     std::any visit(std::shared_ptr<ast::FieldAssign> expr) override;
+    std::any visit(std::shared_ptr<ast::ArrayAccess> expr) override;
 
 private:
     std::string parenthesize(const std::string& name, const std::vector<std::shared_ptr<ast::Expr>>& exprs);

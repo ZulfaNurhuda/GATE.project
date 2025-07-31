@@ -38,6 +38,26 @@ std::any ASTPrinter::visit(std::shared_ptr<ast::VarDeclStmt> stmt) {
     return "(VAR_DECL " + stmt->name.lexeme + " : " + stmt->type.lexeme + ")";
 }
 
+std::any ASTPrinter::visit(std::shared_ptr<ast::StaticArrayDeclStmt> stmt) {
+    (void)stmt;
+    return "(static_array_decl ...)";
+}
+
+std::any ASTPrinter::visit(std::shared_ptr<ast::DynamicArrayDeclStmt> stmt) {
+    (void)stmt;
+    return "(dynamic_array_decl ...)";
+}
+
+std::any ASTPrinter::visit(std::shared_ptr<ast::AllocateStmt> stmt) {
+    (void)stmt;
+    return "(allocate ...)";
+}
+
+std::any ASTPrinter::visit(std::shared_ptr<ast::DeallocateStmt> stmt) {
+    (void)stmt;
+    return "(deallocate ...)";
+}
+
 std::any ASTPrinter::visit(std::shared_ptr<ast::ConstDeclStmt> stmt) {
     return parenthesize("CONST_DECL " + stmt->name.lexeme + " : " + stmt->type.lexeme, {stmt->initializer});
 }
@@ -57,7 +77,7 @@ std::any ASTPrinter::visit(std::shared_ptr<ast::OutputStmt> stmt) {
 // --- Expression Visitors ---
 
 std::any ASTPrinter::visit(std::shared_ptr<ast::Assign> expr) {
-    return parenthesize("<- " + expr->name.lexeme, {expr->value});
+    return parenthesize("<-", {expr->target, expr->value});
 }
 
 std::any ASTPrinter::visit(std::shared_ptr<ast::Binary> expr) {
@@ -90,6 +110,11 @@ std::any ASTPrinter::visit(std::shared_ptr<ast::Literal> expr) {
         return "'" + std::any_cast<std::string>(expr->value) + "'";
     }
     return std::string("null");
+}
+
+std::any ASTPrinter::visit(std::shared_ptr<ast::ArrayAccess> expr) {
+    (void)expr;
+    return "(array_access ...)";
 }
 
 // --- Unimplemented Visitors (for now) ---
@@ -223,4 +248,3 @@ std::string ASTPrinter::indent() {
 }
 
 } // namespace notal
-

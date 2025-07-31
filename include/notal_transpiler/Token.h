@@ -26,6 +26,7 @@ namespace notal {
         PROCEDURE, FUNCTION,
         INPUT, OUTPUT,
         POINTER, TO,
+        ARRAY, OF,
         ALLOCATE, DEALLOCATE,
         
         // Logical Operators
@@ -55,7 +56,7 @@ namespace notal {
         LPAREN, RPAREN,     // ( )
         LBRACKET, RBRACKET, // [ ]
         LANGLE, RANGLE,     // < > (for record types)
-        COLON, COMMA, DOT,  // : , .
+        COLON, COMMA, DOT, DOT_DOT, // : , . ..
         PIPE, // |
 
         // Comments
@@ -102,6 +103,8 @@ namespace notal {
         {"output", TokenType::OUTPUT},
         {"pointer", TokenType::POINTER},
         {"to", TokenType::TO},
+        {"array", TokenType::ARRAY},
+        {"of", TokenType::OF},
         {"allocate", TokenType::ALLOCATE},
         {"deallocate", TokenType::DEALLOCATE},
         {"and", TokenType::AND},

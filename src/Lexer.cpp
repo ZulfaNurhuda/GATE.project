@@ -42,7 +42,9 @@ Token Lexer::nextToken() {
         case ']': return makeToken(TokenType::RBRACKET);
         case ':': return makeToken(TokenType::COLON);
         case ',': return makeToken(TokenType::COMMA);
-        case '.': return makeToken(TokenType::DOT);
+        case '.':
+            if (match('.')) return makeToken(TokenType::DOT_DOT);
+            return makeToken(TokenType::DOT);
         case '+': return makeToken(TokenType::PLUS);
         case '-':
             if (match('>')) return makeToken(TokenType::ARROW);

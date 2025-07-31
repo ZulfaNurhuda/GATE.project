@@ -28,9 +28,12 @@ private:
     std::shared_ptr<ast::AlgoritmaStmt> algoritma();
     std::shared_ptr<ast::Stmt> declaration();
     std::shared_ptr<ast::Stmt> varDeclaration();
+    std::shared_ptr<ast::Stmt> arrayDeclaration(Token name);
     std::shared_ptr<ast::Stmt> constantDeclaration(); // Added
     std::shared_ptr<ast::Stmt> typeDeclaration();     // Added for type declarations
     std::shared_ptr<ast::Stmt> statement();
+    std::shared_ptr<ast::Stmt> allocateStatement();
+    std::shared_ptr<ast::Stmt> deallocateStatement();
     std::shared_ptr<ast::Stmt> inputStatement();      // Added
     std::shared_ptr<ast::Stmt> ifStatement();
     std::shared_ptr<ast::Stmt> ifStatementBody(int parentIndentLevel); // Helper for recursion
@@ -65,6 +68,7 @@ private:
     std::shared_ptr<ast::Expr> unary();
     std::shared_ptr<ast::Expr> call();
     std::shared_ptr<ast::Expr> finishCall(std::shared_ptr<ast::Expr> callee);
+    std::shared_ptr<ast::Expr> arrayAccess(std::shared_ptr<ast::Expr> callee);
     std::shared_ptr<ast::Expr> primary();
 
 
