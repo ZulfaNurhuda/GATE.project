@@ -10,7 +10,7 @@ Welcome to GATE! This awesome project is your magical bridge, transforming your 
 
 - **✨・<a href="#what-is-gate" style="text-decoration: none;">What is GATE?</a>**
 - **🛠️・<a href="#getting-started" style="text-decoration: none;">Getting Started</a>**
-- **⚙️・<a href="#install-gcc-toolchain" style="text-decoration: none;">Install GCC Toolchain</a>**
+- **⚙️・<a href="#build-the-engine" style="text-decoration: none;">Build the Engine</a>**
 - **🗺️・<a href="#how-to-use" style="text-decoration: none;">How to Use</a>**
 - **💻・<a href="#install-fpc" style="text-decoration: none;">Installing Free Pascal Compiler (FPC)</a>**
 - **✨・<a href="#compile-pascal" style="text-decoration: none;">Compiling Your Pascal Code</a>**
@@ -35,89 +35,86 @@ Ready to bring your NOTAL creations to life? Here's how to get GATE up and runni
     ```bash
     git clone https://github.com/your-username/GATE.project.git
     cd GATE.project
+    git submodule update --init --recursive
     ```
 
-2.  **Install GCC Toolchain (Get Ready to Compile! ⚙️)**
+2.  **Install a C++ Toolchain** ⚙️
 
-    To build GATE, you'll need a C++ compiler and `make`. We recommend the GCC toolchain. Here's how to get it on your system:
+    To build GATE, you'll need a C++ compiler. You can choose between traditional Makefiles or modern CMake. Below are the setup instructions for different platforms.
 
-    #### **Windows (using MSYS2)**
+    #### **Windows**
+    - **For MinGW-w64 (for Makefile or CMake):**
+        1. **Download MSYS2:** Visit [https://www.msys2.org/](https://www.msys2.org/) and download the installer.
+        2. **Install & Update:** Follow the installer and then run `pacman -Syu` in the MSYS2 terminal, repeating as necessary.
+        3. **Install Toolchain:** Run `pacman -S --needed base-devel mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake`. This installs GCC, Make, and CMake.
+        4. **Add to PATH:** Add `C:\msys64\mingw64\bin` to your system's PATH for easy access.
+    - **For MSVC (for CMake):**
+        1. **Install Visual Studio:** Download [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/) or another version.
+        2. **Select Workload:** During installation, choose the **"Desktop development with C++"** workload. This includes the MSVC compiler, CMake, and NMake.
 
-    MSYS2 provides a Unix-like environment and a package manager (pacman) to easily install GCC and other development tools on Windows.
-
-    1.  **Download MSYS2:** Visit [https://www.msys2.org/](https://www.msys2.org/) and download the installer.
-    
-    2.  **Run the Installer:** Follow the installation wizard. It's recommended to install it to a short path like `C:\msys64`.
-    
-    3.  **Update MSYS2 Packages:** Open the MSYS2 MSYS terminal (from your Start Menu) and run:
-        
-        ```bash
-        pacman -Syu
-        ```
-        
-        If prompted to close the terminal, do so and reopen it, then run `pacman -Syu` again until no more updates are available.
-
-    4.  **Install GCC and Make:** In the MSYS2 MSYS terminal, install the `mingw-w64-x86_64-toolchain` (for 64-bit) which includes `g++` and `make`:
-        
-        ```bash
-        pacman -S --needed base-devel mingw-w64-x86_64-toolchain
-        ```
-        
-        When prompted to select packages, usually pressing Enter to select all defaults is fine.
-
-    5.  **Add to PATH (Optional but Recommended):** To use `g++` and `make` from any command prompt (CMD/PowerShell), add the `mingw64/bin` directory to your system's PATH environment variable (e.g., `C:\msys64\mingw64\bin`).
-
-    #### **Linux**
-
-    For most Linux distributions, you can install the build-essential package, which includes `g++` and `make`:
-
-    - **Debian/Ubuntu-based:**
-      
-      ```bash
-      sudo apt update
-      sudo apt install build-essential
-      ```
-
-    - **Fedora/RHEL-based:**
-      
-      ```bash
-      sudo dnf groupinstall "Development Tools"
-      ```
-
-    - **Arch Linux:**
-      
-      ```bash
-      sudo pacman -S base-devel
-      ```
+    #### **Linux (Debian/Ubuntu-based)**
+    ```bash
+    sudo apt update
+    sudo apt install build-essential cmake
+    ```
 
     #### **macOS**
-
-    On macOS, you can install the Xcode Command Line Tools, which include `clang` (Apple's default C/C++ compiler, compatible with GCC standards) and `make`:
-
     ```bash
     xcode-select --install
+    brew install cmake
     ```
 
-    Follow the on-screen prompts to complete the installation.
+---
 
-    #### **Verify Installation (for all OS)**
+### <div id="build-the-engine">**⚙️・Build the Engine (Choose Your Adventure!)**</div>
 
-    After installation, open a new terminal (or reopen an existing one) and type:
+GATE supports two build systems: **Makefile** (for simplicity on Unix-like systems) and **CMake** (for flexibility across all platforms).
 
-    ```bash
-    g++ --version
-    make --version
-    ```
+#### **Option 1: Makefile (The Classic Way 📜)**
 
-    If you see version information for both, you're ready to build GATE! 🎉
+Perfect for Linux, macOS, or Windows with MSYS2.
 
-3.  **Build the engine!** 🏗️
-    
-    ```bash
-    make
-    ```
-    
-    (This command compiles everything and gets GATE ready to work its transpilation wonders!)
+- **On Linux, macOS, or MSYS2 (MinGW-w64):**
+  Simply run `make` in the root directory:
+  ```bash
+  make
+  ```
+
+This command compiles the project and places the `gate` executable in the `bin/` directory.
+
+#### **Option 2: CMake (The Modern Way ✨)**
+
+CMake is recommended for its flexibility, especially on Windows with different compilers.
+
+- **A. Unix-like (Linux/macOS):**
+  ```bash
+  # Create and configure the build directory
+  cmake -B build
+
+  # Compile the project
+  cmake --build build
+  ```
+
+- **B. Windows with MSYS2 (MinGW-w64):**
+  ```bash
+  # Create and configure using the MSYS Makefiles generator
+  cmake -B build -G "MSYS Makefiles"
+
+  # Compile the project
+  cmake --build build
+  ```
+
+- **C. Windows with Visual Studio (MSVC):**
+  Open a **Developer Command Prompt for VS** or ensure `cl.exe` and `cmake.exe` are in your PATH.
+  ```bash
+  # Create a build directory (CMake auto-detects MSVC)
+  cmake -B build
+
+  # Compile the project
+  cmake --build build
+  ```
+
+After a successful build (with either method), the `gate` executable will be waiting for you in the `bin/` directory! 🎉
 
 ---
 
