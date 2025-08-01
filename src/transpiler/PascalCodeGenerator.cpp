@@ -122,7 +122,6 @@ std::any PascalCodeGenerator::visit(std::shared_ptr<ProgramStmt> stmt) {
     if (!usedCastingFunctions_.empty()) {
         generateCastingForwardDecls();
     }
-    out_ << "\n";
 
     // Generate implementations from the implementation order
     for (const auto& sub : stmt->subprograms) {
@@ -295,7 +294,10 @@ std::any PascalCodeGenerator::visit(std::shared_ptr<BlockStmt> stmt) {
 }
 
 std::any PascalCodeGenerator::visit(std::shared_ptr<ExpressionStmt> stmt) {
-    out_ << evaluate(stmt->expression) << ";\n";
+    std::string result = evaluate(stmt->expression);
+    if (!result.empty()) {
+        out_ << result << ";\n";
+    }
     return {};
 }
 
