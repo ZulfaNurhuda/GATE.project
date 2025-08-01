@@ -1,15 +1,21 @@
-#include "notal_transpiler/Parser.h"
+#include "gate/transpiler/NotalParser.h"
 #include <iostream>
 #include <memory>
 #include <vector>
+#include <algorithm>
 
-namespace notal {
+namespace gate::transpiler {
 
-Parser::Parser(const std::vector<Token>& tokens) : tokens(tokens) {}
+// Using directives for brevity within the implementation
+using gate::core::Token;
+using gate::core::TokenType;
+using namespace gate::ast;
+
+NotalParser::NotalParser(const std::vector<Token>& tokens) : tokens_(tokens) {}
 
 // --- Public Parse Method ---
 
-std::shared_ptr<ast::ProgramStmt> Parser::parse() {
+std::shared_ptr<ProgramStmt> NotalParser::parse() {
     try {
         return program();
     } catch (const ParseError& error) {
@@ -26,45 +32,46 @@ std::shared_ptr<ast::ProgramStmt> Parser::parse() {
 
 // --- Grammar Rule Methods ---
 
-// program -> "PROGRAM" IDENTIFIER kamus algoritma
-std::shared_ptr<ast::ProgramStmt> Parser::program() {
+std::shared_ptr<ProgramStmt> NotalParser::program() {
     consume(TokenType::PROGRAM, "Expect 'PROGRAM'.");
     Token name = consume(TokenType::IDENTIFIER, "Expect program name.");
     
-    // The kamus() method will now populate the `subprogramDeclarations` map
-    std::shared_ptr<ast::KamusStmt> kamusBlock = kamus();
+    std::shared_ptr<KamusStmt> kamusBlock = kamus();
 
-    std::shared_ptr<ast::AlgoritmaStmt> algoritmaBlock = algoritma();
+    std::shared_ptr<AlgoritmaStmt> algoritmaBlock = algoritma();
 
-    std::vector<std::shared_ptr<ast::Stmt>> subprograms;
+    std::vector<std::shared_ptr<Statement>> ordered_subprograms;
     while (!isAtEnd()) {
         Token subprogramKeyword = peek();
         if (subprogramKeyword.type != TokenType::PROCEDURE && subprogramKeyword.type != TokenType::FUNCTION) {
             throw error(peek(), "Expect procedure or function implementation after main algorithm.");
         }
-        advance(); // consume PROCEDURE or FUNCTION
+        advance();
 
         Token subprogramName = consume(TokenType::IDENTIFIER, "Expect procedure or function name for implementation.");
 
-        // Find declaration and parse the implementation
+        auto it = std::find_if(subprogramDeclarations_.begin(), subprogramDeclarations_.end(),
+            [&subprogramName](const std::shared_ptr<Statement>& stmt) {
+                if (auto proc = std::dynamic_pointer_cast<ProcedureStmt>(stmt)) return proc->name.lexeme == subprogramName.lexeme;
+                if (auto func = std::dynamic_pointer_cast<FunctionStmt>(stmt)) return func->name.lexeme == subprogramName.lexeme;
+                return false;
+            });
+
+        if (it == subprogramDeclarations_.end()) {
+            throw error(subprogramName, "Implementation provided for an undeclared subprogram.");
+        }
+
+        ordered_subprograms.push_back(*it);
         subprogramImplementation(subprogramKeyword, subprogramName);
     }
 
-    // Move completed subprograms from the map to the vector
-    for (auto const& [key, val] : subprogramDeclarations) {
-        subprograms.push_back(val);
-    }
-
-    // TODO: Check if any declarations were not implemented.
-
-    return std::make_shared<ast::ProgramStmt>(name, kamusBlock, algoritmaBlock, subprograms);
+    return std::make_shared<ProgramStmt>(name, kamusBlock, algoritmaBlock, ordered_subprograms);
 }
 
-// kamus -> "KAMUS" declaration*
-std::shared_ptr<ast::KamusStmt> Parser::kamus() {
+std::shared_ptr<KamusStmt> NotalParser::kamus() {
     consume(TokenType::KAMUS, "Expect 'KAMUS'.");
     int kamusKeywordColumn = previous().column;
-    std::vector<std::shared_ptr<ast::Stmt>> declarations;
+    std::vector<std::shared_ptr<Statement>> declarations;
     while (!check(TokenType::ALGORITMA) && !isAtEnd()) {
         if ((peek().type == TokenType::PROCEDURE || peek().type == TokenType::FUNCTION) &&
             peek().column <= kamusKeywordColumn) {
@@ -72,19 +79,17 @@ std::shared_ptr<ast::KamusStmt> Parser::kamus() {
         }
         declarations.push_back(declaration());
     }
-    return std::make_shared<ast::KamusStmt>(declarations);
+    return std::make_shared<KamusStmt>(declarations);
 }
 
-// algoritma -> "ALGORITMA" block
-std::shared_ptr<ast::AlgoritmaStmt> Parser::algoritma() {
+std::shared_ptr<AlgoritmaStmt> NotalParser::algoritma() {
     consume(TokenType::ALGORITMA, "Expect 'ALGORITMA'.");
-    std::vector<std::shared_ptr<ast::Stmt>> statements = block();
-    auto body = std::make_shared<ast::BlockStmt>(statements);
-    return std::make_shared<ast::AlgoritmaStmt>(body);
+    std::vector<std::shared_ptr<Statement>> statements = block();
+    auto body = std::make_shared<BlockStmt>(statements);
+    return std::make_shared<AlgoritmaStmt>(body);
 }
 
-// declaration -> constantDeclaration | typeDeclaration | varDeclaration
-std::shared_ptr<ast::Stmt> Parser::declaration() {
+std::shared_ptr<Statement> NotalParser::declaration() {
     if (check(TokenType::PROCEDURE) || check(TokenType::FUNCTION)) {
         return subprogramDeclaration();
     }
@@ -97,8 +102,7 @@ std::shared_ptr<ast::Stmt> Parser::declaration() {
     return varDeclaration();
 }
 
-// constantDeclaration -> "constant" IDENTIFIER ":" type "=" expression
-std::shared_ptr<ast::Stmt> Parser::constantDeclaration() {
+std::shared_ptr<Statement> NotalParser::constantDeclaration() {
     Token name = consume(TokenType::IDENTIFIER, "Expect constant name.");
     consume(TokenType::COLON, "Expect ':' after constant name.");
 
@@ -111,21 +115,19 @@ std::shared_ptr<ast::Stmt> Parser::constantDeclaration() {
 
     consume(TokenType::EQUAL, "Expect '=' after type.");
 
-    std::shared_ptr<ast::Expr> initializer = expression();
+    std::shared_ptr<Expression> initializer = expression();
 
-    return std::make_shared<ast::ConstDeclStmt>(name, type, initializer);
+    return std::make_shared<ConstDeclStmt>(name, type, initializer);
 }
 
-// typeDeclaration -> "type" IDENTIFIER ":" recordType | enumType
-std::shared_ptr<ast::Stmt> Parser::typeDeclaration() {
+std::shared_ptr<Statement> NotalParser::typeDeclaration() {
     Token name = consume(TokenType::IDENTIFIER, "Expect type name.");
     consume(TokenType::COLON, "Expect ':' after type name.");
     
     if (check(TokenType::LESS)) {
-        // Record type: type Student: < name: string, age: integer >
-        advance(); // consume <
+        advance();
         
-        std::vector<ast::RecordTypeDeclStmt::Field> fields;
+        std::vector<RecordTypeDeclStmt::Field> fields;
         
         if (!check(TokenType::GREATER)) {
             do {
@@ -144,11 +146,10 @@ std::shared_ptr<ast::Stmt> Parser::typeDeclaration() {
         }
         
         consume(TokenType::GREATER, "Expect '>' after record fields.");
-        return std::make_shared<ast::RecordTypeDeclStmt>(name, fields);
+        return std::make_shared<RecordTypeDeclStmt>(name, fields);
         
     } else if (check(TokenType::LPAREN)) {
-        // Enum type: type Day: (monday, tuesday, wednesday)
-        advance(); // consume (
+        advance();
         
         std::vector<Token> values;
         
@@ -160,14 +161,13 @@ std::shared_ptr<ast::Stmt> Parser::typeDeclaration() {
         }
         
         consume(TokenType::RPAREN, "Expect ')' after enum values.");
-        return std::make_shared<ast::EnumTypeDeclStmt>(name, values);
+        return std::make_shared<EnumTypeDeclStmt>(name, values);
     } else {
         throw error(peek(), "Expect '<' for record type or '(' for enum type.");
     }
 }
 
-// varDeclaration -> IDENTIFIER ":" (type | arrayDeclaration) [ "|" constraint ]
-std::shared_ptr<ast::Stmt> Parser::varDeclaration() {
+std::shared_ptr<Statement> NotalParser::varDeclaration() {
     Token name = consume(TokenType::IDENTIFIER, "Expect variable name.");
     consume(TokenType::COLON, "Expect ':' after variable name.");
 
@@ -186,38 +186,36 @@ std::shared_ptr<ast::Stmt> Parser::varDeclaration() {
     if (type.type == TokenType::POINTER) {
         consume(TokenType::TO, "Expect 'to' after 'pointer'.");
         Token pointedType = advance();
-        return std::make_shared<ast::VarDeclStmt>(name, type, pointedType);
+        return std::make_shared<VarDeclStmt>(name, type, pointedType);
     }
 
-    // Check for constraint: age: integer | age >= 0 and age <= 150
     if (match({TokenType::PIPE})) {
-        std::shared_ptr<ast::Expr> constraint = expression();
-        return std::make_shared<ast::ConstrainedVarDeclStmt>(name, type, constraint);
+        std::shared_ptr<Expression> constraint = expression();
+        return std::make_shared<ConstrainedVarDeclStmt>(name, type, constraint);
     }
 
-    return std::make_shared<ast::VarDeclStmt>(name, type);
+    return std::make_shared<VarDeclStmt>(name, type);
 }
 
-// arrayDeclaration -> "array" ( "[" dimensions "]" | "of" ) "of" type
-std::shared_ptr<ast::Stmt> Parser::arrayDeclaration(Token name) {
+std::shared_ptr<Statement> NotalParser::arrayDeclaration(Token name) {
     consume(TokenType::ARRAY, "Expect 'array'.");
 
-    if (check(TokenType::LBRACKET)) { // Static array
-        std::vector<ast::StaticArrayDeclStmt::Dimension> dimensions;
+    if (check(TokenType::LBRACKET)) {
+        std::vector<StaticArrayDeclStmt::Dimension> dimensions;
         do {
             consume(TokenType::LBRACKET, "Expect '[' for array dimension.");
-            std::shared_ptr<ast::Expr> start = unary();
+            std::shared_ptr<Expression> start = unary();
             consume(TokenType::DOT_DOT, "Expect '..' between dimension bounds.");
-            std::shared_ptr<ast::Expr> end = unary();
+            std::shared_ptr<Expression> end = unary();
             consume(TokenType::RBRACKET, "Expect ']' after array dimension.");
             dimensions.push_back({start, end});
         } while (check(TokenType::LBRACKET));
 
         consume(TokenType::OF, "Expect 'of' after array dimensions.");
         Token elementType = advance();
-        return std::make_shared<ast::StaticArrayDeclStmt>(name, dimensions, elementType);
+        return std::make_shared<StaticArrayDeclStmt>(name, dimensions, elementType);
 
-    } else { // Dynamic array
+    } else {
         int dimensions = 1;
         consume(TokenType::OF, "Expect 'of' after 'array'.");
         while(match({TokenType::ARRAY})) {
@@ -225,12 +223,11 @@ std::shared_ptr<ast::Stmt> Parser::arrayDeclaration(Token name) {
             consume(TokenType::OF, "Expect 'of' after 'array'.");
         }
         Token elementType = advance();
-        return std::make_shared<ast::DynamicArrayDeclStmt>(name, dimensions, elementType);
+        return std::make_shared<DynamicArrayDeclStmt>(name, dimensions, elementType);
     }
 }
 
-// block -> (statement)*
-std::vector<std::shared_ptr<notal::ast::Stmt>> Parser::block() {
+std::vector<std::shared_ptr<Statement>> NotalParser::block() {
     int initialIndent = 0;
     if (!isAtEnd()) {
         initialIndent = peek().column;
@@ -238,8 +235,8 @@ std::vector<std::shared_ptr<notal::ast::Stmt>> Parser::block() {
     return parseBlockByIndentation(initialIndent);
 }
 
-std::vector<std::shared_ptr<notal::ast::Stmt>> Parser::parseBlockByIndentation(int expectedIndentLevel) {
-    std::vector<std::shared_ptr<notal::ast::Stmt>> statements;
+std::vector<std::shared_ptr<Statement>> NotalParser::parseBlockByIndentation(int expectedIndentLevel) {
+    std::vector<std::shared_ptr<Statement>> statements;
     while (!isAtEnd() && peek().column >= expectedIndentLevel) {
         if (peek().column == expectedIndentLevel &&
             (peek().type == TokenType::PROCEDURE || peek().type == TokenType::FUNCTION)) {
@@ -253,8 +250,7 @@ std::vector<std::shared_ptr<notal::ast::Stmt>> Parser::parseBlockByIndentation(i
     return statements;
 }
 
-// statement -> ... | allocateStatement | deallocateStatement
-std::shared_ptr<notal::ast::Stmt> Parser::statement() {
+std::shared_ptr<Statement> NotalParser::statement() {
     if (check(TokenType::IF)) return ifStatement();
     if (check(TokenType::WHILE)) return whileStatement();
     if (match({TokenType::REPEAT})) {
@@ -268,103 +264,66 @@ std::shared_ptr<notal::ast::Stmt> Parser::statement() {
     if (check(TokenType::DEALLOCATE)) return deallocateStatement();
     if (peek().type == TokenType::IDENTIFIER && peekNext().type == TokenType::TRAVERSAL) return traversalStatement();
     if (check(TokenType::ITERATE)) return iterateStopStatement();
-    if (match({TokenType::STOP})) return std::make_shared<ast::StopStmt>();
-    if (match({TokenType::SKIP})) return std::make_shared<ast::SkipStmt>();
+    if (match({TokenType::STOP})) return std::make_shared<StopStmt>();
+    if (match({TokenType::SKIP})) return std::make_shared<SkipStmt>();
     if (check(TokenType::ARROW)) return returnStatement();
 
     return expressionStatement();
 }
 
-std::shared_ptr<ast::Stmt> Parser::allocateStatement() {
+std::shared_ptr<Statement> NotalParser::allocateStatement() {
     consume(TokenType::ALLOCATE, "Expect 'allocate'.");
     consume(TokenType::LPAREN, "Expect '(' after 'allocate'.");
 
-    std::shared_ptr<ast::Expr> callee = expression();
+    std::shared_ptr<Expression> callee = expression();
 
-    std::vector<std::shared_ptr<ast::Expr>> sizes;
+    std::vector<std::shared_ptr<Expression>> sizes;
     while (match({TokenType::COMMA})) {
         sizes.push_back(expression());
     }
 
     consume(TokenType::RPAREN, "Expect ')' after allocate arguments.");
 
-    // Add the first argument to the sizes list for consistency
-    if (!sizes.empty()) {
-        auto first_arg = std::dynamic_pointer_cast<ast::Variable>(callee);
-        if (first_arg) {
-            // This is tricky. allocate(arr, 10) means arr is the callee, 10 is the size.
-            // The sizes vector already has the sizes. The callee is the variable.
-        }
-    }
-
-    // The `callee` is the variable, the rest are sizes.
-    // Let's re-parse arguments to be cleaner.
-
-    // Rewind and re-parse properly
-    current--; // go back to before RPAREN
-
-    if (check(TokenType::COMMA)) {
-        current--; // go back to before comma
-        while(previous().type != TokenType::LPAREN) {
-            current--;
-        }
-    } else {
-        while(previous().type != TokenType::LPAREN) {
-            current--;
-        }
-    }
-
-
-    callee = expression();
-    sizes.clear();
-    while (match({TokenType::COMMA})) {
-        sizes.push_back(expression());
-    }
-
-    consume(TokenType::RPAREN, "Expect ')' after allocate arguments.");
-
-    return std::make_shared<ast::AllocateStmt>(callee, sizes);
+    return std::make_shared<AllocateStmt>(callee, sizes);
 }
 
-std::shared_ptr<ast::Stmt> Parser::deallocateStatement() {
+std::shared_ptr<Statement> NotalParser::deallocateStatement() {
     consume(TokenType::DEALLOCATE, "Expect 'deallocate'.");
 
-    int dimension = -1; // -1 for pointer, >= 1 for array
+    int dimension = -1;
     if (match({TokenType::LBRACKET})) {
         if (match({TokenType::INTEGER_LITERAL})) {
             dimension = std::stoi(previous().lexeme);
         } else {
-            dimension = 1; // for deallocate[]
+            dimension = 1;
         }
         consume(TokenType::RBRACKET, "Expect ']' after deallocate dimension.");
     }
 
     consume(TokenType::LPAREN, "Expect '(' after 'deallocate'.");
-    std::shared_ptr<ast::Expr> callee = expression();
+    std::shared_ptr<Expression> callee = expression();
     consume(TokenType::RPAREN, "Expect ')' after deallocate argument.");
 
-    return std::make_shared<ast::DeallocateStmt>(callee, dimension);
+    return std::make_shared<DeallocateStmt>(callee, dimension);
 }
 
-
-// inputStatement -> "input" "(" IDENTIFIER ")"
-std::shared_ptr<ast::Stmt> Parser::inputStatement() {
+std::shared_ptr<Statement> NotalParser::inputStatement() {
     consume(TokenType::INPUT, "Expect 'input'.");
     consume(TokenType::LPAREN, "Expect '(' after 'input'.");
 
     Token variable_token = consume(TokenType::IDENTIFIER, "Expect variable name.");
-    auto variable = std::make_shared<ast::Variable>(variable_token);
+    auto variable = std::make_shared<Variable>(variable_token);
 
     consume(TokenType::RPAREN, "Expect ')' after variable name.");
-    return std::make_shared<ast::InputStmt>(variable);
+    return std::make_shared<InputStmt>(variable);
 }
 
-std::shared_ptr<notal::ast::Stmt> Parser::ifStatement() {
-    Token ifToken = consume(TokenType::IF, "Expect 'if'."); // Capture the IF token
-    return ifStatementBody(ifToken.column); // Pass the column of 'if'
+std::shared_ptr<Statement> NotalParser::ifStatement() {
+    Token ifToken = consume(TokenType::IF, "Expect 'if'.");
+    return ifStatementBody(ifToken.column);
 }
 
-std::shared_ptr<notal::ast::Stmt> Parser::ifStatementBody(int parentIndentLevel) {
+std::shared_ptr<Statement> NotalParser::ifStatementBody(int parentIndentLevel) {
     auto condition = expression();
     consume(TokenType::THEN, "Expect 'then' after condition.");
     
@@ -373,14 +332,14 @@ std::shared_ptr<notal::ast::Stmt> Parser::ifStatementBody(int parentIndentLevel)
         thenBranchIndent = peek().column;
     }
 
-    std::shared_ptr<notal::ast::BlockStmt> thenBranch;
+    std::shared_ptr<BlockStmt> thenBranch;
     if (thenBranchIndent > parentIndentLevel) {
-        thenBranch = std::make_shared<ast::BlockStmt>(parseBlockByIndentation(thenBranchIndent));
+        thenBranch = std::make_shared<BlockStmt>(parseBlockByIndentation(thenBranchIndent));
     } else {
-        thenBranch = std::make_shared<ast::BlockStmt>(std::vector<std::shared_ptr<ast::Stmt>>{});
+        thenBranch = std::make_shared<BlockStmt>(std::vector<std::shared_ptr<Statement>>{});
     }
     
-    std::shared_ptr<notal::ast::Stmt> elseBranch = nullptr;
+    std::shared_ptr<Statement> elseBranch = nullptr;
 
     if (match({TokenType::ELIF})) {
         if (previous().column != parentIndentLevel) {
@@ -397,22 +356,22 @@ std::shared_ptr<notal::ast::Stmt> Parser::ifStatementBody(int parentIndentLevel)
         }
 
         if (elseBranchIndent > parentIndentLevel) {
-            elseBranch = std::make_shared<ast::BlockStmt>(parseBlockByIndentation(elseBranchIndent));
+            elseBranch = std::make_shared<BlockStmt>(parseBlockByIndentation(elseBranchIndent));
         } else {
-            elseBranch = std::make_shared<ast::BlockStmt>(std::vector<std::shared_ptr<ast::Stmt>>{});
+            elseBranch = std::make_shared<BlockStmt>(std::vector<std::shared_ptr<Statement>>{});
         }
     }
 
-    auto ifStmt = std::make_shared<notal::ast::IfStmt>(condition, thenBranch, elseBranch);
+    auto ifStmt = std::make_shared<IfStmt>(condition, thenBranch, elseBranch);
     if (thenBranch) thenBranch->parent = ifStmt;
     if (elseBranch) elseBranch->parent = ifStmt;
 
     return ifStmt;
 }
 
-std::shared_ptr<notal::ast::Stmt> Parser::whileStatement() {
-    Token whileToken = consume(TokenType::WHILE, "Expect 'while'."); // Capture the WHILE token
-    std::shared_ptr<notal::ast::Expr> condition = expression();
+std::shared_ptr<Statement> NotalParser::whileStatement() {
+    Token whileToken = consume(TokenType::WHILE, "Expect 'while'.");
+    std::shared_ptr<Expression> condition = expression();
     consume(TokenType::DO, "Expect 'do' after while condition.");
     
     int whileBodyIndent = 0;
@@ -421,17 +380,17 @@ std::shared_ptr<notal::ast::Stmt> Parser::whileStatement() {
     }
     
     if (whileBodyIndent <= whileToken.column) {
-        auto bodyBlock = std::make_shared<ast::BlockStmt>(std::vector<std::shared_ptr<ast::Stmt>>{});
-        return std::make_shared<ast::WhileStmt>(condition, bodyBlock);
+        auto bodyBlock = std::make_shared<BlockStmt>(std::vector<std::shared_ptr<Statement>>{});
+        return std::make_shared<WhileStmt>(condition, bodyBlock);
     }
 
-    std::shared_ptr<notal::ast::BlockStmt> bodyBlock = std::make_shared<ast::BlockStmt>(parseBlockByIndentation(whileBodyIndent));
+    std::shared_ptr<BlockStmt> bodyBlock = std::make_shared<BlockStmt>(parseBlockByIndentation(whileBodyIndent));
 
-    return std::make_shared<ast::WhileStmt>(condition, bodyBlock);
+    return std::make_shared<WhileStmt>(condition, bodyBlock);
 }
 
-std::shared_ptr<ast::Stmt> Parser::repeatUntilStatement() {
-    Token repeatToken = previous(); // 'repeat' was already matched
+std::shared_ptr<Statement> NotalParser::repeatUntilStatement() {
+    Token repeatToken = previous();
 
     int bodyIndent = 0;
     if (!isAtEnd()) {
@@ -442,25 +401,25 @@ std::shared_ptr<ast::Stmt> Parser::repeatUntilStatement() {
         throw error(peek(), "The body of a repeat-until loop must be indented.");
     }
 
-    auto body = std::make_shared<ast::BlockStmt>(parseBlockByIndentation(bodyIndent));
+    auto body = std::make_shared<BlockStmt>(parseBlockByIndentation(bodyIndent));
 
     consume(TokenType::UNTIL, "Expect 'until' after repeat block.");
 
-    std::shared_ptr<ast::Expr> condition = expression();
+    std::shared_ptr<Expression> condition = expression();
 
-    return std::make_shared<ast::RepeatUntilStmt>(body, condition);
+    return std::make_shared<RepeatUntilStmt>(body, condition);
 }
 
-std::shared_ptr<ast::Stmt> Parser::traversalStatement() {
+std::shared_ptr<Statement> NotalParser::traversalStatement() {
     Token iterator = consume(TokenType::IDENTIFIER, "Expect iterator name.");
     consume(TokenType::TRAVERSAL, "Expect 'traversal'.");
     consume(TokenType::LBRACKET, "Expect '[' after 'traversal'.");
     
-    std::shared_ptr<ast::Expr> start = primary();
+    std::shared_ptr<Expression> start = primary();
     consume(TokenType::DOT_DOT, "Expect '..' between start and end values.");
-    std::shared_ptr<ast::Expr> end = primary();
+    std::shared_ptr<Expression> end = primary();
     
-    std::shared_ptr<ast::Expr> step = nullptr;
+    std::shared_ptr<Expression> step = nullptr;
     if (match({TokenType::STEP})) {
         step = primary();
     }
@@ -476,12 +435,12 @@ std::shared_ptr<ast::Stmt> Parser::traversalStatement() {
         throw error(peek(), "The body of a traversal loop must be indented.");
     }
 
-    auto body = std::make_shared<ast::BlockStmt>(parseBlockByIndentation(bodyIndent));
+    auto body = std::make_shared<BlockStmt>(parseBlockByIndentation(bodyIndent));
     
-    return std::make_shared<ast::TraversalStmt>(iterator, start, end, step, body);
+    return std::make_shared<TraversalStmt>(iterator, start, end, step, body);
 }
 
-std::shared_ptr<ast::Stmt> Parser::iterateStopStatement() {
+std::shared_ptr<Statement> NotalParser::iterateStopStatement() {
     Token iterateToken = consume(TokenType::ITERATE, "Expect 'iterate'.");
 
     int bodyIndent = 0;
@@ -493,20 +452,20 @@ std::shared_ptr<ast::Stmt> Parser::iterateStopStatement() {
         throw error(peek(), "The body of an iterate-stop loop must be indented.");
     }
 
-    auto body = std::make_shared<ast::BlockStmt>(parseBlockByIndentation(bodyIndent));
+    auto body = std::make_shared<BlockStmt>(parseBlockByIndentation(bodyIndent));
 
     consume(TokenType::STOP, "Expect 'stop' after iterate block.");
     consume(TokenType::LPAREN, "Expect '(' after 'stop'.");
-    std::shared_ptr<ast::Expr> condition = expression();
+    std::shared_ptr<Expression> condition = expression();
     consume(TokenType::RPAREN, "Expect ')' after stop condition.");
 
-    return std::make_shared<ast::IterateStopStmt>(body, condition);
+    return std::make_shared<IterateStopStmt>(body, condition);
 }
 
-std::shared_ptr<ast::Stmt> Parser::repeatNTimesStatement() {
+std::shared_ptr<Statement> NotalParser::repeatNTimesStatement() {
     Token repeatToken = previous();
 
-    std::shared_ptr<ast::Expr> times = primary();
+    std::shared_ptr<Expression> times = primary();
     consume(TokenType::TIMES, "Expect 'times' after number.");
 
     int bodyIndent = 0;
@@ -518,24 +477,23 @@ std::shared_ptr<ast::Stmt> Parser::repeatNTimesStatement() {
         throw error(peek(), "The body of a repeat N times loop must be indented.");
     }
 
-    auto body = std::make_shared<ast::BlockStmt>(parseBlockByIndentation(bodyIndent));
+    auto body = std::make_shared<BlockStmt>(parseBlockByIndentation(bodyIndent));
 
-    return std::make_shared<ast::RepeatNTimesStmt>(times, body);
+    return std::make_shared<RepeatNTimesStmt>(times, body);
 }
 
-
-std::shared_ptr<ast::Stmt> Parser::dependOnStatement() {
+std::shared_ptr<Statement> NotalParser::dependOnStatement() {
     Token dependToken = consume(TokenType::DEPEND, "Expect 'depend'.");
     consume(TokenType::ON, "Expect 'on' after 'depend'.");
     consume(TokenType::LPAREN, "Expect '(' after 'on'.");
-    std::vector<std::shared_ptr<ast::Expr>> expressions;
+    std::vector<std::shared_ptr<Expression>> expressions;
     do {
         expressions.push_back(expression());
     } while (match({TokenType::COMMA}));
     consume(TokenType::RPAREN, "Expect ')' after depend on expression(s).");
 
-    std::vector<ast::DependOnStmt::Case> cases;
-    std::shared_ptr<ast::Stmt> otherwiseBranch = nullptr;
+    std::vector<DependOnStmt::Case> cases;
+    std::shared_ptr<Statement> otherwiseBranch = nullptr;
 
     int caseIndent = 0;
     if (!isAtEnd()) {
@@ -547,7 +505,7 @@ std::shared_ptr<ast::Stmt> Parser::dependOnStatement() {
     }
 
     while (!isAtEnd() && peek().column == caseIndent && !check(TokenType::OTHERWISE)) {
-        std::vector<std::shared_ptr<ast::Expr>> conditions;
+        std::vector<std::shared_ptr<Expression>> conditions;
         do {
             conditions.push_back(expression());
         } while (match({TokenType::COMMA}));
@@ -563,7 +521,7 @@ std::shared_ptr<ast::Stmt> Parser::dependOnStatement() {
             throw error(peek(), "The body of a case must be indented.");
         }
 
-        auto body = std::make_shared<ast::BlockStmt>(parseBlockByIndentation(bodyIndent));
+        auto body = std::make_shared<BlockStmt>(parseBlockByIndentation(bodyIndent));
         cases.emplace_back(conditions, body);
     }
 
@@ -576,17 +534,17 @@ std::shared_ptr<ast::Stmt> Parser::dependOnStatement() {
         if (otherwiseIndent <= dependToken.column) {
             throw error(peek(), "The body of 'otherwise' must be indented.");
         }
-        otherwiseBranch = std::make_shared<ast::BlockStmt>(parseBlockByIndentation(otherwiseIndent));
+        otherwiseBranch = std::make_shared<BlockStmt>(parseBlockByIndentation(otherwiseIndent));
     }
 
-    return std::make_shared<ast::DependOnStmt>(expressions, cases, otherwiseBranch);
+    return std::make_shared<DependOnStmt>(expressions, cases, otherwiseBranch);
 }
 
-std::shared_ptr<ast::Stmt> Parser::outputStatement() {
+std::shared_ptr<Statement> NotalParser::outputStatement() {
     consume(TokenType::OUTPUT, "Expect 'output'.");
     consume(TokenType::LPAREN, "Expect '(' after 'output'.");
     
-    std::vector<std::shared_ptr<ast::Expr>> expressions;
+    std::vector<std::shared_ptr<Expression>> expressions;
     if (!check(TokenType::RPAREN)) {
         do {
             expressions.push_back(expression());
@@ -594,18 +552,18 @@ std::shared_ptr<ast::Stmt> Parser::outputStatement() {
     }
 
     consume(TokenType::RPAREN, "Expect ')' after output arguments.");
-    return std::make_shared<ast::OutputStmt>(expressions);
+    return std::make_shared<OutputStmt>(expressions);
 }
 
-std::shared_ptr<ast::Stmt> Parser::expressionStatement() {
-    std::shared_ptr<ast::Expr> expr = expression();
-    return std::make_shared<ast::ExpressionStmt>(expr);
+std::shared_ptr<Statement> NotalParser::expressionStatement() {
+    std::shared_ptr<Expression> expr = expression();
+    return std::make_shared<ExpressionStmt>(expr);
 }
 
 
 // --- Subprogram Parsing ---
 
-std::shared_ptr<ast::Stmt> Parser::subprogramDeclaration() {
+std::shared_ptr<Statement> NotalParser::subprogramDeclaration() {
     if (check(TokenType::PROCEDURE)) {
         return procedureDeclaration();
     }
@@ -615,27 +573,34 @@ std::shared_ptr<ast::Stmt> Parser::subprogramDeclaration() {
     throw error(peek(), "Expect 'procedure' or 'function'.");
 }
 
-std::shared_ptr<ast::Stmt> Parser::procedureDeclaration() {
+std::shared_ptr<Statement> NotalParser::procedureDeclaration() {
     consume(TokenType::PROCEDURE, "Expect 'procedure'.");
     Token name = consume(TokenType::IDENTIFIER, "Expect procedure name.");
 
-    std::vector<ast::Parameter> params = parameterList();
+    std::vector<Parameter> params = parameterList();
 
-    if (subprogramDeclarations.count(name.lexeme)) {
-        throw error(name, "Procedure with this name already declared.");
+    auto it = std::find_if(subprogramDeclarations_.begin(), subprogramDeclarations_.end(),
+        [&name](const std::shared_ptr<Statement>& stmt) {
+            if (auto proc = std::dynamic_pointer_cast<ProcedureStmt>(stmt)) return proc->name.lexeme == name.lexeme;
+            if (auto func = std::dynamic_pointer_cast<FunctionStmt>(stmt)) return func->name.lexeme == name.lexeme;
+            return false;
+        });
+
+    if (it != subprogramDeclarations_.end()) {
+        throw error(name, "Subprogram with this name already declared.");
     }
 
-    auto procStmt = std::make_shared<ast::ProcedureStmt>(name, params, nullptr, nullptr);
-    subprogramDeclarations[name.lexeme] = procStmt;
+    auto procStmt = std::make_shared<ProcedureStmt>(name, params, nullptr, nullptr);
+    subprogramDeclarations_.push_back(procStmt);
 
     return procStmt;
 }
 
-std::shared_ptr<ast::Stmt> Parser::functionDeclaration() {
+std::shared_ptr<Statement> NotalParser::functionDeclaration() {
     consume(TokenType::FUNCTION, "Expect 'function'.");
     Token name = consume(TokenType::IDENTIFIER, "Expect function name.");
 
-    std::vector<ast::Parameter> params = parameterList();
+    std::vector<Parameter> params = parameterList();
 
     consume(TokenType::ARROW, "Expect '->' for function return type.");
     Token returnType = advance();
@@ -645,34 +610,41 @@ std::shared_ptr<ast::Stmt> Parser::functionDeclaration() {
             throw error(returnType, "Expect a valid return type name.");
     }
 
-    if (subprogramDeclarations.count(name.lexeme)) {
-        throw error(name, "Function with this name already declared.");
+    auto it = std::find_if(subprogramDeclarations_.begin(), subprogramDeclarations_.end(),
+        [&name](const std::shared_ptr<Statement>& stmt) {
+            if (auto proc = std::dynamic_pointer_cast<ProcedureStmt>(stmt)) return proc->name.lexeme == name.lexeme;
+            if (auto func = std::dynamic_pointer_cast<FunctionStmt>(stmt)) return func->name.lexeme == name.lexeme;
+            return false;
+        });
+
+    if (it != subprogramDeclarations_.end()) {
+        throw error(name, "Subprogram with this name already declared.");
     }
 
-    auto funcStmt = std::make_shared<ast::FunctionStmt>(name, params, returnType, nullptr, nullptr);
-    subprogramDeclarations[name.lexeme] = funcStmt;
+    auto funcStmt = std::make_shared<FunctionStmt>(name, params, returnType, nullptr, nullptr);
+    subprogramDeclarations_.push_back(funcStmt);
 
     return funcStmt;
 }
 
-std::vector<ast::Parameter> Parser::parameterList() {
+std::vector<Parameter> NotalParser::parameterList() {
     consume(TokenType::LPAREN, "Expect '(' after subprogram name.");
-    std::vector<ast::Parameter> params;
+    std::vector<Parameter> params;
     if (!check(TokenType::RPAREN)) {
         do {
-            ast::ParameterMode mode;
+            ParameterMode mode;
 
             if (peek().type == TokenType::INPUT) {
-                advance(); // consume 'input'
+                advance();
                 if (match({TokenType::DIVIDE})) {
                     consume(TokenType::OUTPUT, "Expect 'output' after '/' for 'input/output' parameter.");
-                    mode = ast::ParameterMode::INPUT_OUTPUT;
+                    mode = ParameterMode::INPUT_OUTPUT;
                 } else {
-                    mode = ast::ParameterMode::INPUT;
+                    mode = ParameterMode::INPUT;
                 }
             } else if (peek().type == TokenType::OUTPUT) {
-                advance(); // consume 'output'
-                mode = ast::ParameterMode::OUTPUT;
+                advance();
+                mode = ParameterMode::OUTPUT;
             } else {
                 throw error(peek(), "Expect 'input', 'output', or 'input/output' for parameter mode.");
             }
@@ -692,26 +664,33 @@ std::vector<ast::Parameter> Parser::parameterList() {
     return params;
 }
 
-void Parser::subprogramImplementation(const Token& subprogramKeyword, const Token& subprogramName) {
-    auto it = subprogramDeclarations.find(subprogramName.lexeme);
-    if (it == subprogramDeclarations.end()) {
+void NotalParser::subprogramImplementation(const Token& subprogramKeyword, const Token& subprogramName) {
+    auto it = std::find_if(subprogramDeclarations_.begin(), subprogramDeclarations_.end(),
+        [&subprogramName](const std::shared_ptr<Statement>& stmt) {
+            if (auto proc = std::dynamic_pointer_cast<ProcedureStmt>(stmt)) return proc->name.lexeme == subprogramName.lexeme;
+            if (auto func = std::dynamic_pointer_cast<FunctionStmt>(stmt)) return func->name.lexeme == subprogramName.lexeme;
+            return false;
+        });
+
+    if (it == subprogramDeclarations_.end()) {
         throw error(subprogramName, "Implementation provided for an undeclared subprogram.");
     }
+
     consume(TokenType::LPAREN, "Expect '(' after subprogram name in implementation.");
-    std::vector<ast::Parameter> declaredParams;
-    if (auto proc = std::dynamic_pointer_cast<ast::ProcedureStmt>(it->second)) {
+    std::vector<Parameter> declaredParams;
+    if (auto proc = std::dynamic_pointer_cast<ProcedureStmt>(*it)) {
         declaredParams = proc->params;
-    } else if (auto func = std::dynamic_pointer_cast<ast::FunctionStmt>(it->second)) {
+    } else if (auto func = std::dynamic_pointer_cast<FunctionStmt>(*it)) {
         declaredParams = func->params;
     }
 
     for (size_t i = 0; i < declaredParams.size(); ++i) {
         const auto& param = declaredParams[i];
-        if (param.mode == ast::ParameterMode::INPUT) {
+        if (param.mode == ParameterMode::INPUT) {
             consume(TokenType::INPUT, "Expect 'input' for parameter mode.");
-        } else if (param.mode == ast::ParameterMode::OUTPUT) {
+        } else if (param.mode == ParameterMode::OUTPUT) {
             consume(TokenType::OUTPUT, "Expect 'output' for parameter mode.");
-        } else if (param.mode == ast::ParameterMode::INPUT_OUTPUT) {
+        } else if (param.mode == ParameterMode::INPUT_OUTPUT) {
             consume(TokenType::INPUT, "Expect 'input' for parameter mode.");
             consume(TokenType::DIVIDE, "Expect '/' for 'input/output' parameter mode.");
             consume(TokenType::OUTPUT, "Expect 'output' for 'input/output' parameter mode.");
@@ -731,48 +710,48 @@ void Parser::subprogramImplementation(const Token& subprogramKeyword, const Toke
     }
 
 
-    std::shared_ptr<ast::KamusStmt> kamus = nullptr;
+    std::shared_ptr<KamusStmt> kamus = nullptr;
     if (check(TokenType::KAMUS)) {
         kamus = this->kamus();
     }
 
-    std::shared_ptr<ast::AlgoritmaStmt> algoritma = this->algoritma();
+    std::shared_ptr<AlgoritmaStmt> algoritma = this->algoritma();
 
-    if (auto proc = std::dynamic_pointer_cast<ast::ProcedureStmt>(it->second)) {
+    if (auto proc = std::dynamic_pointer_cast<ProcedureStmt>(*it)) {
         proc->kamus = kamus;
         proc->body = algoritma;
-    } else if (auto func = std::dynamic_pointer_cast<ast::FunctionStmt>(it->second)) {
+    } else if (auto func = std::dynamic_pointer_cast<FunctionStmt>(*it)) {
         func->kamus = kamus;
         func->body = algoritma;
     }
 }
 
-std::shared_ptr<ast::Stmt> Parser::returnStatement() {
+std::shared_ptr<Statement> NotalParser::returnStatement() {
     Token keyword = consume(TokenType::ARROW, "Expect '->'.");
-    std::shared_ptr<ast::Expr> value = expression();
-    return std::make_shared<ast::ReturnStmt>(keyword, value);
+    std::shared_ptr<Expression> value = expression();
+    return std::make_shared<ReturnStmt>(keyword, value);
 }
 
 
 // --- Expression Parsing ---
 
-std::shared_ptr<ast::Expr> Parser::expression() {
+std::shared_ptr<Expression> NotalParser::expression() {
     return assignment();
 }
 
-std::shared_ptr<ast::Expr> Parser::assignment() {
-    std::shared_ptr<ast::Expr> expr = logic_or();
+std::shared_ptr<Expression> NotalParser::assignment() {
+    std::shared_ptr<Expression> expr = logic_or();
 
     if (match({TokenType::ASSIGN})) {
         Token equals = previous();
-        std::shared_ptr<ast::Expr> value = assignment();
+        std::shared_ptr<Expression> value = assignment();
 
-        auto unary_expr = std::dynamic_pointer_cast<ast::Unary>(expr);
-        if (std::dynamic_pointer_cast<ast::Variable>(expr) ||
-            std::dynamic_pointer_cast<ast::FieldAccess>(expr) ||
-            std::dynamic_pointer_cast<ast::ArrayAccess>(expr) ||
+        auto unary_expr = std::dynamic_pointer_cast<Unary>(expr);
+        if (std::dynamic_pointer_cast<Variable>(expr) ||
+            std::dynamic_pointer_cast<FieldAccess>(expr) ||
+            std::dynamic_pointer_cast<ArrayAccess>(expr) ||
             (unary_expr && unary_expr->op.type == TokenType::POWER)) {
-            return std::make_shared<ast::Assign>(expr, value);
+            return std::make_shared<Assign>(expr, value);
         }
 
         throw error(equals, "Invalid assignment target.");
@@ -781,87 +760,87 @@ std::shared_ptr<ast::Expr> Parser::assignment() {
     return expr;
 }
 
-std::shared_ptr<ast::Expr> Parser::logic_or() {
-    std::shared_ptr<ast::Expr> expr = logic_and();
+std::shared_ptr<Expression> NotalParser::logic_or() {
+    std::shared_ptr<Expression> expr = logic_and();
     while (match({TokenType::OR, TokenType::XOR})) {
         Token op = previous();
-        std::shared_ptr<ast::Expr> right = logic_and();
-        expr = std::make_shared<ast::Binary>(expr, op, right);
+        std::shared_ptr<Expression> right = logic_and();
+        expr = std::make_shared<Binary>(expr, op, right);
     }
     return expr;
 }
 
-std::shared_ptr<ast::Expr> Parser::logic_and() {
-    std::shared_ptr<ast::Expr> expr = equality();
+std::shared_ptr<Expression> NotalParser::logic_and() {
+    std::shared_ptr<Expression> expr = equality();
     while (match({TokenType::AND})) {
         Token op = previous();
-        std::shared_ptr<ast::Expr> right = equality();
-        expr = std::make_shared<ast::Binary>(expr, op, right);
+        std::shared_ptr<Expression> right = equality();
+        expr = std::make_shared<Binary>(expr, op, right);
     }
     return expr;
 }
 
-std::shared_ptr<ast::Expr> Parser::equality() {
-    std::shared_ptr<ast::Expr> expr = comparison();
+std::shared_ptr<Expression> NotalParser::equality() {
+    std::shared_ptr<Expression> expr = comparison();
     while (match({TokenType::NOT_EQUAL, TokenType::EQUAL})) {
         Token op = previous();
-        std::shared_ptr<ast::Expr> right = comparison();
-        expr = std::make_shared<ast::Binary>(expr, op, right);
+        std::shared_ptr<Expression> right = comparison();
+        expr = std::make_shared<Binary>(expr, op, right);
     }
     return expr;
 }
 
-std::shared_ptr<ast::Expr> Parser::comparison() {
-    std::shared_ptr<ast::Expr> expr = term();
+std::shared_ptr<Expression> NotalParser::comparison() {
+    std::shared_ptr<Expression> expr = term();
     while (match({TokenType::GREATER, TokenType::GREATER_EQUAL, TokenType::LESS, TokenType::LESS_EQUAL})) {
         Token op = previous();
-        std::shared_ptr<ast::Expr> right = term();
-        expr = std::make_shared<ast::Binary>(expr, op, right);
+        std::shared_ptr<Expression> right = term();
+        expr = std::make_shared<Binary>(expr, op, right);
     }
     return expr;
 }
 
-std::shared_ptr<ast::Expr> Parser::term() {
-    std::shared_ptr<ast::Expr> expr = factor();
+std::shared_ptr<Expression> NotalParser::term() {
+    std::shared_ptr<Expression> expr = factor();
     while (match({TokenType::MINUS, TokenType::PLUS})) {
         Token op = previous();
-        std::shared_ptr<ast::Expr> right = factor();
-        expr = std::make_shared<ast::Binary>(expr, op, right);
+        std::shared_ptr<Expression> right = factor();
+        expr = std::make_shared<Binary>(expr, op, right);
     }
     return expr;
 }
 
-std::shared_ptr<ast::Expr> Parser::factor() {
-    std::shared_ptr<ast::Expr> expr = power();
+std::shared_ptr<Expression> NotalParser::factor() {
+    std::shared_ptr<Expression> expr = power();
     while (match({TokenType::DIVIDE, TokenType::MULTIPLY, TokenType::MOD, TokenType::DIV})) {
         Token op = previous();
-        std::shared_ptr<ast::Expr> right = power();
-        expr = std::make_shared<ast::Binary>(expr, op, right);
+        std::shared_ptr<Expression> right = power();
+        expr = std::make_shared<Binary>(expr, op, right);
     }
     return expr;
 }
 
-std::shared_ptr<ast::Expr> Parser::power() {
-    std::shared_ptr<ast::Expr> expr = unary();
+std::shared_ptr<Expression> NotalParser::power() {
+    std::shared_ptr<Expression> expr = unary();
     if (match({TokenType::POWER})) {
         Token op = previous();
-        std::shared_ptr<ast::Expr> right = power();
-        expr = std::make_shared<ast::Binary>(expr, op, right);
+        std::shared_ptr<Expression> right = power();
+        expr = std::make_shared<Binary>(expr, op, right);
     }
     return expr;
 }
 
-std::shared_ptr<ast::Expr> Parser::unary() {
+std::shared_ptr<Expression> NotalParser::unary() {
     if (match({TokenType::NOT, TokenType::MINUS, TokenType::AT})) {
         Token op = previous();
-        std::shared_ptr<ast::Expr> right = unary();
-        return std::make_shared<ast::Unary>(op, right);
+        std::shared_ptr<Expression> right = unary();
+        return std::make_shared<Unary>(op, right);
     }
     return call();
 }
 
-std::shared_ptr<ast::Expr> Parser::call() {
-    std::shared_ptr<ast::Expr> expr = primary();
+std::shared_ptr<Expression> NotalParser::call() {
+    std::shared_ptr<Expression> expr = primary();
     
     while (true) {
         if (match({TokenType::LPAREN})) {
@@ -871,10 +850,8 @@ std::shared_ptr<ast::Expr> Parser::call() {
         }
         else if (match({TokenType::DOT})) {
             Token name = consume(TokenType::IDENTIFIER, "Expect field name after '.'.");
-            expr = std::make_shared<ast::FieldAccess>(expr, name);
+            expr = std::make_shared<FieldAccess>(expr, name);
         } else if (check(TokenType::POWER)) {
-            // This is ambiguous: could be binary power or postfix dereference.
-            // We'll use a lookahead to decide.
             Token next = peekNext();
             bool is_binary = (
                 next.type == TokenType::IDENTIFIER ||
@@ -889,14 +866,10 @@ std::shared_ptr<ast::Expr> Parser::call() {
             );
 
             if (is_binary) {
-                // This is likely a binary power operator, let power() handle it.
                 break;
             } else {
-                // This is a postfix dereference operator.
-                Token op = advance(); // Consume POWER token
-                // We reuse the Unary node to avoid changing the AST.
-                // The CodeGenerator will need to know how to handle a Unary node with a POWER op.
-                expr = std::make_shared<ast::Unary>(op, expr);
+                Token op = advance();
+                expr = std::make_shared<Unary>(op, expr);
             }
         }
         else {
@@ -907,8 +880,8 @@ std::shared_ptr<ast::Expr> Parser::call() {
     return expr;
 }
 
-std::shared_ptr<ast::Expr> Parser::finishCall(std::shared_ptr<ast::Expr> callee) {
-    std::vector<std::shared_ptr<ast::Expr>> arguments;
+std::shared_ptr<Expression> NotalParser::finishCall(std::shared_ptr<Expression> callee) {
+    std::vector<std::shared_ptr<Expression>> arguments;
     if (!check(TokenType::RPAREN)) {
         do {
             if (arguments.size() >= 255) {
@@ -920,11 +893,11 @@ std::shared_ptr<ast::Expr> Parser::finishCall(std::shared_ptr<ast::Expr> callee)
 
     Token paren = consume(TokenType::RPAREN, "Expect ')' after arguments.");
 
-    return std::make_shared<ast::Call>(callee, paren, arguments);
+    return std::make_shared<Call>(callee, paren, arguments);
 }
 
-std::shared_ptr<ast::Expr> Parser::arrayAccess(std::shared_ptr<ast::Expr> callee) {
-    std::vector<std::shared_ptr<ast::Expr>> indices;
+std::shared_ptr<Expression> NotalParser::arrayAccess(std::shared_ptr<Expression> callee) {
+    std::vector<std::shared_ptr<Expression>> indices;
     indices.push_back(expression());
     Token bracket = consume(TokenType::RBRACKET, "Expect ']' after array index.");
 
@@ -933,34 +906,34 @@ std::shared_ptr<ast::Expr> Parser::arrayAccess(std::shared_ptr<ast::Expr> callee
         consume(TokenType::RBRACKET, "Expect ']' after array index.");
     }
 
-    return std::make_shared<ast::ArrayAccess>(callee, bracket, indices);
+    return std::make_shared<ArrayAccess>(callee, bracket, indices);
 }
 
 
-std::shared_ptr<ast::Expr> Parser::primary() {
-    if (match({TokenType::BOOLEAN_LITERAL})) return std::make_shared<ast::Literal>(previous().lexeme == "true");
-    if (match({TokenType::INTEGER_LITERAL})) return std::make_shared<ast::Literal>(std::stoi(previous().lexeme));
-    if (match({TokenType::REAL_LITERAL})) return std::make_shared<ast::Literal>(std::stod(previous().lexeme));
-    if (match({TokenType::STRING_LITERAL})) return std::make_shared<ast::Literal>(previous().lexeme);
-    if (match({TokenType::IDENTIFIER})) return std::make_shared<ast::Variable>(previous());
+std::shared_ptr<Expression> NotalParser::primary() {
+    if (match({TokenType::BOOLEAN_LITERAL})) return std::make_shared<Literal>(previous().lexeme == "true");
+    if (match({TokenType::INTEGER_LITERAL})) return std::make_shared<Literal>(std::stoi(previous().lexeme));
+    if (match({TokenType::REAL_LITERAL})) return std::make_shared<Literal>(std::stod(previous().lexeme));
+    if (match({TokenType::STRING_LITERAL})) return std::make_shared<Literal>(previous().lexeme);
+    if (match({TokenType::IDENTIFIER})) return std::make_shared<Variable>(previous());
     if (match({TokenType::LPAREN})) {
-        std::shared_ptr<ast::Expr> expr = expression();
+        std::shared_ptr<Expression> expr = expression();
         consume(TokenType::RPAREN, "Expect ')' after expression.");
-        return std::make_shared<ast::Grouping>(expr);
+        return std::make_shared<Grouping>(expr);
     }
     throw error(peek(), "Expect expression.");
 }
 
 // --- Helper Methods ---
 
-bool Parser::isAtEnd() { return peek().type == TokenType::END_OF_FILE; }
-Token Parser::peek() { return tokens[current]; }
-Token Parser::peekNext() { if (isAtEnd() || current + 1 >= tokens.size()) return peek(); return tokens[current + 1]; }
-Token Parser::previous() { return tokens[current - 1]; }
-Token Parser::advance() { if (!isAtEnd()) current++; return previous(); }
-bool Parser::check(TokenType type) { if (isAtEnd()) return false; return peek().type == type; }
+bool NotalParser::isAtEnd() { return peek().type == TokenType::END_OF_FILE; }
+Token NotalParser::peek() { return tokens_[current_]; }
+Token NotalParser::peekNext() { if (isAtEnd() || current_ + 1 >= tokens_.size()) return peek(); return tokens_[current_ + 1]; }
+Token NotalParser::previous() { return tokens_[current_ - 1]; }
+Token NotalParser::advance() { if (!isAtEnd()) current_++; return previous(); }
+bool NotalParser::check(TokenType type) { if (isAtEnd()) return false; return peek().type == type; }
 
-bool Parser::match(const std::vector<TokenType>& types) {
+bool NotalParser::match(const std::vector<TokenType>& types) {
     for (TokenType type : types) {
         if (check(type)) {
             advance();
@@ -970,16 +943,16 @@ bool Parser::match(const std::vector<TokenType>& types) {
     return false;
 }
 
-Token Parser::consume(TokenType type, const std::string& message) {
+Token NotalParser::consume(TokenType type, const std::string& message) {
     if (check(type)) return advance();
     throw error(peek(), message);
 }
 
-Parser::ParseError Parser::error(const Token& token, const std::string& message) {
+NotalParser::ParseError NotalParser::error(const Token& token, const std::string& message) {
     return ParseError(token, message);
 }
 
-void Parser::synchronize() {
+void NotalParser::synchronize() {
     advance();
     while (!isAtEnd()) {
         switch (peek().type) {
@@ -1000,4 +973,4 @@ void Parser::synchronize() {
     }
 }
 
-} // namespace notal
+} // namespace gate::transpiler

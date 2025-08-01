@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include "test_helpers.h"
-#include "notal_transpiler/Lexer.h"
-#include "notal_transpiler/Parser.h"
-#include "notal_transpiler/CodeGenerator.h"
+#include "../helpers/test_helpers.h"
+#include "gate/transpiler/NotalLexer.h"
+#include "gate/transpiler/NotalParser.h"
+#include "gate/transpiler/PascalCodeGenerator.h"
 #include <vector>
 #include <string>
 
@@ -33,13 +33,13 @@ ALGORITMA
         -> n * temp
 )";
 
-    notal::Lexer lexer(source);
-    std::vector<notal::Token> tokens = lexer.allTokens();
-    notal::Parser parser(tokens);
-    std::shared_ptr<notal::ast::ProgramStmt> program = parser.parse();
+    gate::transpiler::NotalLexer lexer(source);
+    std::vector<gate::core::Token> tokens = lexer.getAllTokens();
+    gate::transpiler::NotalParser parser(tokens);
+    std::shared_ptr<gate::ast::ProgramStmt> program = parser.parse();
     ASSERT_NE(program, nullptr);
 
-    notal::CodeGenerator generator;
+    gate::transpiler::PascalCodeGenerator generator;
     std::string result = generator.generate(program);
 
     std::string expected = R"(
@@ -50,6 +50,11 @@ var
 
 function factorial(n: integer): integer; forward;
 procedure printResult(val: integer); forward;
+
+procedure printResult(val: integer);
+begin
+  writeln('Factorial is: ', val);
+end;
 
 function factorial(n: integer): integer;
 var
@@ -64,11 +69,6 @@ begin
     temp := factorial((n - 1));
     factorial := (n * temp);
   end;
-end;
-
-procedure printResult(val: integer);
-begin
-  writeln('Factorial is: ', val);
 end;
 
 begin

@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include "test_helpers.h"
-#include "notal_transpiler/Lexer.h"
-#include "notal_transpiler/Parser.h"
-#include "notal_transpiler/ASTPrinter.h"
+#include "../helpers/test_helpers.h"
+#include "gate/transpiler/NotalLexer.h"
+#include "gate/transpiler/NotalParser.h"
+#include "gate/ast/ASTPrinter.h"
 #include <vector>
 #include <string>
 
@@ -16,15 +16,15 @@ ALGORITMA
     output(x + 1)
 )";
 
-    notal::Lexer lexer(source);
-    std::vector<notal::Token> tokens = lexer.allTokens();
+    gate::transpiler::NotalLexer lexer(source);
+    std::vector<gate::core::Token> tokens = lexer.getAllTokens();
 
-    notal::Parser parser(tokens);
-    std::shared_ptr<notal::ast::ProgramStmt> program = parser.parse();
+    gate::transpiler::NotalParser parser(tokens);
+    std::shared_ptr<gate::ast::ProgramStmt> program = parser.parse();
 
     ASSERT_NE(program, nullptr);
 
-    notal::ASTPrinter printer;
+    gate::ast::ASTPrinter printer;
     std::string result = printer.print(program);
 
     std::string expected = R"(
@@ -53,29 +53,29 @@ ALGORITMA
         '-': output('Kurang')
         otherwise: output('Lainnya')
 )";
-    notal::Lexer lexer(source);
-    notal::Parser parser(lexer.allTokens());
+    gate::transpiler::NotalLexer lexer(source);
+    gate::transpiler::NotalParser parser(lexer.getAllTokens());
     auto program = parser.parse();
 
     ASSERT_NE(program, nullptr);
     auto algoritma = program->algoritma;
     ASSERT_EQ(static_cast<long long>(algoritma->body->statements.size()), 1LL);
 
-    auto dependOnStmt = std::dynamic_pointer_cast<notal::ast::DependOnStmt>(algoritma->body->statements[0]);
+    auto dependOnStmt = std::dynamic_pointer_cast<gate::ast::DependOnStmt>(algoritma->body->statements[0]);
     ASSERT_NE(dependOnStmt, nullptr);
-    ASSERT_NE(dependOnStmt->expression, nullptr);
+    ASSERT_EQ(static_cast<long long>(dependOnStmt->expressions.size()), 1LL);
     ASSERT_EQ(static_cast<long long>(dependOnStmt->cases.size()), 2LL);
     ASSERT_NE(dependOnStmt->otherwiseBranch, nullptr);
 
     // Case '+'
     ASSERT_EQ(static_cast<long long>(dependOnStmt->cases[0].conditions.size()), 1LL);
-    auto cond1 = std::dynamic_pointer_cast<notal::ast::Literal>(dependOnStmt->cases[0].conditions[0]);
+    auto cond1 = std::dynamic_pointer_cast<gate::ast::Literal>(dependOnStmt->cases[0].conditions[0]);
     ASSERT_NE(cond1, nullptr);
     ASSERT_EQ(std::any_cast<std::string>(cond1->value), "+");
 
     // Case '-'
     ASSERT_EQ(static_cast<long long>(dependOnStmt->cases[1].conditions.size()), 1LL);
-    auto cond2 = std::dynamic_pointer_cast<notal::ast::Literal>(dependOnStmt->cases[1].conditions[0]);
+    auto cond2 = std::dynamic_pointer_cast<gate::ast::Literal>(dependOnStmt->cases[1].conditions[0]);
     ASSERT_NE(cond2, nullptr);
     ASSERT_EQ(std::any_cast<std::string>(cond2->value), "-");
 }
@@ -90,23 +90,23 @@ ALGORITMA
         nilai > 90: output('A')
         nilai > 80: output('B')
 )";
-    notal::Lexer lexer(source);
-    notal::Parser parser(lexer.allTokens());
+    gate::transpiler::NotalLexer lexer(source);
+    gate::transpiler::NotalParser parser(lexer.getAllTokens());
     auto program = parser.parse();
 
     ASSERT_NE(program, nullptr);
     auto algoritma = program->algoritma;
     ASSERT_EQ(static_cast<long long>(algoritma->body->statements.size()), 1LL);
 
-    auto dependOnStmt = std::dynamic_pointer_cast<notal::ast::DependOnStmt>(algoritma->body->statements[0]);
+    auto dependOnStmt = std::dynamic_pointer_cast<gate::ast::DependOnStmt>(algoritma->body->statements[0]);
     ASSERT_NE(dependOnStmt, nullptr);
-    ASSERT_NE(dependOnStmt->expression, nullptr);
+    ASSERT_EQ(static_cast<long long>(dependOnStmt->expressions.size()), 1LL);
     ASSERT_EQ(static_cast<long long>(dependOnStmt->cases.size()), 2LL);
-    ASSERT_EQ(dependOnStmt->otherwiseBranch, nullptr); // Corrected: should be nullptr
+    ASSERT_EQ(dependOnStmt->otherwiseBranch, nullptr);
 
     // Case nilai > 90
     ASSERT_EQ(static_cast<long long>(dependOnStmt->cases[0].conditions.size()), 1LL);
-    auto cond1 = std::dynamic_pointer_cast<notal::ast::Binary>(dependOnStmt->cases[0].conditions[0]);
+    auto cond1 = std::dynamic_pointer_cast<gate::ast::Binary>(dependOnStmt->cases[0].conditions[0]);
     ASSERT_NE(cond1, nullptr);
 }
 
@@ -157,27 +157,27 @@ KAMUS
 ALGORITMA
     output(PI)
 )";
-    notal::Lexer lexer(source);
-    notal::Parser parser(lexer.allTokens());
+    gate::transpiler::NotalLexer lexer(source);
+    gate::transpiler::NotalParser parser(lexer.getAllTokens());
     auto program = parser.parse();
 
     ASSERT_NE(program, nullptr);
     ASSERT_NE(program->kamus, nullptr);
     ASSERT_EQ(static_cast<long long>(program->kamus->declarations.size()), 2LL);
 
-    auto constDecl1 = std::dynamic_pointer_cast<notal::ast::ConstDeclStmt>(program->kamus->declarations[0]);
+    auto constDecl1 = std::dynamic_pointer_cast<gate::ast::ConstDeclStmt>(program->kamus->declarations[0]);
     ASSERT_NE(constDecl1, nullptr);
     EXPECT_EQ(constDecl1->name.lexeme, "PI");
-    EXPECT_EQ(constDecl1->type.type, notal::TokenType::REAL);
-    auto literal1 = std::dynamic_pointer_cast<notal::ast::Literal>(constDecl1->initializer);
+    EXPECT_EQ(constDecl1->type.type, gate::core::TokenType::REAL);
+    auto literal1 = std::dynamic_pointer_cast<gate::ast::Literal>(constDecl1->initializer);
     ASSERT_NE(literal1, nullptr);
     EXPECT_EQ(std::any_cast<double>(literal1->value), 3.14);
 
-    auto constDecl2 = std::dynamic_pointer_cast<notal::ast::ConstDeclStmt>(program->kamus->declarations[1]);
+    auto constDecl2 = std::dynamic_pointer_cast<gate::ast::ConstDeclStmt>(program->kamus->declarations[1]);
     ASSERT_NE(constDecl2, nullptr);
     EXPECT_EQ(constDecl2->name.lexeme, "MAX");
-    EXPECT_EQ(constDecl2->type.type, notal::TokenType::INTEGER);
-    auto literal2 = std::dynamic_pointer_cast<notal::ast::Literal>(constDecl2->initializer);
+    EXPECT_EQ(constDecl2->type.type, gate::core::TokenType::INTEGER);
+    auto literal2 = std::dynamic_pointer_cast<gate::ast::Literal>(constDecl2->initializer);
     ASSERT_NE(literal2, nullptr);
     EXPECT_EQ(std::any_cast<int>(literal2->value), 100);
 }
@@ -190,8 +190,8 @@ KAMUS
 ALGORITMA
     input(nama)
 )";
-    notal::Lexer lexer(source);
-    notal::Parser parser(lexer.allTokens());
+    gate::transpiler::NotalLexer lexer(source);
+    gate::transpiler::NotalParser parser(lexer.getAllTokens());
     auto program = parser.parse();
 
     ASSERT_NE(program, nullptr);
@@ -199,7 +199,7 @@ ALGORITMA
     ASSERT_NE(program->algoritma->body, nullptr);
     ASSERT_EQ(static_cast<long long>(program->algoritma->body->statements.size()), 1LL);
 
-    auto inputStmt = std::dynamic_pointer_cast<notal::ast::InputStmt>(program->algoritma->body->statements[0]);
+    auto inputStmt = std::dynamic_pointer_cast<gate::ast::InputStmt>(program->algoritma->body->statements[0]);
     ASSERT_NE(inputStmt, nullptr);
     EXPECT_EQ(inputStmt->variable->name.lexeme, "nama");
 }

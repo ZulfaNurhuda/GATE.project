@@ -4,12 +4,12 @@
 #include <regex>
 #include <cxxopts.hpp>
 
-#include "notal_transpiler/Lexer.h"
-#include "notal_transpiler/Parser.h"
-#include "notal_transpiler/CodeGenerator.h"
-#include "notal_transpiler/Token.h"
-#include "notal_transpiler/AST/Stmt.h"
-#include "notal_transpiler/AST/Expr.h"
+#include "gate/transpiler/NotalLexer.h"
+#include "gate/transpiler/NotalParser.h"
+#include "gate/transpiler/PascalCodeGenerator.h"
+#include "gate/core/Token.h"
+#include "gate/ast/Statement.h"
+#include "gate/ast/Expression.h"
 
 // Pre-transpilation step to remove comments
 std::string removeComments(const std::string& source) {
@@ -19,13 +19,13 @@ std::string removeComments(const std::string& source) {
 }
 
 int main(int argc, char* argv[]) {
-    cxxopts::Options options("notal_transpiler", "A transpiler from NOTAL to Pascal.");
+    cxxopts::Options options("gate", "A transpiler from NOTAL to Pascal.");
 
     options.add_options()
         ("i,input", "Input NOTAL file", cxxopts::value<std::string>())
         ("o,output", "Output Pascal file (optional)", cxxopts::value<std::string>()->default_value(""))
         ("h,help", "Print usage");
-    
+
     options.parse_positional("input");
     options.positional_help("[<input file>]");
 
@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
     std::string inputFile = result["input"].as<std::string>();
     std::string outputFile = result["output"].as<std::string>();
 
-    std::cout << "NOTAL Transpiler" << std::endl;
+    std::cout << "GATE Transpiler" << std::endl;
     std::cout << "Input file: " << inputFile << std::endl;
     if (!outputFile.empty()) {
         std::cout << "Output file: " << outputFile << std::endl;
@@ -68,20 +68,17 @@ int main(int argc, char* argv[]) {
     std::string source = removeComments(sourceWithComments);
 
     try {
-        // 2. Initialize Lexer
-        notal::Lexer lexer(source);
-        std::vector<notal::Token> tokens = lexer.allTokens();
+        // Use fully qualified names for clarity
+        gate::transpiler::NotalLexer lexer(source);
+        std::vector<gate::core::Token> tokens = lexer.getAllTokens();
 
-        // 3. Initialize Parser
-        notal::Parser parser(tokens);
-        std::shared_ptr<notal::ast::ProgramStmt> program = parser.parse();
+        gate::transpiler::NotalParser parser(tokens);
+        std::shared_ptr<gate::ast::ProgramStmt> program = parser.parse();
 
         if (program) {
-            // 4. Generate Pascal code
-            notal::CodeGenerator generator;
+            gate::transpiler::PascalCodeGenerator generator;
             std::string pascalCode = generator.generate(program);
-            
-            // 5. Write to outputFile or stdout
+
             if (!outputFile.empty()) {
                 std::ofstream outFile(outputFile);
                 if (outFile.is_open()) {

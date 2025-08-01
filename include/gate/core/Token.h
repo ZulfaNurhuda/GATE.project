@@ -1,10 +1,10 @@
-#ifndef NOTAL_TRANSPILER_TOKEN_H
-#define NOTAL_TRANSPILER_TOKEN_H
+#ifndef GATE_CORE_TOKEN_H
+#define GATE_CORE_TOKEN_H
 
 #include <string>
 #include <unordered_map>
 
-namespace notal {
+namespace gate::core {
 
     enum class TokenType {
         // Special
@@ -63,7 +63,7 @@ namespace notal {
         LBRACE, RBRACE, // { }
     };
 
-    const std::string& TokenTypeToString(TokenType type);
+    const std::string& tokenTypeToString(TokenType type);
 
     struct Token {
         TokenType type;
@@ -74,7 +74,7 @@ namespace notal {
         std::string toString() const;
     };
 
-    static std::unordered_map<std::string, TokenType> KEYWORDS = {
+    static const std::unordered_map<std::string, TokenType> KEYWORDS = {
         {"PROGRAM", TokenType::PROGRAM},
         {"KAMUS", TokenType::KAMUS},
         {"ALGORITMA", TokenType::ALGORITMA},
@@ -122,6 +122,6 @@ namespace notal {
         {"false", TokenType::BOOLEAN_LITERAL}
     };
 
-} // namespace notal
+} // namespace gate::core
 
-#endif // NOTAL_TRANSPILER_TOKEN_H
+#endif // GATE_CORE_TOKEN_H

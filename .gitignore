@@ -1,3 +1,7 @@
+# Build output directories
+/build/
+/bin/
+
 # ===================================================================
 # General-purpose .gitignore for C/C++ projects
 #

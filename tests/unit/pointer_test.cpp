@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "test_helpers.h"
+#include "../helpers/test_helpers.h"
 
 TEST(PointerTest, PointerDeclaration) {
     std::string source = R"(

@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include "test_helpers.h"
+#include "../helpers/test_helpers.h"
 
 TEST(ArrayTest, StaticArrayDeclaration) {
-    std::string notal_code = R"(
+    std::string notalCode = R"(
 PROGRAM StaticArrayTest
 KAMUS
     matrix: array[1..10][1..5] of integer
@@ -20,12 +20,12 @@ begin
   matrix[1, 1] := 10;
 end.
 )";
-    std::string generated_code = transpile(notal_code);
+    std::string generated_code = transpile(notalCode);
     ASSERT_EQ(normalizeCode(generated_code), normalizeCode(expected_pascal_code));
 }
 
 TEST(ArrayTest, DynamicArrayDeclarationAndAllocation) {
-    std::string notal_code = R"(
+    std::string notalCode = R"(
 PROGRAM DynamicArrayTest
 KAMUS
     data1D: array of integer
@@ -49,12 +49,12 @@ begin
   SetLength(data3D, 2, 3, 4);
 end.
 )";
-    std::string generated_code = transpile(notal_code);
+    std::string generated_code = transpile(notalCode);
     ASSERT_EQ(normalizeCode(generated_code), normalizeCode(expected_pascal_code));
 }
 
 TEST(ArrayTest, ArrayAccessAndAssignment) {
-    std::string notal_code = R"(
+    std::string notalCode = R"(
 PROGRAM ArrayAccessTest
 KAMUS
     staticArr: array[0..4] of integer
@@ -82,12 +82,12 @@ begin
   writeln(dynArr[4]);
 end.
 )";
-    std::string generated_code = transpile(notal_code);
+    std::string generated_code = transpile(notalCode);
     ASSERT_EQ(normalizeCode(generated_code), normalizeCode(expected_pascal_code));
 }
 
 TEST(ArrayTest, MultiDimensionalAccess) {
-    std::string notal_code = R"(
+    std::string notalCode = R"(
 PROGRAM MultiDimTest
 KAMUS
     matrix: array[1..2][1..2] of integer
@@ -111,12 +111,12 @@ begin
   writeln(matrix[2, 2]);
 end.
 )";
-    std::string generated_code = transpile(notal_code);
+    std::string generated_code = transpile(notalCode);
     ASSERT_EQ(normalizeCode(generated_code), normalizeCode(expected_pascal_code));
 }
 
 TEST(ArrayTest, Deallocation) {
-    std::string notal_code = R"(
+    std::string notalCode = R"(
 PROGRAM DeallocationTest
 KAMUS
     data1D: array of integer
@@ -148,12 +148,12 @@ begin
   Dispose(ptr);
 end.
 )";
-    std::string generated_code = transpile(notal_code);
+    std::string generated_code = transpile(notalCode);
     ASSERT_EQ(normalizeCode(generated_code), normalizeCode(expected_pascal_code));
 }
 
 TEST(ArrayTest, DeallocationMismatchError) {
-    std::string notal_code = R"(
+    std::string notalCode = R"(
 PROGRAM DeallocationMismatchTest
 KAMUS
     data2D: array of array of integer
@@ -161,11 +161,11 @@ ALGORITMA
     allocate(data2D, 5, 5)
     deallocate[3](data2D)
 )";
-    ASSERT_THROW(transpile(notal_code), std::runtime_error);
+    ASSERT_THROW(transpile(notalCode), std::runtime_error);
 }
 
 TEST(ArrayTest, DeallocationWithEmptyBrackets) {
-    std::string notal_code = R"(
+    std::string notalCode = R"(
 PROGRAM DeallocEmptyBracketTest
 KAMUS
     data1D: array of integer
@@ -183,6 +183,6 @@ begin
   SetLength(data1D, 0);
 end.
 )";
-    std::string generated_code = transpile(notal_code);
+    std::string generated_code = transpile(notalCode);
     ASSERT_EQ(normalizeCode(generated_code), normalizeCode(expected_pascal_code));
 }
