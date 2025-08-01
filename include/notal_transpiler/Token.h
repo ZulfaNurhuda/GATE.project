@@ -30,7 +30,7 @@ namespace notal {
         ALLOCATE, DEALLOCATE,
         
         // Logical Operators
-        AND, OR, NOT,
+        AND, OR, NOT, XOR,
 
         // Arithmetic Operators
         DIV, MOD,
@@ -110,6 +110,7 @@ namespace notal {
         {"and", TokenType::AND},
         {"or", TokenType::OR},
         {"not", TokenType::NOT},
+        {"xor", TokenType::XOR},
         {"div", TokenType::DIV},
         {"mod", TokenType::MOD},
         {"integer", TokenType::INTEGER},

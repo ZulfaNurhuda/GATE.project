@@ -199,3 +199,38 @@ ALGORITMA
     EXPECT_TRUE(generated_pascal.find("procedure SetvalidAge") != std::string::npos);
     EXPECT_TRUE(generated_pascal.find("SetvalidAge(validAge, 25);") != std::string::npos);
 }
+
+TEST(NewFeaturesTest, XorOperator) {
+    std::string source = R"(
+PROGRAM XorTest
+KAMUS
+    a: boolean
+    b: boolean
+    c: boolean
+ALGORITMA
+    a <- true
+    b <- false
+    c <- a xor b
+)";
+
+    std::string generated_pascal = transpile(source);
+
+    notal::Lexer lexer(source);
+    std::vector<notal::Token> tokens = lexer.allTokens();
+    notal::Parser parser(tokens);
+    std::shared_ptr<notal::ast::ProgramStmt> program = parser.parse();
+    ASSERT_NE(program, nullptr);
+    ASSERT_NE(program->algoritma, nullptr);
+    ASSERT_NE(program->algoritma->body, nullptr);
+    ASSERT_EQ(static_cast<long long>(program->algoritma->body->statements.size()), 3LL);
+
+    auto exprStmt = std::dynamic_pointer_cast<notal::ast::ExpressionStmt>(program->algoritma->body->statements[2]);
+    ASSERT_NE(exprStmt, nullptr);
+    auto assignment = std::dynamic_pointer_cast<notal::ast::Assign>(exprStmt->expression);
+    ASSERT_NE(assignment, nullptr);
+    auto binaryExpr = std::dynamic_pointer_cast<notal::ast::Binary>(assignment->value);
+    ASSERT_NE(binaryExpr, nullptr);
+    EXPECT_EQ(binaryExpr->op.type, notal::TokenType::XOR);
+
+    EXPECT_TRUE(generated_pascal.find("c := (a xor b);") != std::string::npos);
+}

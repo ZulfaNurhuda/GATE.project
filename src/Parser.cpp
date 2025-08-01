@@ -528,8 +528,11 @@ std::shared_ptr<ast::Stmt> Parser::dependOnStatement() {
     Token dependToken = consume(TokenType::DEPEND, "Expect 'depend'.");
     consume(TokenType::ON, "Expect 'on' after 'depend'.");
     consume(TokenType::LPAREN, "Expect '(' after 'on'.");
-    std::shared_ptr<ast::Expr> expr = expression();
-    consume(TokenType::RPAREN, "Expect ')' after depend on expression.");
+    std::vector<std::shared_ptr<ast::Expr>> expressions;
+    do {
+        expressions.push_back(expression());
+    } while (match({TokenType::COMMA}));
+    consume(TokenType::RPAREN, "Expect ')' after depend on expression(s).");
 
     std::vector<ast::DependOnStmt::Case> cases;
     std::shared_ptr<ast::Stmt> otherwiseBranch = nullptr;
@@ -576,7 +579,7 @@ std::shared_ptr<ast::Stmt> Parser::dependOnStatement() {
         otherwiseBranch = std::make_shared<ast::BlockStmt>(parseBlockByIndentation(otherwiseIndent));
     }
 
-    return std::make_shared<ast::DependOnStmt>(expr, cases, otherwiseBranch);
+    return std::make_shared<ast::DependOnStmt>(expressions, cases, otherwiseBranch);
 }
 
 std::shared_ptr<ast::Stmt> Parser::outputStatement() {
@@ -764,9 +767,11 @@ std::shared_ptr<ast::Expr> Parser::assignment() {
         Token equals = previous();
         std::shared_ptr<ast::Expr> value = assignment();
 
+        auto unary_expr = std::dynamic_pointer_cast<ast::Unary>(expr);
         if (std::dynamic_pointer_cast<ast::Variable>(expr) ||
             std::dynamic_pointer_cast<ast::FieldAccess>(expr) ||
-            std::dynamic_pointer_cast<ast::ArrayAccess>(expr)) {
+            std::dynamic_pointer_cast<ast::ArrayAccess>(expr) ||
+            (unary_expr && unary_expr->op.type == TokenType::POWER)) {
             return std::make_shared<ast::Assign>(expr, value);
         }
 
@@ -778,7 +783,7 @@ std::shared_ptr<ast::Expr> Parser::assignment() {
 
 std::shared_ptr<ast::Expr> Parser::logic_or() {
     std::shared_ptr<ast::Expr> expr = logic_and();
-    while (match({TokenType::OR})) {
+    while (match({TokenType::OR, TokenType::XOR})) {
         Token op = previous();
         std::shared_ptr<ast::Expr> right = logic_and();
         expr = std::make_shared<ast::Binary>(expr, op, right);
@@ -847,7 +852,7 @@ std::shared_ptr<ast::Expr> Parser::power() {
 }
 
 std::shared_ptr<ast::Expr> Parser::unary() {
-    if (match({TokenType::NOT, TokenType::MINUS})) {
+    if (match({TokenType::NOT, TokenType::MINUS, TokenType::AT})) {
         Token op = previous();
         std::shared_ptr<ast::Expr> right = unary();
         return std::make_shared<ast::Unary>(op, right);
@@ -867,7 +872,34 @@ std::shared_ptr<ast::Expr> Parser::call() {
         else if (match({TokenType::DOT})) {
             Token name = consume(TokenType::IDENTIFIER, "Expect field name after '.'.");
             expr = std::make_shared<ast::FieldAccess>(expr, name);
-        } else {
+        } else if (check(TokenType::POWER)) {
+            // This is ambiguous: could be binary power or postfix dereference.
+            // We'll use a lookahead to decide.
+            Token next = peekNext();
+            bool is_binary = (
+                next.type == TokenType::IDENTIFIER ||
+                next.type == TokenType::INTEGER_LITERAL ||
+                next.type == TokenType::REAL_LITERAL ||
+                next.type == TokenType::STRING_LITERAL ||
+                next.type == TokenType::BOOLEAN_LITERAL ||
+                next.type == TokenType::LPAREN ||
+                next.type == TokenType::AT ||
+                next.type == TokenType::NOT ||
+                next.type == TokenType::MINUS
+            );
+
+            if (is_binary) {
+                // This is likely a binary power operator, let power() handle it.
+                break;
+            } else {
+                // This is a postfix dereference operator.
+                Token op = advance(); // Consume POWER token
+                // We reuse the Unary node to avoid changing the AST.
+                // The CodeGenerator will need to know how to handle a Unary node with a POWER op.
+                expr = std::make_shared<ast::Unary>(op, expr);
+            }
+        }
+        else {
             break;
         }
     }

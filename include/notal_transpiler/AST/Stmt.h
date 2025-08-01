@@ -242,12 +242,12 @@ struct DependOnStmt : Stmt, public std::enable_shared_from_this<DependOnStmt> {
             : conditions(std::move(conditions)), body(std::move(body)) {}
     };
 
-    std::shared_ptr<Expr> expression;
+    std::vector<std::shared_ptr<Expr>> expressions;
     std::vector<Case> cases;
     std::shared_ptr<Stmt> otherwiseBranch; // Can be null
 
-    DependOnStmt(std::shared_ptr<Expr> expression, std::vector<Case> cases, std::shared_ptr<Stmt> otherwiseBranch)
-        : expression(std::move(expression)), cases(std::move(cases)), otherwiseBranch(std::move(otherwiseBranch)) {}
+    DependOnStmt(std::vector<std::shared_ptr<Expr>> expressions, std::vector<Case> cases, std::shared_ptr<Stmt> otherwiseBranch)
+        : expressions(std::move(expressions)), cases(std::move(cases)), otherwiseBranch(std::move(otherwiseBranch)) {}
 
     std::any accept(StmtVisitor& visitor) override {
         return visitor.visit(shared_from_this());
