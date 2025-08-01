@@ -462,10 +462,10 @@ var
 
 **Both NOTAL and Pascal**
 
-| **Logical Operators**  | **Representation** |
-| :--------------------- | :----------------- |
-| Binary Logic Operation | `and`, `or`        |
-| Logical Negation       | `not`              |
+| **Logical Operators**  | **Representation**    |
+| :--------------------- | :-------------------- |
+| Binary Logic Operation | `and`, `or`, `xor`    |
+| Logical Negation       | `not`                 |
 
 ### **3.2.4. String Operator**
 

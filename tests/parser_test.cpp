@@ -110,6 +110,44 @@ ALGORITMA
     ASSERT_NE(cond1, nullptr);
 }
 
+TEST(ParserTest, DependOnMultipleVariables) {
+    std::string source = R"(
+PROGRAM DependOnMultiple
+KAMUS
+    score: integer
+    attendance: integer
+ALGORITMA
+    depend on (score, attendance)
+        score >= 90 and attendance >= 80: output('Excellent')
+        score >= 70 and attendance >= 60: output('Good')
+        otherwise: output('Needs improvement')
+)";
+    std::string expected_pascal_code = R"(
+program DependOnMultiple;
+
+var
+  score: integer;
+  attendance: integer;
+
+begin
+  if ((score >= 90) and (attendance >= 80)) then
+  begin
+    writeln('Excellent');
+  end
+  else if ((score >= 70) and (attendance >= 60)) then
+  begin
+    writeln('Good');
+  end
+  else
+  begin
+    writeln('Needs improvement');
+  end;
+end.
+)";
+    std::string generated_code = transpile(source);
+    ASSERT_EQ(normalizeCode(generated_code), normalizeCode(expected_pascal_code));
+}
+
 TEST(ParserTest, ConstantDeclaration) {
     std::string source = R"(
 PROGRAM TestConstants

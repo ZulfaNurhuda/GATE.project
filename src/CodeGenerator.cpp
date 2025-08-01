@@ -337,7 +337,14 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::Binary> expr) {
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::Unary> expr) {
-    return "(" + expr->op.lexeme + evaluate(expr->right) + ")";
+    if (expr->op.type == TokenType::POWER) { // Postfix dereference
+        return "(" + evaluate(expr->right) + expr->op.lexeme + ")";
+    }
+    if (expr->op.type == TokenType::AT) { // Prefix reference
+        return expr->op.lexeme + "(" + evaluate(expr->right) + ")";
+    }
+    // Default prefix operators
+    return "(" + expr->op.lexeme + " " + evaluate(expr->right) + ")";
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::Grouping> expr) {
@@ -349,16 +356,22 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::Variable> expr) {
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::Literal> expr) {
-    if (expr->value.type() == typeid(int)) return std::to_string(std::any_cast<int>(expr->value));
+    if (expr->value.type() == typeid(int)) {
+        return std::to_string(std::any_cast<int>(expr->value));
+    }
     if (expr->value.type() == typeid(double)) {
         std::string s = std::to_string(std::any_cast<double>(expr->value));
         s.erase(s.find_last_not_of('0') + 1, std::string::npos);
         if (s.back() == '.') s.pop_back();
         return s;
     }
-    if (expr->value.type() == typeid(bool)) return std::any_cast<bool>(expr->value) ? "true" : "false";
-    if (expr->value.type() == typeid(std::string)) return "'" + std::any_cast<std::string>(expr->value) + "'";
-    return "null";
+    if (expr->value.type() == typeid(bool)) {
+        return std::string(std::any_cast<bool>(expr->value) ? "true" : "false");
+    }
+    if (expr->value.type() == typeid(std::string)) {
+        return std::string("'") + std::any_cast<std::string>(expr->value) + "'";
+    }
+    return std::string("null");
 }
 
 std::any CodeGenerator::visit(std::shared_ptr<ast::ArrayAccess> expr) {
@@ -446,8 +459,8 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::DependOnStmt> stmt) {
         if (!allLiterals) break;
     }
 
-    if (allLiterals) {
-        out << "case " << evaluate(stmt->expression) << " of\n";
+    if (allLiterals && stmt->expressions.size() == 1) {
+        out << "case " << evaluate(stmt->expressions[0]) << " of\n";
         indentLevel++;
         for (const auto& caseItem : stmt->cases) {
             indent();
@@ -483,14 +496,14 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::DependOnStmt> stmt) {
         indent();
         out << "end;\n";
     } else {
+        // Complex cases or multiple 'depend on' variables -> generate if-then-else
         for (size_t i = 0; i < stmt->cases.size(); ++i) {
-            if (i > 0) out << "else ";
-            out << "if (";
-            for (size_t j = 0; j < stmt->cases[i].conditions.size(); ++j) {
-                out << evaluate(stmt->expression) << " = " << evaluate(stmt->cases[i].conditions[j]);
-                if (j < stmt->cases[i].conditions.size() - 1) out << " or ";
+            if (i > 0) {
+                indent();
+                out << "else ";
             }
-            out << ") then\n";
+            // The condition is the expression in the case itself
+            out << "if " << evaluate(stmt->cases[i].conditions[0]) << " then\n";
             indent();
             out << "begin\n";
             indentLevel++;
@@ -498,15 +511,16 @@ std::any CodeGenerator::visit(std::shared_ptr<ast::DependOnStmt> stmt) {
             indentLevel--;
             indent();
             out << "end";
-            if (i < stmt->cases.size() - 1 || stmt->otherwiseBranch) {
-                out << "\n";
-                indent();
+
+            if (i == stmt->cases.size() - 1 && !stmt->otherwiseBranch) {
+                 out << ";\n";
             } else {
-                out << ";\n";
+                 out << "\n";
             }
         }
 
         if (stmt->otherwiseBranch) {
+            indent();
             out << "else\n";
             indent();
             out << "begin\n";
@@ -732,7 +746,7 @@ void CodeGenerator::scanForCastingFunctions(std::shared_ptr<ast::Stmt> stmt) {
         scanForCastingFunctions(repeatStmt->body);
         scanExpression(repeatStmt->condition);
     } else if (auto dependOnStmt = std::dynamic_pointer_cast<ast::DependOnStmt>(stmt)) {
-        scanExpression(dependOnStmt->expression);
+        for (const auto& expr : dependOnStmt->expressions) scanExpression(expr);
         for (const auto& c : dependOnStmt->cases) {
             for (const auto& cond : c.conditions) scanExpression(cond);
             scanForCastingFunctions(c.body);
