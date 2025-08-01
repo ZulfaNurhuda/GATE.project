@@ -15,13 +15,13 @@
 # traditional blacklist approach if this causes issues.
 # -------------------------------------------------------------------
 # Ignore all files and directories
-*
+#*
 # Un-ignore directories to allow traversal
-!*/
+#!*/
 # Un-ignore files with an extension
-!*.*
+#!*.*
 # Un-ignore this .gitignore file
-!.gitignore
+#!.gitignore
 # Un-ignore Makefiles, which may not have an extension
 !makefile
 !Makefile
