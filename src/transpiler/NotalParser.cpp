@@ -1,4 +1,5 @@
 #include "gate/transpiler/NotalParser.h"
+#include "gate/utils/ErrorHandler.h"
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -19,13 +20,7 @@ std::shared_ptr<ProgramStmt> NotalParser::parse() {
     try {
         return program();
     } catch (const ParseError& error) {
-        std::cerr << "[Line " << error.token.line << "] Error";
-        if (error.token.type == TokenType::END_OF_FILE) {
-            std::cerr << " at end";
-        } else {
-            std::cerr << " at '" << error.token.lexeme << "'";
-        }
-        std::cerr << ": " << error.what() << std::endl;
+        synchronize();
         return nullptr;
     }
 }
@@ -90,16 +85,21 @@ std::shared_ptr<AlgoritmaStmt> NotalParser::algoritma() {
 }
 
 std::shared_ptr<Statement> NotalParser::declaration() {
-    if (check(TokenType::PROCEDURE) || check(TokenType::FUNCTION)) {
-        return subprogramDeclaration();
+    try {
+        if (check(TokenType::PROCEDURE) || check(TokenType::FUNCTION)) {
+            return subprogramDeclaration();
+        }
+        if (match({TokenType::CONSTANT})) {
+            return constantDeclaration();
+        }
+        if (match({TokenType::TYPE})) {
+            return typeDeclaration();
+        }
+        return varDeclaration();
+    } catch (ParseError& e) {
+        synchronize();
+        return nullptr;
     }
-    if (match({TokenType::CONSTANT})) {
-        return constantDeclaration();
-    }
-    if (match({TokenType::TYPE})) {
-        return typeDeclaration();
-    }
-    return varDeclaration();
 }
 
 std::shared_ptr<Statement> NotalParser::constantDeclaration() {
@@ -251,24 +251,29 @@ std::vector<std::shared_ptr<Statement>> NotalParser::parseBlockByIndentation(int
 }
 
 std::shared_ptr<Statement> NotalParser::statement() {
-    if (check(TokenType::IF)) return ifStatement();
-    if (check(TokenType::WHILE)) return whileStatement();
-    if (match({TokenType::REPEAT})) {
-        if (peek().type == TokenType::INTEGER_LITERAL) return repeatNTimesStatement();
-        return repeatUntilStatement();
-    }
-    if (check(TokenType::DEPEND)) return dependOnStatement();
-    if (check(TokenType::OUTPUT)) return outputStatement();
-    if (check(TokenType::INPUT)) return inputStatement();
-    if (check(TokenType::ALLOCATE)) return allocateStatement();
-    if (check(TokenType::DEALLOCATE)) return deallocateStatement();
-    if (peek().type == TokenType::IDENTIFIER && peekNext().type == TokenType::TRAVERSAL) return traversalStatement();
-    if (check(TokenType::ITERATE)) return iterateStopStatement();
-    if (match({TokenType::STOP})) return std::make_shared<StopStmt>();
-    if (match({TokenType::SKIP})) return std::make_shared<SkipStmt>();
-    if (check(TokenType::ARROW)) return returnStatement();
+    try {
+        if (check(TokenType::IF)) return ifStatement();
+        if (check(TokenType::WHILE)) return whileStatement();
+        if (match({TokenType::REPEAT})) {
+            if (peek().type == TokenType::INTEGER_LITERAL) return repeatNTimesStatement();
+            return repeatUntilStatement();
+        }
+        if (check(TokenType::DEPEND)) return dependOnStatement();
+        if (check(TokenType::OUTPUT)) return outputStatement();
+        if (check(TokenType::INPUT)) return inputStatement();
+        if (check(TokenType::ALLOCATE)) return allocateStatement();
+        if (check(TokenType::DEALLOCATE)) return deallocateStatement();
+        if (peek().type == TokenType::IDENTIFIER && peekNext().type == TokenType::TRAVERSAL) return traversalStatement();
+        if (check(TokenType::ITERATE)) return iterateStopStatement();
+        if (match({TokenType::STOP})) return std::make_shared<StopStmt>();
+        if (match({TokenType::SKIP})) return std::make_shared<SkipStmt>();
+        if (check(TokenType::ARROW)) return returnStatement();
 
-    return expressionStatement();
+        return expressionStatement();
+    } catch (ParseError& e) {
+        synchronize();
+        return nullptr;
+    }
 }
 
 std::shared_ptr<Statement> NotalParser::allocateStatement() {
@@ -949,12 +954,21 @@ Token NotalParser::consume(TokenType type, const std::string& message) {
 }
 
 NotalParser::ParseError NotalParser::error(const Token& token, const std::string& message) {
+    if (!panicMode_) {
+        panicMode_ = true;
+        GATE_ERROR(message, "", token.line, token.column,
+                   "Check syntax near '" + token.lexeme + "'");
+    }
     return ParseError(token, message);
 }
 
 void NotalParser::synchronize() {
+    panicMode_ = false;
     advance();
+
     while (!isAtEnd()) {
+        if (previous().type == TokenType::END_OF_FILE) return;
+
         switch (peek().type) {
             case TokenType::PROGRAM:
             case TokenType::KAMUS:
@@ -964,7 +978,6 @@ void NotalParser::synchronize() {
             case TokenType::IF:
             case TokenType::WHILE:
             case TokenType::REPEAT:
-            case TokenType::OUTPUT:
                 return;
             default:
                 break;

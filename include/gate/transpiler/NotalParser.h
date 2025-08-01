@@ -21,6 +21,7 @@ private:
     std::vector<core::Token> tokens_;
     size_t current_ = 0;
     std::vector<std::shared_ptr<ast::Statement>> subprogramDeclarations_;
+    bool panicMode_ = false;
 
     // --- Grammar Rule Methods ---
     std::shared_ptr<ast::ProgramStmt> program();
