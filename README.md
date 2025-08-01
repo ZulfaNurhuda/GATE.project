@@ -43,22 +43,28 @@ Ready to bring your NOTAL creations to life? Here's how to get GATE up and runni
     To build GATE, you'll need a C++ compiler. You can choose between traditional Makefiles or modern CMake. Below are the setup instructions for different platforms.
 
     #### **Windows**
+
     - **For MinGW-w64 (for Makefile or CMake):**
+
         1. **Download MSYS2:** Visit [https://www.msys2.org/](https://www.msys2.org/) and download the installer.
         2. **Install & Update:** Follow the installer and then run `pacman -Syu` in the MSYS2 terminal, repeating as necessary.
         3. **Install Toolchain:** Run `pacman -S --needed base-devel mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake`. This installs GCC, Make, and CMake.
         4. **Add to PATH:** Add `C:\msys64\mingw64\bin` to your system's PATH for easy access.
+
     - **For MSVC (for CMake):**
+
         1. **Install Visual Studio:** Download [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/) or another version.
         2. **Select Workload:** During installation, choose the **"Desktop development with C++"** workload. This includes the MSVC compiler, CMake, and NMake.
 
     #### **Linux (Debian/Ubuntu-based)**
+
     ```bash
     sudo apt update
     sudo apt install build-essential cmake
     ```
 
     #### **macOS**
+
     ```bash
     xcode-select --install
     brew install cmake
@@ -75,7 +81,9 @@ GATE supports two build systems: **Makefile** (for simplicity on Unix-like syste
 Perfect for Linux, macOS, or Windows with MSYS2.
 
 - **On Linux, macOS, or MSYS2 (MinGW-w64):**
+
   Simply run `make` in the root directory:
+
   ```bash
   make
   ```
@@ -87,6 +95,7 @@ This command compiles the project and places the `gate` executable in the `bin/`
 CMake is recommended for its flexibility, especially on Windows with different compilers.
 
 - **A. Unix-like (Linux/macOS):**
+
   ```bash
   # Create and configure the build directory
   cmake -B build
@@ -96,6 +105,7 @@ CMake is recommended for its flexibility, especially on Windows with different c
   ```
 
 - **B. Windows with MSYS2 (MinGW-w64):**
+
   ```bash
   # Create and configure using the MSYS Makefiles generator
   cmake -B build -G "MSYS Makefiles"
@@ -105,7 +115,9 @@ CMake is recommended for its flexibility, especially on Windows with different c
   ```
 
 - **C. Windows with Visual Studio (MSVC):**
+
   Open a **Developer Command Prompt for VS** or ensure `cl.exe` and `cmake.exe` are in your PATH.
+
   ```bash
   # Create a build directory (CMake auto-detects MSVC)
   cmake -B build
