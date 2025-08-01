@@ -56,12 +56,27 @@ Ready to bring your NOTAL creations to life? Here's how to get GATE up and runni
         1. **Install Visual Studio:** Download [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/) or another version.
         2. **Select Workload:** During installation, choose the **"Desktop development with C++"** workload. This includes the MSVC compiler, CMake, and NMake.
 
-    #### **Linux (Debian/Ubuntu-based)**
+    #### **Linux**
+ 
+    - **Debian/Ubuntu-based:**
+    
+       ```bash
+       sudo apt update
+       sudo apt install build-essential cmake
+       ```
+ 
+    - **Fedora/RHEL-based:**
+    
+      ```bash
+      sudo dnf groupinstall "Development Tools"
+      sudo dnf install cmake
+      ```
 
-    ```bash
-    sudo apt update
-    sudo apt install build-essential cmake
-    ```
+    - **Arch Linux:**
+    
+      ```bash
+      sudo pacman -S base-devel cmake
+      ```
 
     #### **macOS**
 
