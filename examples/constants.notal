@@ -1,9 +1,16 @@
 PROGRAM ConstantsExample
 
 KAMUS
-    const INT MAX = 100
-    const FLOAT PI = 3.14159
-    const STRING HELLO = "Hello, World!"
+  constant MAX: real = 100
+  constant PI: real = 3.14159
+  constant HELLO: string = "Hello, World!"
+  constant Naur: NULL = NULL
+  constant EMPTY_PTR: NULL = NULL
+  
+  constant COUNT = 50
+  constant RATE = 2.5
+  constant TITLE = "Welcome"
+  constant ACTIVE = true
 
 ALGORITMA
     output(HELLO)

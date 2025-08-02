@@ -7,6 +7,7 @@
 #include <set>
 #include <fstream>
 #include <vector>
+#include <typeinfo>
 
 namespace gate::transpiler {
 
@@ -72,6 +73,7 @@ std::string PascalCodeGenerator::pascalType(const Token& token) {
         case TokenType::BOOLEAN: return "boolean";
         case TokenType::CHARACTER: return "char";
         case TokenType::POINTER: return "^";
+        case TokenType::NULL_TYPE: return "pointer";
         case TokenType::IDENTIFIER: return token.lexeme;
         default: throw std::runtime_error("Unknown type for code generation: " + token.lexeme);
     }
@@ -265,6 +267,48 @@ std::any PascalCodeGenerator::visit(std::shared_ptr<DeallocateStmt> stmt) {
 std::any PascalCodeGenerator::visit(std::shared_ptr<ConstDeclStmt> stmt) {
     auto literal = std::dynamic_pointer_cast<Literal>(stmt->initializer);
     if (literal) constants_[stmt->name.lexeme] = literal;
+    
+    // Type checking: if explicit type is provided, validate against initializer
+    if (stmt->type.lexeme != "") { // Non-empty type means explicit type was provided
+        if (literal) {
+            TokenType expectedType = stmt->type.type;
+            std::string actualTypeName;
+            
+            // Determine actual type from std::any value
+            if (literal->value.type() == typeid(bool)) {
+                actualTypeName = "boolean";
+            } else if (literal->value.type() == typeid(int)) {
+                actualTypeName = "integer";
+            } else if (literal->value.type() == typeid(double)) {
+                actualTypeName = "real";
+            } else if (literal->value.type() == typeid(std::string)) {
+                actualTypeName = "string";
+            } else if (literal->value.type() == typeid(std::nullptr_t)) {
+                actualTypeName = "NULL";
+            } else {
+                actualTypeName = "unknown";
+            }
+            
+            // Check type compatibility
+            bool typeMatch = false;
+            if ((expectedType == TokenType::BOOLEAN && actualTypeName == "boolean") ||
+                (expectedType == TokenType::INTEGER && actualTypeName == "integer") ||
+                (expectedType == TokenType::REAL && actualTypeName == "real") ||
+                (expectedType == TokenType::STRING && actualTypeName == "string") ||
+                (expectedType == TokenType::NULL_TYPE && actualTypeName == "NULL")) {
+                typeMatch = true;
+            } else if (expectedType == TokenType::REAL && actualTypeName == "integer") {
+                // Allow integer to real promotion
+                typeMatch = true;
+            }
+            
+            if (!typeMatch) {
+                throw std::runtime_error("Type mismatch in constant declaration '" + stmt->name.lexeme + 
+                    "': expected " + stmt->type.lexeme + " but got " + actualTypeName);
+            }
+        }
+    }
+    
     indent();
     out_ << stmt->name.lexeme << " = " << evaluate(stmt->initializer) << ";\n";
     return {};
@@ -380,7 +424,10 @@ std::any PascalCodeGenerator::visit(std::shared_ptr<Literal> expr) {
     if (expr->value.type() == typeid(std::string)) {
         return std::string("'") + std::any_cast<std::string>(expr->value) + "'";
     }
-    return std::string("null");
+    if (expr->value.type() == typeid(std::nullptr_t)) {
+        return std::string("nil");
+    }
+    return std::string("nil");
 }
 
 std::any PascalCodeGenerator::visit(std::shared_ptr<ArrayAccess> expr) {

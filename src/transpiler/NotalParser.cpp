@@ -104,16 +104,28 @@ std::shared_ptr<Statement> NotalParser::declaration() {
 
 std::shared_ptr<Statement> NotalParser::constantDeclaration() {
     Token name = consume(TokenType::IDENTIFIER, "Expect constant name.");
-    consume(TokenType::COLON, "Expect ':' after constant name.");
-
-    Token type = advance();
-    if (type.type != TokenType::INTEGER && type.type != TokenType::REAL &&
-        type.type != TokenType::STRING && type.type != TokenType::BOOLEAN &&
-        type.type != TokenType::CHARACTER) {
-            throw error(type, "Expect a type name.");
-    }
-
-    consume(TokenType::EQUAL, "Expect '=' after type.");
+    
+    Token type;
+     if (match({TokenType::COLON})) {
+         // Syntax: constant name: type = value (explicit typing)
+         type = advance();
+         if (type.type != TokenType::INTEGER && type.type != TokenType::REAL &&
+             type.type != TokenType::STRING && type.type != TokenType::BOOLEAN &&
+             type.type != TokenType::CHARACTER && type.type != TokenType::NULL_TYPE &&
+             type.type != TokenType::NULL_LITERAL && type.type != TokenType::IDENTIFIER) {
+                 throw error(type, "Expect a type name.");
+         }
+         
+         // Convert NULL_LITERAL to NULL_TYPE for type declarations
+         if (type.type == TokenType::NULL_LITERAL) {
+             type.type = TokenType::NULL_TYPE;
+         }
+         consume(TokenType::EQUAL, "Expect '=' after type.");
+     } else {
+         // Syntax: constant name = value (type inferred)
+         consume(TokenType::EQUAL, "Expect '=' after constant name.");
+         type = Token{TokenType::IDENTIFIER, "", 0, 0}; // Empty type for inference
+     }
 
     std::shared_ptr<Expression> initializer = expression();
 
@@ -179,7 +191,7 @@ std::shared_ptr<Statement> NotalParser::varDeclaration() {
     if (type.type != TokenType::INTEGER && type.type != TokenType::REAL &&
         type.type != TokenType::STRING && type.type != TokenType::BOOLEAN &&
         type.type != TokenType::CHARACTER && type.type != TokenType::IDENTIFIER &&
-        type.type != TokenType::POINTER) {
+        type.type != TokenType::POINTER && type.type != TokenType::NULL_TYPE) {
             throw error(type, "Expect a type name.");
     }
 
@@ -920,6 +932,7 @@ std::shared_ptr<Expression> NotalParser::primary() {
     if (match({TokenType::INTEGER_LITERAL})) return std::make_shared<Literal>(std::stoi(previous().lexeme));
     if (match({TokenType::REAL_LITERAL})) return std::make_shared<Literal>(std::stod(previous().lexeme));
     if (match({TokenType::STRING_LITERAL})) return std::make_shared<Literal>(previous().lexeme);
+    if (match({TokenType::NULL_LITERAL})) return std::make_shared<Literal>(nullptr);
     if (match({TokenType::IDENTIFIER})) return std::make_shared<Variable>(previous());
     if (match({TokenType::LPAREN})) {
         std::shared_ptr<Expression> expr = expression();

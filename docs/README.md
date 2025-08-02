@@ -150,8 +150,11 @@ PROGRAM ProgramName
 ```
 KAMUS
   constant PI: real = 3.14159
-  constant MAX_SIZE: integer = 100
-  constant GREETING: string = 'Selamat Datang'
+constant MAX_SIZE: integer = 100
+constant GREETING: string = 'Selamat Datang'
+constant COUNT = 50
+constant RATE = 2.5
+constant TITLE = 'Welcome'
 
   type Point: < x: real,
                 y: real >
@@ -222,6 +225,27 @@ ALGORITMA
 |  NOTAL   |  Pascal  |
 | :------: | :------: |
 | `string` | `string` |
+
+#### **3.1.1.6. NULL**
+
+|  NOTAL   |  Pascal  |
+| :------: | :------: |
+| `NULL` | `nil` |
+
+> The `NULL` type in NOTAL is equivalent to Pascal's `nil` and represents a null pointer or empty reference. It can be used for pointer initialization and comparison.
+
+**Example:**
+```
+KAMUS
+    constant Naur: NULL = NULL
+    constant EMPTY_PTR: NULL = NULL
+    ptr: pointer to integer
+
+ALGORITMA
+    ptr <- NULL
+    if ptr = NULL then
+        output("Pointer is null")
+```
 
 ### **3.1.2. Structured Types (Record)**
 

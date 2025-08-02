@@ -36,10 +36,10 @@ namespace gate::core {
         DIV, MOD,
 
         // Data Types
-        INTEGER, REAL, BOOLEAN, CHARACTER, STRING,
+        INTEGER, REAL, BOOLEAN, CHARACTER, STRING, NULL_TYPE,
 
         // Literals
-        INTEGER_LITERAL, REAL_LITERAL, STRING_LITERAL, BOOLEAN_LITERAL,
+        INTEGER_LITERAL, REAL_LITERAL, STRING_LITERAL, BOOLEAN_LITERAL, NULL_LITERAL,
 
         // Identifiers
         IDENTIFIER,
@@ -118,6 +118,7 @@ namespace gate::core {
         {"boolean", TokenType::BOOLEAN},
         {"character", TokenType::CHARACTER},
         {"string", TokenType::STRING},
+        {"NULL", TokenType::NULL_TYPE},
         {"true", TokenType::BOOLEAN_LITERAL},
         {"false", TokenType::BOOLEAN_LITERAL}
     };

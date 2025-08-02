@@ -187,6 +187,13 @@ core::Token NotalLexer::identifier() {
     }
 
     std::string text = source_.substr(start_, current_ - start_);
+    
+    if (text == "true" || text == "false") {
+        return makeToken(core::TokenType::BOOLEAN_LITERAL);
+    } else if (text == "NULL") {
+        return makeToken(core::TokenType::NULL_LITERAL);
+    }
+    
     auto it = core::KEYWORDS.find(text);
     if (it != core::KEYWORDS.end()) {
         return makeToken(it->second);
