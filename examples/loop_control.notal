@@ -1,5 +1,4 @@
 PROGRAM LoopControlExample
-{ Example demonstrating 'stop' and 'skip' loop control }
 
 KAMUS
   i: integer

@@ -1,10 +1,10 @@
-PROGRAM IterateStopLoopExample
+PROGRAM IterateStopExample
 
 KAMUS
     command: string
 
 ALGORITMA
-    output("--- Demonstrating Iterate-Stop Loop ---")
+    output("Demonstrating Iterate-Stop Loop")
     iterate
         output("Enter command (type 'quit' to exit):")
         input(command)

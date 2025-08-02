@@ -1,0 +1,10 @@
+PROGRAM WhileExample
+
+KAMUS
+    i: integer
+
+ALGORITMA
+    i <- 1
+    while i <= 5 do
+        output(i)
+        i <- i + 1

@@ -1,4 +1,5 @@
-PROGRAM CastingTest
+PROGRAM CastingExample
+
 KAMUS
   myInt: integer
   myStr: string

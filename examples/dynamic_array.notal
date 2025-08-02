@@ -1,37 +1,28 @@
 PROGRAM DynamicArrayExample
-{ Contoh penggunaan array dinamis multidimensional }
 
 KAMUS
-  { Deklarasi array dinamis 2D }
   dynMatrix: array of array of integer
-
-  { Variabel untuk ukuran dan iterasi }
   rows, cols: integer
   i, j: integer
 
 ALGORITMA
-  { Meminta ukuran dari pengguna }
   output("Masukkan jumlah baris untuk matriks dinamis:")
   input(rows)
   output("Masukkan jumlah kolom untuk matriks dinamis:")
   input(cols)
 
-  { Alokasi memori untuk array dinamis }
   allocate(dynMatrix, rows, cols)
 
-  { Mengisi matriks dengan nilai }
   output("Mengisi matriks dinamis...")
   i traversal [0..rows-1]
     j traversal [0..cols-1]
       dynMatrix[i][j] <- (i + 1) * (j + 1)
 
-  { Menampilkan isi matriks }
   output("Isi Matriks Dinamis ", rows, "x", cols, ":")
   i traversal [0..rows-1]
     j traversal [0..cols-1]
       output("dynMatrix[", i, "][", j, "] = ", dynMatrix[i][j])
 
-  { Dealokasi memori }
   output("Dealokasi memori matriks...")
   deallocate[2](dynMatrix)
   output("Memori telah dibebaskan.")

@@ -23,7 +23,7 @@ KAMUS
   temp_sum: integer
 ALGORITMA
   temp_sum <- x + y
-  y <- y * 2 { Modifies input/output parameter }
-  z <- temp_sum { Assigns to output parameter }
-  msg <- "Calculation complete!" { Assigns to output string parameter }
+  y <- y * 2
+  z <- temp_sum
+  msg <- "Calculation complete!"
   output("Inside procedure - X: ", x, ", Y: ", y, ", Z: ", z, ", Msg: ", msg)

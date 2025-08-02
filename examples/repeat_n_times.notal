@@ -3,11 +3,11 @@ PROGRAM RepeatNTimesExample
 KAMUS
     
 ALGORITMA
-    output("--- Demonstrating Repeat N Times Loop (3 times) ---")
+    output("Demonstrating Repeat N Times Loop (3 times)")
     repeat 3 times
         output("Hello from Repeat N Times!")
 
-    output("\n--- Demonstrating Repeat N Times Loop (variable times) ---")
+    output("\nDemonstrating Repeat N Times Loop (variable times)")
     repeat 5 times
         output("This will print 5 times.")
 

@@ -1,0 +1,11 @@
+PROGRAM ConstantsExample
+
+KAMUS
+    const INT MAX = 100
+    const FLOAT PI = 3.14159
+    const STRING HELLO = "Hello, World!"
+
+ALGORITMA
+    output(HELLO)
+    output(MAX)
+    output(PI)

@@ -1,0 +1,9 @@
+PROGRAM InputExample
+
+KAMUS
+    name: string
+
+ALGORITMA
+    output("Please enter your name:")
+    input(name)
+    output("Hello, ", name, "!")
