@@ -1,3 +1,25 @@
+/**
+ * @file PascalCodeGenerator.cpp
+ * @brief Implementation of Pascal code generator for the GATE transpiler
+ * 
+ * This file contains the implementation of the PascalCodeGenerator class,
+ * which translates NOTAL Abstract Syntax Tree (AST) nodes into equivalent
+ * Pascal source code. The generator implements the Visitor pattern to
+ * traverse AST nodes and produce properly formatted Pascal code.
+ * 
+ * The code generator handles:
+ * - Program structure translation
+ * - Variable and constant declarations
+ * - Control flow statements (if, while, for, etc.)
+ * - Expression evaluation and type conversion
+ * - Procedure and function definitions
+ * - Array operations and memory management
+ * 
+ * @author GATE Project Team
+ * @version 1.0
+ * @date 2025
+ */
+
 #include "gate/transpiler/PascalCodeGenerator.h"
 #include <stdexcept>
 #include <iostream>
@@ -16,6 +38,13 @@ using gate::core::Token;
 using gate::core::TokenType;
 using namespace gate::ast;
 
+/**
+ * @brief Set of built-in casting functions that require special handling
+ * 
+ * These functions are treated as type conversion operations and require
+ * special implementation in the generated Pascal code. They handle conversion
+ * between basic types like boolean, char, integer, real, and string.
+ */
 const std::set<std::string> BUILTIN_CASTING_FUNCTIONS = {
     "BooleanToChar", "BooleanToInteger", "BooleanToReal", "BooleanToString",
     "CharToBoolean", "CharToInteger", "CharToReal", "CharToString",
@@ -24,6 +53,19 @@ const std::set<std::string> BUILTIN_CASTING_FUNCTIONS = {
     "StringHexToInteger", "StringToBoolean", "StringToChar", "StringToInteger", "StringToReal"
 };
 
+/**
+ * @brief Generates Pascal code from a NOTAL program AST
+ * 
+ * This is the main entry point for code generation. It performs a
+ * pre-scan of the AST to gather necessary information, then generates
+ * the complete Pascal program.
+ * 
+ * @param program Shared pointer to the root ProgramStmt AST node
+ * @return std::string Complete Pascal source code
+ * 
+ * @note Returns empty string if program is null
+ * @note Performs pre-scanning to identify loop variables and other constructs
+ */
 std::string PascalCodeGenerator::generate(std::shared_ptr<ProgramStmt> program) {
     if (!program) return "";
     preScan(program->algoritma);
@@ -31,6 +73,18 @@ std::string PascalCodeGenerator::generate(std::shared_ptr<ProgramStmt> program) 
     return out_.str();
 }
 
+/**
+ * @brief Pre-scans the AST to gather information needed for code generation
+ * 
+ * This method performs a preliminary traversal of the AST to identify
+ * constructs that require special handling, such as loop variables that
+ * need to be declared in the variable section.
+ * 
+ * @param stmt Shared pointer to the statement to scan
+ * 
+ * @note Recursively scans all nested statements
+ * @note Generates unique loop iterator variable names for RepeatNTimesStmt
+ */
 void PascalCodeGenerator::preScan(std::shared_ptr<Statement> stmt) {
     if (!stmt) return;
 
@@ -59,12 +113,35 @@ void PascalCodeGenerator::preScan(std::shared_ptr<Statement> stmt) {
     }
 }
 
+/**
+ * @brief Outputs indentation spaces based on current indentation level
+ * 
+ * Generates proper indentation for the current line based on the
+ * indentLevel_ member variable. Each level adds two spaces.
+ * 
+ * @note Uses two spaces per indentation level
+ * @note Called before outputting each line that needs indentation
+ */
 void PascalCodeGenerator::indent() {
     for (int i = 0; i < indentLevel_; ++i) {
         out_ << "  ";
     }
 }
 
+/**
+ * @brief Converts a NOTAL type token to Pascal type string
+ * 
+ * Maps NOTAL type tokens to their equivalent Pascal type names.
+ * Handles both built-in types and user-defined types.
+ * 
+ * @param token The type token to convert
+ * @return std::string Pascal type name
+ * 
+ * @throws std::runtime_error if the token type is unknown
+ * 
+ * @note IDENTIFIER tokens are assumed to be user-defined types
+ * @note POINTER type returns "^" for pointer prefix
+ */
 std::string PascalCodeGenerator::pascalType(const Token& token) {
     switch (token.type) {
         case TokenType::INTEGER: return "integer";
@@ -79,6 +156,19 @@ std::string PascalCodeGenerator::pascalType(const Token& token) {
     }
 }
 
+/**
+ * @brief Evaluates an expression and returns its Pascal code representation
+ * 
+ * This method visits an expression node and extracts the generated Pascal
+ * code string from the visitor result. It provides safe type casting with
+ * error handling for cases where the result is not a string.
+ * 
+ * @param expr Shared pointer to the expression to evaluate
+ * @return std::string Pascal code representation of the expression
+ * 
+ * @note Returns empty string if the expression result cannot be cast to string
+ * @note Used primarily for generating expression code within statements
+ */
 std::string PascalCodeGenerator::evaluate(std::shared_ptr<Expression> expr) {
     auto result = expr->accept(*this);
     try {
@@ -88,6 +178,17 @@ std::string PascalCodeGenerator::evaluate(std::shared_ptr<Expression> expr) {
     }
 }
 
+/**
+ * @brief Executes a statement by visiting it with the code generator
+ * 
+ * This method safely visits a statement node to generate its Pascal code.
+ * It includes null pointer checking to prevent crashes on invalid AST nodes.
+ * 
+ * @param stmt Shared pointer to the statement to execute
+ * 
+ * @note Does nothing if the statement pointer is null
+ * @note The generated code is written to the output stream during visitation
+ */
 void PascalCodeGenerator::execute(std::shared_ptr<Statement> stmt) {
     if (stmt) {
         stmt->accept(*this);
@@ -96,6 +197,24 @@ void PascalCodeGenerator::execute(std::shared_ptr<Statement> stmt) {
 
 // --- Statement Visitors ---
 
+/**
+ * @brief Visits a program statement and generates the complete Pascal program
+ * 
+ * This method generates the main structure of a Pascal program, including:
+ * - Program header with name
+ * - Uses clause for required units (if casting functions are used)
+ * - Variable and type declarations from KAMUS section
+ * - Forward declarations for procedures and functions
+ * - Casting function implementations
+ * - Subprogram implementations
+ * - Main program body
+ * 
+ * @param stmt Shared pointer to the ProgramStmt AST node
+ * @return std::any Empty any (output is written to stream)
+ * 
+ * @note Scans for casting functions before generation
+ * @note Generates forward declarations before implementations
+ */
 std::any PascalCodeGenerator::visit(std::shared_ptr<ProgramStmt> stmt) {
     for (const auto& sub : stmt->subprograms) {
         scanForCastingFunctions(sub);
@@ -779,6 +898,19 @@ std::string PascalCodeGenerator::generateConstraintCheck(std::shared_ptr<Constra
 
 // --- Casting Function Helpers ---
 
+/**
+ * @brief Recursively scans statements to identify used casting functions
+ * 
+ * This method performs a deep traversal of statement AST nodes to identify
+ * all casting function calls that need to be implemented in the generated
+ * Pascal code. It handles all statement types and recursively scans nested
+ * statements and expressions.
+ * 
+ * @param stmt Shared pointer to the statement to scan
+ * 
+ * @note Populates the usedCastingFunctions_ set with found casting functions
+ * @note Handles all statement types including control flow and declarations
+ */
 void PascalCodeGenerator::scanForCastingFunctions(std::shared_ptr<Statement> stmt) {
     if (!stmt) return;
 
@@ -824,6 +956,18 @@ void PascalCodeGenerator::scanForCastingFunctions(std::shared_ptr<Statement> stm
     }
 }
 
+/**
+ * @brief Recursively scans expressions to identify used casting functions
+ * 
+ * This method performs a deep traversal of expression AST nodes to identify
+ * casting function calls. It specifically looks for function calls where the
+ * callee is a built-in casting function and adds them to the used functions set.
+ * 
+ * @param expr Shared pointer to the expression to scan
+ * 
+ * @note Populates the usedCastingFunctions_ set with found casting functions
+ * @note Handles all expression types including nested expressions
+ */
 void PascalCodeGenerator::scanExpression(std::shared_ptr<Expression> expr) {
     if (!expr) return;
 
@@ -854,6 +998,17 @@ void PascalCodeGenerator::scanExpression(std::shared_ptr<Expression> expr) {
 }
 
 
+/**
+ * @brief Generates forward declarations for used casting functions
+ * 
+ * This method reads the casting function definition files and extracts
+ * the function signatures to generate forward declarations. This is necessary
+ * in Pascal to declare functions before they are implemented.
+ * 
+ * @note Reads from src/casting/*.casting.txt files
+ * @note Only generates declarations for functions found in usedCastingFunctions_
+ * @note Appends "; forward;" to function signatures
+ */
 void PascalCodeGenerator::generateCastingForwardDecls() {
     for (const auto& funcName : usedCastingFunctions_) {
         std::string filePath = "src/casting/" + funcName + ".casting.txt";
@@ -873,7 +1028,17 @@ void PascalCodeGenerator::generateCastingForwardDecls() {
     }
 }
 
-
+/**
+ * @brief Generates complete implementations for used casting functions
+ * 
+ * This method reads the complete casting function implementation files
+ * and includes them in the generated Pascal code. These implementations
+ * provide the actual type conversion logic.
+ * 
+ * @note Reads entire content from src/casting/*.casting.txt files
+ * @note Only generates implementations for functions found in usedCastingFunctions_
+ * @note Includes complete function bodies with all necessary logic
+ */
 void PascalCodeGenerator::generateCastingImplementations() {
     for (const auto& funcName : usedCastingFunctions_) {
         std::string filePath = "src/casting/" + funcName + ".casting.txt";

@@ -1,3 +1,13 @@
+# ==============================================================================
+# Git Ignore Configuration for GATE Project
+#
+# This file specifies which files and directories should be ignored by Git
+# version control. It includes build artifacts, temporary files, and local
+# configuration files that should not be committed to the repository.
+#
+# Project: GATE (Ganesha Algorithmic Transpiler Engine)
+# ==============================================================================
+
 # Build output directories
 /build/
 /bin/

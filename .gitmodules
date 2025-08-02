@@ -1,3 +1,18 @@
+# ==============================================================================
+# Git Submodules Configuration for GATE Project
+#
+# This file defines the external dependencies managed as Git submodules.
+# These dependencies are included in the vendor/ directory and are essential
+# for building and testing the GATE transpiler.
+#
+# Dependencies:
+#   - cxxopts: Command-line argument parsing library
+#   - googletest: Google's C++ testing framework
+#
+# To initialize submodules after cloning:
+#   git submodule update --init --recursive
+# ==============================================================================
+
 [submodule "vendor/cxxopts"]
 	path = vendor/cxxopts
 	url = https://github.com/jarro2783/cxxopts.git

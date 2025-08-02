@@ -1,9 +1,39 @@
+/**
+ * @file ASTPrinter.cpp
+ * @brief Implementation of the AST printer for the GATE transpiler
+ * 
+ * This file contains the implementation of the ASTPrinter class, which provides
+ * functionality to convert Abstract Syntax Tree (AST) nodes into human-readable
+ * string representations. This is essential for debugging, development, and
+ * understanding the structure of parsed NOTAL programs.
+ * 
+ * The ASTPrinter implements the Visitor pattern to traverse and print different
+ * types of AST nodes, including statements, expressions, and declarations.
+ * 
+ * @author GATE Project Team
+ * @version 1.0
+ * @date 2025
+ */
+
 #include "gate/ast/ASTPrinter.h"
 #include <sstream>
 #include <any>
 
 namespace gate::ast {
 
+/**
+ * @brief Prints the entire program AST to a string
+ * 
+ * This method serves as the main entry point for AST printing. It takes
+ * a program statement (the root of the AST) and converts it to a
+ * human-readable string representation.
+ * 
+ * @param program Shared pointer to the root ProgramStmt node
+ * @return std::string String representation of the entire AST
+ * 
+ * @note Uses the visitor pattern to traverse the AST
+ * @note The returned string includes proper indentation and formatting
+ */
 std::string ASTPrinter::print(std::shared_ptr<ProgramStmt> program) {
     if (!program) return "(null program)";
     try {
@@ -15,6 +45,16 @@ std::string ASTPrinter::print(std::shared_ptr<ProgramStmt> program) {
 
 // --- Statement Visitors ---
 
+/**
+ * @brief Visits a program statement node
+ * 
+ * Generates a string representation of the entire program, including
+ * the program name, KAMUS section, and ALGORITMA section with proper
+ * indentation and formatting.
+ * 
+ * @param stmt Shared pointer to the ProgramStmt node
+ * @return std::any String representation wrapped in std::any
+ */
 std::any ASTPrinter::visit(std::shared_ptr<ProgramStmt> stmt) {
     std::stringstream ss;
     ss << "(PROGRAM " << stmt->name.lexeme << "\n";
@@ -26,18 +66,42 @@ std::any ASTPrinter::visit(std::shared_ptr<ProgramStmt> stmt) {
     return ss.str();
 }
 
+/**
+ * @brief Visits a KAMUS (dictionary/declarations) statement node
+ * 
+ * @param stmt Shared pointer to the KamusStmt node
+ * @return std::any String representation of all declarations
+ */
 std::any ASTPrinter::visit(std::shared_ptr<KamusStmt> stmt) {
     return parenthesizeStatement("KAMUS", stmt->declarations);
 }
 
+/**
+ * @brief Visits an ALGORITMA (algorithm) statement node
+ * 
+ * @param stmt Shared pointer to the AlgoritmaStmt node
+ * @return std::any String representation of the algorithm body
+ */
 std::any ASTPrinter::visit(std::shared_ptr<AlgoritmaStmt> stmt) {
     return "(ALGORITMA " + std::any_cast<std::string>(stmt->body->accept(*this)) + ")";
 }
 
+/**
+ * @brief Visits a block statement node
+ * 
+ * @param stmt Shared pointer to the BlockStmt node
+ * @return std::any String representation of all statements in the block
+ */
 std::any ASTPrinter::visit(std::shared_ptr<BlockStmt> stmt) {
     return parenthesizeStatement("block", stmt->statements);
 }
 
+/**
+ * @brief Visits a variable declaration statement node
+ * 
+ * @param stmt Shared pointer to the VarDeclStmt node
+ * @return std::any String representation of the variable declaration
+ */
 std::any ASTPrinter::visit(std::shared_ptr<VarDeclStmt> stmt) {
     return "(VAR_DECL " + stmt->name.lexeme + " : " + stmt->type.lexeme + ")";
 }
@@ -225,6 +289,19 @@ std::any ASTPrinter::visit(std::shared_ptr<ReturnStmt> stmt) {
 
 // --- Helper Methods ---
 
+/**
+ * @brief Helper method to format expressions with parentheses
+ * 
+ * This utility method creates a parenthesized string representation
+ * of a named construct with a list of expressions. It's used for
+ * formatting various expression types in a consistent manner.
+ * 
+ * @param name The name/type of the construct
+ * @param exprs Vector of expression pointers to include
+ * @return std::string Formatted string with parentheses
+ * 
+ * @note All expressions are visited and their string representations concatenated
+ */
 std::string ASTPrinter::parenthesize(const std::string& name, const std::vector<std::shared_ptr<Expression>>& exprs) {
     std::stringstream ss;
     ss << "(" << name;
@@ -235,6 +312,20 @@ std::string ASTPrinter::parenthesize(const std::string& name, const std::vector<
     return ss.str();
 }
 
+/**
+ * @brief Helper method to format statements with parentheses and indentation
+ * 
+ * This utility method creates a parenthesized string representation
+ * of a named construct with a list of statements. It handles proper
+ * indentation for nested structures.
+ * 
+ * @param name The name/type of the construct
+ * @param stmts Vector of statement pointers to include
+ * @return std::string Formatted string with parentheses and indentation
+ * 
+ * @note Increases indentation level for nested statements
+ * @note Each statement appears on a new line with proper indentation
+ */
 std::string ASTPrinter::parenthesizeStatement(const std::string& name, const std::vector<std::shared_ptr<Statement>>& stmts) {
     std::stringstream ss;
     ss << "(" << name;
@@ -247,6 +338,17 @@ std::string ASTPrinter::parenthesizeStatement(const std::string& name, const std
     return ss.str();
 }
 
+/**
+ * @brief Generates indentation string based on current nesting level
+ * 
+ * This helper method creates a string of spaces for proper indentation
+ * of nested AST structures. Each indentation level corresponds to 2 spaces.
+ * 
+ * @return std::string String containing appropriate number of spaces
+ * 
+ * @note Uses 2 spaces per indentation level
+ * @note Indentation level is managed by the visitor methods
+ */
 std::string ASTPrinter::indent() {
     return std::string(indentLevel_ * 2, ' ');
 }

@@ -1,3 +1,17 @@
+/**
+ * @file InputValidator.h
+ * @brief Input validation utilities for NOTAL source code
+ * 
+ * This file defines the InputValidator class that provides static methods
+ * for validating NOTAL source code input and output paths. It includes
+ * security checks to prevent malicious content and ensures input meets
+ * basic requirements for safe processing.
+ * 
+ * @author GATE Project Team
+ * @version 1.0
+ * @date 2025
+ */
+
 #pragma once
 #include <string>
 #include <vector>
@@ -5,16 +19,49 @@
 
 namespace gate::utils {
 
+/**
+ * @brief Utility class for validating NOTAL source code and file paths
+ * 
+ * The InputValidator provides static methods for validating NOTAL source code
+ * input to ensure it meets safety and structural requirements. It performs
+ * size checks, content validation, and security screening to prevent
+ * malicious code execution.
+ * 
+ * @author GATE Project Team
+ * @version 1.0
+ * @date 2025
+ */
 class InputValidator {
 public:
-    static constexpr size_t MAX_SOURCE_SIZE = 5 * 1024 * 1024; // 5MB for source code
+    /** @brief Maximum allowed source code size (5MB) */
+    static constexpr size_t MAX_SOURCE_SIZE = 5 * 1024 * 1024;
 
+    /**
+     * @brief Result structure for validation operations
+     * 
+     * Contains validation status, error messages, and warnings
+     * generated during the validation process.
+     */
     struct ValidationResult {
+        /** @brief Whether the validation passed */
         bool isValid;
+        /** @brief Error message if validation failed */
         std::string errorMessage;
+        /** @brief List of warnings (non-fatal issues) */
         std::vector<std::string> warnings;
     };
 
+    /**
+     * @brief Validate NOTAL source code for safety and structure
+     * @param source The NOTAL source code to validate
+     * @return ValidationResult containing validation status and messages
+     * 
+     * Performs comprehensive validation including:
+     * - Size limits (max 5MB)
+     * - Empty content check
+     * - Basic structure validation (PROGRAM keyword)
+     * - Security screening for malicious patterns
+     */
     static ValidationResult validateNotalSource(const std::string& source) {
         ValidationResult result{true, "", {}};
 
@@ -53,6 +100,16 @@ public:
         return result;
     }
 
+    /**
+     * @brief Validate output file path for security
+     * @param path The output file path to validate
+     * @return true if path is safe, false otherwise
+     * 
+     * Checks for potentially dangerous path patterns:
+     * - Directory traversal attempts (..)
+     * - Home directory references (~)
+     * - Command injection attempts (|, >)
+     */
     static bool isValidOutputPath(const std::string& path) {
         if (path.empty()) return false;
         if (path.find("..") != std::string::npos) return false;
