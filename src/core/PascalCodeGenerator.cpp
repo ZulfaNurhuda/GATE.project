@@ -20,7 +20,7 @@
  * @date 2025
  */
 
-#include "gate/transpiler/PascalCodeGenerator.h"
+#include "core/PascalCodeGenerator.h"
 #include <stdexcept>
 #include <iostream>
 #include <sstream>

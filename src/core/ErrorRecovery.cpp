@@ -1,7 +1,7 @@
-#include "gate/transpiler/ErrorRecovery.h"
-#include "gate/transpiler/NotalParser.h"
-#include "gate/diagnostics/DiagnosticEngine.h"
-#include "gate/core/Token.h"
+#include "core/ErrorRecovery.h"
+#include "core/NotalParser.h"
+#include "diagnostics/DiagnosticEngine.h"
+#include "core/Token.h"
 #include <set>
 #include <map>
 #include <vector>

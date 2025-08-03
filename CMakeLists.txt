@@ -84,15 +84,12 @@ add_subdirectory(vendor/cxxopts)
 # Automatically discover all source files for the core library
 # Excludes main.cpp to allow separate executable compilation
 # Source organization:
-#   - src/transpiler/: Lexer, Parser, and Code Generator implementations
+#   - src/core/: Core transpiler components (Lexer, Parser, Code Generator, Token, etc.)
 #   - src/ast/: Abstract Syntax Tree nodes and visitors
-#   - src/core/: Core language constructs (Token, etc.)
-#   - src/utils/: Utility classes (ErrorHandler, validators, etc.)
+#   - src/diagnostics/: Error handling and diagnostic reporting
 file(GLOB_RECURSE GATE_LIB_SOURCES
-    "src/transpiler/*.cpp"
-    "src/ast/*.cpp"
     "src/core/*.cpp"
-    "src/utils/*.cpp"
+    "src/ast/*.cpp"
     "src/diagnostics/*.cpp"
 )
 

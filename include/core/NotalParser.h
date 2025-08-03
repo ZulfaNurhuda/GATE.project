@@ -15,10 +15,10 @@
 #ifndef GATE_TRANSPILER_NOTAL_PARSER_H
 #define GATE_TRANSPILER_NOTAL_PARSER_H
 
-#include "gate/core/Token.h"
-#include "gate/ast/Expression.h"
-#include "gate/ast/Statement.h"
-#include "gate/diagnostics/DiagnosticEngine.h"
+#include "core/Token.h"
+#include "ast/Expression.h"
+#include "ast/Statement.h"
+#include "diagnostics/DiagnosticEngine.h"
 #include <vector>
 #include <memory>
 #include <stdexcept>

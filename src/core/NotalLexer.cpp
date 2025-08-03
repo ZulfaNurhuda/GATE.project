@@ -18,7 +18,7 @@
  * @date 2025
  */
 
-#include "gate/transpiler/NotalLexer.h"
+#include "core/NotalLexer.h"
 #include <cctype>
 #include <iostream>
 

@@ -1,4 +1,4 @@
-#include "gate/diagnostics/DiagnosticEngine.h"
+#include "diagnostics/DiagnosticEngine.h"
 #include <sstream>
 #include <iostream>
 #include <algorithm>

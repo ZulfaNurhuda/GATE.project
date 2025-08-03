@@ -108,11 +108,9 @@ GTEST_INC_PATHS = -I$(VENDOR_DIR)/googletest/googletest/include \
 #   - transpiler/: NotalLexer.cpp, NotalParser.cpp, PascalCodeGenerator.cpp
 #   - ast/: ASTPrinter.cpp and other AST-related implementations
 #   - core/: Token.cpp and other core language constructs
-#   - utils/: ErrorHandler and utility class implementations
 GATE_LIB_SRCS = $(wildcard $(SRC_DIR)/transpiler/*.cpp) \
                 $(wildcard $(SRC_DIR)/ast/*.cpp) \
                 $(wildcard $(SRC_DIR)/core/*.cpp) \
-                $(wildcard $(SRC_DIR)/utils/*.cpp) \
                 $(wildcard $(SRC_DIR)/diagnostics/*.cpp)
 
 # Main application source

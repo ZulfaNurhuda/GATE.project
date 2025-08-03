@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 #include "../helpers/test_helpers.h"
-#include "gate/transpiler/NotalLexer.h"
-#include "gate/transpiler/NotalParser.h"
-#include "gate/transpiler/PascalCodeGenerator.h"
+#include "core/NotalLexer.h"
+#include "core/NotalParser.h"
+#include "core/PascalCodeGenerator.h"
 #include <vector>
 #include <string>
 

@@ -16,7 +16,7 @@
 #ifndef GATE_AST_EXPRESSION_H
 #define GATE_AST_EXPRESSION_H
 
-#include "gate/core/Token.h"
+#include "core/Token.h"
 #include <any>
 #include <memory>
 #include <vector>

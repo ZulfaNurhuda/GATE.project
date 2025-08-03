@@ -1,8 +1,8 @@
 #include "test_helpers.h"
-#include "gate/transpiler/NotalLexer.h"
-#include "gate/transpiler/NotalParser.h"
-#include "gate/transpiler/PascalCodeGenerator.h"
-#include "gate/diagnostics/DiagnosticEngine.h"
+#include "core/NotalLexer.h"
+#include "core/NotalParser.h"
+#include "core/PascalCodeGenerator.h"
+#include "diagnostics/DiagnosticEngine.h"
 #include <cctype>
 #include <regex>
 #include <algorithm>

@@ -17,7 +17,7 @@
 #ifndef GATE_AST_STATEMENT_H
 #define GATE_AST_STATEMENT_H
 
-#include "gate/ast/Expression.h"
+#include "ast/Expression.h"
 #include <any>
 #include <memory>
 #include <vector>

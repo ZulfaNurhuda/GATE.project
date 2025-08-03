@@ -1,0 +1,8 @@
+PROGRAM ErrorExample
+
+KAMUS
+    i: integer
+
+ALGORITMA
+    i <- (10 + )
+    output(i)

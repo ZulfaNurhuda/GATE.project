@@ -15,8 +15,8 @@
 #ifndef GATE_TRANSPILER_PASCAL_CODE_GENERATOR_H
 #define GATE_TRANSPILER_PASCAL_CODE_GENERATOR_H
 
-#include "gate/ast/Expression.h"
-#include "gate/ast/Statement.h"
+#include "ast/Expression.h"
+#include "ast/Statement.h"
 #include <string>
 #include <sstream>
 #include <map>

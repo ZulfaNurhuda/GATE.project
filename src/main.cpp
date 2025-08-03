@@ -18,15 +18,15 @@
 #include <cxxopts.hpp>
 
 // GATE transpiler components
-#include "gate/transpiler/NotalLexer.h"
-#include "gate/transpiler/NotalParser.h"
-#include "gate/transpiler/PascalCodeGenerator.h"
-#include "gate/diagnostics/DiagnosticEngine.h"
-#include "gate/core/Token.h"
-#include "gate/ast/Statement.h"
-#include "gate/ast/Expression.h"
-#include "gate/utils/SecureFileReader.h"
-#include "gate/utils/InputValidator.h"
+#include "core/NotalLexer.h"
+#include "core/NotalParser.h"
+#include "core/PascalCodeGenerator.h"
+#include "diagnostics/DiagnosticEngine.h"
+#include "core/Token.h"
+#include "ast/Statement.h"
+#include "ast/Expression.h"
+#include "utils/SecureFileReader.h"
+#include "utils/InputValidator.h"
 
 /**
  * @brief Removes comments from NOTAL source code before transpilation

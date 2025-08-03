@@ -15,7 +15,7 @@
  * @date 2025
  */
 
-#include "gate/ast/ASTPrinter.h"
+#include "ast/ASTPrinter.h"
 #include <sstream>
 #include <any>
 

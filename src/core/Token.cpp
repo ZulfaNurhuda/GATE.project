@@ -12,7 +12,7 @@
  * @date 2025
  */
 
-#include "gate/core/Token.h"
+#include "core/Token.h"
 
 #include <sstream>
 

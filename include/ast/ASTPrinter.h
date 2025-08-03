@@ -15,8 +15,8 @@
 #ifndef GATE_AST_AST_PRINTER_H
 #define GATE_AST_AST_PRINTER_H
 
-#include "gate/ast/Expression.h"
-#include "gate/ast/Statement.h"
+#include "ast/Expression.h"
+#include "ast/Statement.h"
 #include <string>
 #include <any>
 #include <vector>

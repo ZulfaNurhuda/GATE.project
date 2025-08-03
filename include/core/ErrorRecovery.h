@@ -1,8 +1,8 @@
 #ifndef GATE_TRANSPILER_ERROR_RECOVERY_H
 #define GATE_TRANSPILER_ERROR_RECOVERY_H
 
-#include "gate/transpiler/NotalParser.h"
-#include "gate/core/Token.h"
+#include "core/NotalParser.h"
+#include "core/Token.h"
 #include <set>
 #include <map>
 #include <vector>

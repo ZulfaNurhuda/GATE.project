@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "gate/transpiler/NotalLexer.h"
+#include "core/NotalLexer.h"
 #include <vector>
 
 TEST(LexerTest, BasicProgram) {

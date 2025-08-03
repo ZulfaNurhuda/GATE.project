@@ -15,7 +15,7 @@
 #ifndef GATE_TRANSPILER_NOTAL_LEXER_H
 #define GATE_TRANSPILER_NOTAL_LEXER_H
 
-#include "gate/core/Token.h"
+#include "core/Token.h"
 #include <string>
 #include <vector>
 

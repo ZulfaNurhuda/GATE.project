@@ -16,9 +16,9 @@
  * @date 2025
  */
 
-#include "gate/transpiler/NotalParser.h"
-#include "gate/diagnostics/DiagnosticEngine.h"
-#include "gate/transpiler/ErrorRecovery.h"
+#include "core/NotalParser.h"
+#include "diagnostics/DiagnosticEngine.h"
+#include "core/ErrorRecovery.h"
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -1076,7 +1076,7 @@ bool NotalParser::isAtEnd() { return peek().type == TokenType::END_OF_FILE; }
  * @return Token The current token
  */
 Token NotalParser::peek() { return tokens_[current_]; }
-#include "gate/transpiler/ErrorRecovery.h"
+#include "core/ErrorRecovery.h"
 
 Token NotalParser::previous() { return tokens_[current_ - 1]; }
 
