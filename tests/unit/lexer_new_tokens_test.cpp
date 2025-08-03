@@ -4,7 +4,7 @@
 
 TEST(LexerNewTokensTest, RecordSyntaxTokens) {
     std::string source = "type Student: < name: string, age: integer >";
-    gate::transpiler::NotalLexer lexer(source);
+    gate::transpiler::NotalLexer lexer(source, "test");
     std::vector<gate::core::Token> tokens = lexer.getAllTokens();
 
     std::vector<gate::core::TokenType> expected_types = {
@@ -25,7 +25,7 @@ TEST(LexerNewTokensTest, RecordSyntaxTokens) {
 
 TEST(LexerNewTokensTest, FunctionArrowToken) {
     std::string source = "-> integer";
-    gate::transpiler::NotalLexer lexer(source);
+    gate::transpiler::NotalLexer lexer(source, "test");
     std::vector<gate::core::Token> tokens = lexer.getAllTokens();
 
     std::vector<gate::core::TokenType> expected_types = {
@@ -42,7 +42,7 @@ TEST(LexerNewTokensTest, FunctionArrowToken) {
 
 TEST(LexerNewTokensTest, EnumSyntaxTokens) {
     std::string source = "type Day: (monday, tuesday, wednesday)";
-    gate::transpiler::NotalLexer lexer(source);
+    gate::transpiler::NotalLexer lexer(source, "test");
     std::vector<gate::core::Token> tokens = lexer.getAllTokens();
 
     std::vector<gate::core::TokenType> expected_types = {
@@ -63,7 +63,7 @@ TEST(LexerNewTokensTest, EnumSyntaxTokens) {
 
 TEST(LexerNewTokensTest, ConstraintSyntaxTokens) {
     std::string source = "age: integer | age >= 0 and age <= 150";
-    gate::transpiler::NotalLexer lexer(source);
+    gate::transpiler::NotalLexer lexer(source, "test");
     std::vector<gate::core::Token> tokens = lexer.getAllTokens();
 
     std::vector<gate::core::TokenType> expected_types = {

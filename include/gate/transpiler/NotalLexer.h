@@ -38,8 +38,9 @@ namespace gate::transpiler {
         /**
          * @brief Constructor for NotalLexer
          * @param source The NOTAL source code to tokenize
+         * @param filename The name of the source file for error reporting
          */
-        explicit NotalLexer(const std::string& source);
+        NotalLexer(const std::string& source, const std::string& filename);
 
         /**
          * @brief Get the next token from the source
@@ -56,6 +57,8 @@ namespace gate::transpiler {
     private:
         /** @brief The source code being tokenized */
         std::string source_;
+        /** @brief The name of the source file */
+        std::string filename_;
         /** @brief Current position in the source */
         size_t current_ = 0;
         /** @brief Start position of current token */

@@ -17,7 +17,8 @@
  */
 
 #include "gate/transpiler/NotalParser.h"
-#include "gate/utils/ErrorHandler.h"
+#include "gate/diagnostics/DiagnosticEngine.h"
+#include "gate/transpiler/ErrorRecovery.h"
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -38,7 +39,17 @@ using namespace gate::ast;
  * 
  * @param tokens Vector of tokens from the lexer
  */
-NotalParser::NotalParser(const std::vector<Token>& tokens) : tokens_(tokens) {}
+NotalParser::NotalParser(const std::vector<Token>& tokens, diagnostics::DiagnosticEngine& engine)
+    : tokens_(tokens), diagnosticEngine_(engine), current_(0) {}
+
+void NotalParser::reportWarning(const std::string& message, const core::Token& token) {
+    diagnostics::SourceLocation loc(token.filename, token.line, token.column, token.lexeme.length());
+    auto diag = diagnostics::Diagnostic::Builder(message, loc)
+                    .withLevel(diagnostics::DiagnosticLevel::WARNING)
+                    .withCategory(diagnostics::DiagnosticCategory::SYNTAX_ERROR)
+                    .build();
+    diagnosticEngine_.report(diag);
+}
 
 // --- Public Parse Method ---
 
@@ -59,7 +70,6 @@ std::shared_ptr<ProgramStmt> NotalParser::parse() {
     try {
         return program();
     } catch (const ParseError& error) {
-        synchronize();
         return nullptr;
     }
 }
@@ -208,7 +218,7 @@ std::shared_ptr<Statement> NotalParser::constantDeclaration() {
      } else {
          // Syntax: constant name = value (type inferred)
          consume(TokenType::EQUAL, "Expect '=' after constant name.");
-         type = Token{TokenType::IDENTIFIER, "", 0, 0}; // Empty type for inference
+         type = Token{TokenType::IDENTIFIER, "", /*filename*/"", /*line*/0, /*col*/0}; // Empty type for inference
      }
 
     std::shared_ptr<Expression> initializer = expression();
@@ -1066,14 +1076,12 @@ bool NotalParser::isAtEnd() { return peek().type == TokenType::END_OF_FILE; }
  * @return Token The current token
  */
 Token NotalParser::peek() { return tokens_[current_]; }
-Token NotalParser::peekNext() { if (isAtEnd() || current_ + 1 >= tokens_.size()) return peek(); return tokens_[current_ + 1]; }
+#include "gate/transpiler/ErrorRecovery.h"
+
 Token NotalParser::previous() { return tokens_[current_ - 1]; }
-/**
- * @brief Advances to next token and returns previous
- * 
- * @return Token The token that was current before advancing
- */
+
 Token NotalParser::advance() { if (!isAtEnd()) current_++; return previous(); }
+
 bool NotalParser::check(TokenType type) { if (isAtEnd()) return false; return peek().type == type; }
 
 bool NotalParser::match(const std::vector<TokenType>& types) {
@@ -1086,63 +1094,31 @@ bool NotalParser::match(const std::vector<TokenType>& types) {
     return false;
 }
 
-/**
- * @brief Consumes a token of expected type or throws error
- * 
- * @param type Expected token type
- * @param message Error message if token doesn't match
- * @return Token The consumed token
- * @throws ParseError if token type doesn't match expected
- */
 Token NotalParser::consume(TokenType type, const std::string& message) {
     if (check(type)) return advance();
+
+    // Attempt phrase-level recovery
+    if (PhraseLevelRecovery::tryRecover(this, type)) {
+        // Recovery advanced the stream and reported a warning.
+        // Return a dummy token of the correct type to allow parsing to continue.
+        Token dummy = previous();
+        dummy.type = type;
+        return dummy;
+    }
+
     throw error(peek(), message);
 }
 
-/**
- * @brief Creates and reports a parse error
- * 
- * @param token Token where error occurred
- * @param message Error description
- * @return ParseError The created parse error
- */
+core::Token NotalParser::peekNext() { if (isAtEnd() || current_ + 1 >= tokens_.size()) return peek(); return tokens_[current_ + 1]; }
+
 NotalParser::ParseError NotalParser::error(const Token& token, const std::string& message) {
-    if (!panicMode_) {
-        panicMode_ = true;
-        GATE_ERROR(message, "", token.line, token.column,
-                   "Check syntax near '" + token.lexeme + "'");
-    }
+    diagnostics::SourceLocation loc(token.filename, token.line, token.column, token.lexeme.length());
+    diagnosticEngine_.reportSyntaxError(loc, message);
     return ParseError(token, message);
 }
 
-/**
- * @brief Synchronizes parser after error for recovery
- * 
- * Advances tokens until reaching a statement boundary to allow
- * continued parsing after an error.
- */
 void NotalParser::synchronize() {
-    panicMode_ = false;
-    advance();
-
-    while (!isAtEnd()) {
-        if (previous().type == TokenType::END_OF_FILE) return;
-
-        switch (peek().type) {
-            case TokenType::PROGRAM:
-            case TokenType::KAMUS:
-            case TokenType::ALGORITMA:
-            case TokenType::PROCEDURE:
-            case TokenType::FUNCTION:
-            case TokenType::IF:
-            case TokenType::WHILE:
-            case TokenType::REPEAT:
-                return;
-            default:
-                break;
-        }
-        advance();
-    }
+    PanicModeRecovery::recover(this);
 }
 
 } // namespace gate::transpiler

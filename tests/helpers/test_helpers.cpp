@@ -2,18 +2,20 @@
 #include "gate/transpiler/NotalLexer.h"
 #include "gate/transpiler/NotalParser.h"
 #include "gate/transpiler/PascalCodeGenerator.h"
+#include "gate/diagnostics/DiagnosticEngine.h"
 #include <cctype>
 #include <regex>
 #include <algorithm>
 
 // Helper function to transpile NOTAL code to Pascal
 std::string transpile(const std::string& notalCode) {
-    gate::transpiler::NotalLexer lexer(notalCode);
+    gate::diagnostics::DiagnosticEngine diagnosticEngine(notalCode, "test-helper");
+    gate::transpiler::NotalLexer lexer(notalCode, "test-helper");
     std::vector<gate::core::Token> tokens = lexer.getAllTokens();
-    gate::transpiler::NotalParser parser(tokens);
+    gate::transpiler::NotalParser parser(tokens, diagnosticEngine);
     std::shared_ptr<gate::ast::ProgramStmt> program = parser.parse();
-    if (!program) {
-        return "// Parsing failed";
+    if (!program || diagnosticEngine.hasErrors()) {
+        return "// Parsing failed: " + std::to_string(diagnosticEngine.getErrorCount()) + " errors";
     }
     gate::transpiler::PascalCodeGenerator generator;
     return generator.generate(program);

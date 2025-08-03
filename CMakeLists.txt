@@ -93,6 +93,7 @@ file(GLOB_RECURSE GATE_LIB_SOURCES
     "src/ast/*.cpp"
     "src/core/*.cpp"
     "src/utils/*.cpp"
+    "src/diagnostics/*.cpp"
 )
 
 # --- Core Library Target ---

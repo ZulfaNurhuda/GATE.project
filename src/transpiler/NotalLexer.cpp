@@ -32,7 +32,8 @@ namespace gate::transpiler {
  * 
  * @param source The NOTAL source code to be tokenized
  */
-NotalLexer::NotalLexer(const std::string& source) : source_(source) {}
+NotalLexer::NotalLexer(const std::string& source, const std::string& filename)
+    : source_(source), filename_(filename) {}
 
 /**
  * @brief Tokenizes the entire source code and returns all tokens
@@ -279,7 +280,7 @@ core::Token NotalLexer::makeToken(core::TokenType type) {
  * @return core::Token The created token with the custom lexeme
  */
 core::Token NotalLexer::makeToken(core::TokenType type, const std::string& lexeme) {
-    return core::Token{type, lexeme, line_, column_ - (int)lexeme.length()};
+    return core::Token{type, lexeme, filename_, line_, column_ - (int)lexeme.length()};
 }
 
 /**
@@ -292,7 +293,7 @@ core::Token NotalLexer::makeToken(core::TokenType type, const std::string& lexem
  * @return core::Token An error token with UNKNOWN type
  */
 core::Token NotalLexer::errorToken(const std::string& message) {
-    return core::Token{core::TokenType::UNKNOWN, message, line_, column_};
+    return core::Token{core::TokenType::UNKNOWN, message, filename_, line_, column_};
 }
 
 /**

@@ -2,6 +2,7 @@
 #include "../helpers/test_helpers.h"
 #include "gate/transpiler/NotalLexer.h"
 #include "gate/transpiler/NotalParser.h"
+#include "gate/diagnostics/DiagnosticEngine.h"
 #include "gate/ast/ASTPrinter.h"
 #include <vector>
 #include <string>
@@ -16,10 +17,11 @@ ALGORITMA
     output(x + 1)
 )";
 
-    gate::transpiler::NotalLexer lexer(source);
+    gate::diagnostics::DiagnosticEngine diagnosticEngine(source, "test");
+    gate::transpiler::NotalLexer lexer(source, "test");
     std::vector<gate::core::Token> tokens = lexer.getAllTokens();
 
-    gate::transpiler::NotalParser parser(tokens);
+    gate::transpiler::NotalParser parser(tokens, diagnosticEngine);
     std::shared_ptr<gate::ast::ProgramStmt> program = parser.parse();
 
     ASSERT_NE(program, nullptr);
@@ -53,8 +55,9 @@ ALGORITMA
         '-': output('Kurang')
         otherwise: output('Lainnya')
 )";
-    gate::transpiler::NotalLexer lexer(source);
-    gate::transpiler::NotalParser parser(lexer.getAllTokens());
+    gate::diagnostics::DiagnosticEngine diagnosticEngine(source, "test");
+    gate::transpiler::NotalLexer lexer(source, "test");
+    gate::transpiler::NotalParser parser(lexer.getAllTokens(), diagnosticEngine);
     auto program = parser.parse();
 
     ASSERT_NE(program, nullptr);
@@ -90,8 +93,9 @@ ALGORITMA
         nilai > 90: output('A')
         nilai > 80: output('B')
 )";
-    gate::transpiler::NotalLexer lexer(source);
-    gate::transpiler::NotalParser parser(lexer.getAllTokens());
+    gate::diagnostics::DiagnosticEngine diagnosticEngine(source, "test");
+    gate::transpiler::NotalLexer lexer(source, "test");
+    gate::transpiler::NotalParser parser(lexer.getAllTokens(), diagnosticEngine);
     auto program = parser.parse();
 
     ASSERT_NE(program, nullptr);
@@ -157,8 +161,9 @@ KAMUS
 ALGORITMA
     output(PI)
 )";
-    gate::transpiler::NotalLexer lexer(source);
-    gate::transpiler::NotalParser parser(lexer.getAllTokens());
+    gate::diagnostics::DiagnosticEngine diagnosticEngine(source, "test");
+    gate::transpiler::NotalLexer lexer(source, "test");
+    gate::transpiler::NotalParser parser(lexer.getAllTokens(), diagnosticEngine);
     auto program = parser.parse();
 
     ASSERT_NE(program, nullptr);
@@ -190,8 +195,9 @@ KAMUS
 ALGORITMA
     input(nama)
 )";
-    gate::transpiler::NotalLexer lexer(source);
-    gate::transpiler::NotalParser parser(lexer.getAllTokens());
+    gate::diagnostics::DiagnosticEngine diagnosticEngine(source, "test");
+    gate::transpiler::NotalLexer lexer(source, "test");
+    gate::transpiler::NotalParser parser(lexer.getAllTokens(), diagnosticEngine);
     auto program = parser.parse();
 
     ASSERT_NE(program, nullptr);

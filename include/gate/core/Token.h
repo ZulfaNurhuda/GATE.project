@@ -257,6 +257,8 @@ namespace gate::core {
         TokenType type;
         /** @brief Actual text of the token from source code */
         std::string lexeme;
+        /** @brief Source file where the token is located */
+        std::string filename;
         /** @brief Line number where token appears */
         int line;
         /** @brief Column number where token starts */

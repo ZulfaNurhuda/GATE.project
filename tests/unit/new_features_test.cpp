@@ -24,9 +24,10 @@ ALGORITMA
 
     std::string generated_pascal = transpile(source);
 
-    gate::transpiler::NotalLexer lexer(source);
+    gate::diagnostics::DiagnosticEngine diagnosticEngine(source, "test");
+    gate::transpiler::NotalLexer lexer(source, "test");
     std::vector<gate::core::Token> tokens = lexer.getAllTokens();
-    gate::transpiler::NotalParser parser(tokens);
+    gate::transpiler::NotalParser parser(tokens, diagnosticEngine);
     std::shared_ptr<gate::ast::ProgramStmt> program = parser.parse();
     ASSERT_NE(program, nullptr);
 
@@ -68,9 +69,10 @@ ALGORITMA
 
     std::string generated_pascal = transpile(source);
 
-    gate::transpiler::NotalLexer lexer(source);
+    gate::diagnostics::DiagnosticEngine diagnosticEngine(source, "test");
+    gate::transpiler::NotalLexer lexer(source, "test");
     std::vector<gate::core::Token> tokens = lexer.getAllTokens();
-    gate::transpiler::NotalParser parser(tokens);
+    gate::transpiler::NotalParser parser(tokens, diagnosticEngine);
     std::shared_ptr<gate::ast::ProgramStmt> program = parser.parse();
     ASSERT_NE(program, nullptr);
 
@@ -110,9 +112,10 @@ ALGORITMA
 
     std::string generated_pascal = transpile(source);
 
-    gate::transpiler::NotalLexer lexer(source);
+    gate::diagnostics::DiagnosticEngine diagnosticEngine(source, "test");
+    gate::transpiler::NotalLexer lexer(source, "test");
     std::vector<gate::core::Token> tokens = lexer.getAllTokens();
-    gate::transpiler::NotalParser parser(tokens);
+    gate::transpiler::NotalParser parser(tokens, diagnosticEngine);
     std::shared_ptr<gate::ast::ProgramStmt> program = parser.parse();
     ASSERT_NE(program, nullptr);
 
@@ -161,9 +164,10 @@ ALGORITMA
 
     std::string generated_pascal = transpile(source);
 
-    gate::transpiler::NotalLexer lexer(source);
+    gate::diagnostics::DiagnosticEngine diagnosticEngine(source, "test");
+    gate::transpiler::NotalLexer lexer(source, "test");
     std::vector<gate::core::Token> tokens = lexer.getAllTokens();
-    gate::transpiler::NotalParser parser(tokens);
+    gate::transpiler::NotalParser parser(tokens, diagnosticEngine);
     std::shared_ptr<gate::ast::ProgramStmt> program = parser.parse();
     ASSERT_NE(program, nullptr);
 
@@ -194,9 +198,10 @@ ALGORITMA
 
     std::string generated_pascal = transpile(source);
 
-    gate::transpiler::NotalLexer lexer(source);
+    gate::diagnostics::DiagnosticEngine diagnosticEngine(source, "test");
+    gate::transpiler::NotalLexer lexer(source, "test");
     std::vector<gate::core::Token> tokens = lexer.getAllTokens();
-    gate::transpiler::NotalParser parser(tokens);
+    gate::transpiler::NotalParser parser(tokens, diagnosticEngine);
     std::shared_ptr<gate::ast::ProgramStmt> program = parser.parse();
     ASSERT_NE(program, nullptr);
     ASSERT_NE(program->algoritma, nullptr);

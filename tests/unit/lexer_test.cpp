@@ -13,7 +13,7 @@ ALGORITMA
     output(age)
 )";
 
-    gate::transpiler::NotalLexer lexer(source);
+    gate::transpiler::NotalLexer lexer(source, "test");
     std::vector<gate::core::Token> tokens = lexer.getAllTokens();
 
     std::vector<gate::core::TokenType> expected_types = {
@@ -41,7 +41,7 @@ ALGORITMA
 
 TEST(LexerTest, AllOperatorsAndPunctuation) {
     std::string source = "+ - * / ^ = <> > >= < <= & @ ( ) [ ] : , . | <-";
-    gate::transpiler::NotalLexer lexer(source);
+    gate::transpiler::NotalLexer lexer(source, "test");
     std::vector<gate::core::Token> tokens = lexer.getAllTokens();
 
     std::vector<gate::core::TokenType> expected_types = {

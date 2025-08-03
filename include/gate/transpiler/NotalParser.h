@@ -18,12 +18,16 @@
 #include "gate/core/Token.h"
 #include "gate/ast/Expression.h"
 #include "gate/ast/Statement.h"
+#include "gate/diagnostics/DiagnosticEngine.h"
 #include <vector>
 #include <memory>
 #include <stdexcept>
 #include <map>
 
 namespace gate::transpiler {
+
+class PanicModeRecovery;
+class PhraseLevelRecovery;
 
 /**
  * @brief Recursive descent parser for NOTAL language
@@ -42,8 +46,9 @@ public:
     /**
      * @brief Constructor for NotalParser
      * @param tokens Vector of tokens to parse
+     * @param engine The diagnostic engine to use for error reporting
      */
-    explicit NotalParser(const std::vector<core::Token>& tokens);
+    NotalParser(const std::vector<core::Token>& tokens, diagnostics::DiagnosticEngine& engine);
 
     /**
      * @brief Parse tokens into an AST
@@ -52,15 +57,44 @@ public:
      */
     std::shared_ptr<ast::ProgramStmt> parse();
 
+    // --- Public helpers for recovery classes ---
+    bool isAtEnd();
+    core::Token peek();
+    core::Token peekNext();
+    core::Token previous();
+    core::Token advance();
+    bool check(core::TokenType type);
+    void reportWarning(const std::string& message, const core::Token& token);
+
+public:
+    /**
+     * @brief Exception class for parsing errors
+     *
+     * This exception is thrown when the parser encounters syntax errors
+     * that prevent successful parsing of the input token stream.
+     */
+    class ParseError : public std::runtime_error {
+    public:
+        /**
+         * @brief Constructor for ParseError
+         * @param token The token where the error occurred
+         * @param message Error message describing the parsing failure
+         */
+        ParseError(const core::Token& token, const std::string& message)
+            : std::runtime_error(message), token(token) {}
+        /** @brief Token where the parsing error occurred */
+        core::Token token;
+    };
+
 private:
     /** @brief Vector of tokens to parse */
     std::vector<core::Token> tokens_;
+    /** @brief Reference to the diagnostic engine */
+    diagnostics::DiagnosticEngine& diagnosticEngine_;
     /** @brief Current position in token stream */
     size_t current_ = 0;
     /** @brief Collection of subprogram declarations */
     std::vector<std::shared_ptr<ast::Statement>> subprogramDeclarations_;
-    /** @brief Flag indicating error recovery mode */
-    bool panicMode_ = false;
 
     // --- Grammar Rule Methods ---
     /** @brief Parse program structure (PROGRAM ... KAMUS ... ALGORITMA) */
@@ -153,18 +187,6 @@ private:
 
 
     // --- Helper Methods ---
-    /** @brief Check if we've reached end of token stream */
-    bool isAtEnd();
-    /** @brief Get current token without consuming it */
-    core::Token peek();
-    /** @brief Get next token without consuming current */
-    core::Token peekNext();
-    /** @brief Get previous token */
-    core::Token previous();
-    /** @brief Consume current token and advance to next */
-    core::Token advance();
-    /** @brief Check if current token is of given type */
-    bool check(core::TokenType type);
     /** @brief Check if current token matches any of the given types */
     bool match(const std::vector<core::TokenType>& types);
     /** @brief Consume token of expected type or throw error */
@@ -173,24 +195,6 @@ private:
     void synchronize();
 
     // --- Error Handling ---
-    /**
-     * @brief Exception class for parsing errors
-     * 
-     * This exception is thrown when the parser encounters syntax errors
-     * that prevent successful parsing of the input token stream.
-     */
-    class ParseError : public std::runtime_error {
-    public:
-        /**
-         * @brief Constructor for ParseError
-         * @param token The token where the error occurred
-         * @param message Error message describing the parsing failure
-         */
-        ParseError(const core::Token& token, const std::string& message)
-            : std::runtime_error(message), token(token) {}
-        /** @brief Token where the parsing error occurred */
-        core::Token token;
-    };
     /** @brief Report parsing error and return ParseError exception */
     ParseError error(const core::Token& token, const std::string& message);
 };

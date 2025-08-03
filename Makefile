@@ -112,7 +112,8 @@ GTEST_INC_PATHS = -I$(VENDOR_DIR)/googletest/googletest/include \
 GATE_LIB_SRCS = $(wildcard $(SRC_DIR)/transpiler/*.cpp) \
                 $(wildcard $(SRC_DIR)/ast/*.cpp) \
                 $(wildcard $(SRC_DIR)/core/*.cpp) \
-                $(wildcard $(SRC_DIR)/utils/*.cpp)
+                $(wildcard $(SRC_DIR)/utils/*.cpp) \
+                $(wildcard $(SRC_DIR)/diagnostics/*.cpp)
 
 # Main application source
 # GATE_MAIN_SRC: Entry point for the transpiler executable
