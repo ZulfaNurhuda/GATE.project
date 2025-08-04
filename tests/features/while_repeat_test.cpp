@@ -24,7 +24,7 @@ begin
   while (counter <= 5) do
   begin
     writeln('Counter: ', counter);
-    counter := counter + 1;
+    counter := (counter + 1);
   end;
 end.
 )";
@@ -55,7 +55,7 @@ begin
   x := 1;
   repeat
     writeln('x = ', x);
-    x := x + 1;
+    x := (x + 1);
   until (x > 3);
 end.
 )";
@@ -83,14 +83,14 @@ ALGORITMA
 var
   i: integer;
   sum: integer;
-  _repeat_counter: integer;
+  _loop_iterator_0: integer;
 
 begin
   sum := 0;
-  for _repeat_counter := 1 to 5 do
+  for _loop_iterator_0 := 1 to 5 do
   begin
-    i := i + 1;
-    sum := sum + i;
+    i := (i + 1);
+    sum := (sum + i);
     writeln('Step ', i, ': sum = ', sum);
   end;
 end.
@@ -130,9 +130,9 @@ begin
     while (j <= 2) do
     begin
       writeln('i=', i, ', j=', j);
-      j := j + 1;
+      j := (j + 1);
     end;
-    i := i + 1;
+    i := (i + 1);
   end;
 end.
 )";
@@ -173,12 +173,16 @@ begin
   x := 1;
   y := 10;
   found := false;
-  while (x < y) and (not found) do
+  while ((x < y) and (not found)) do
   begin
-    if (x * x = 25) then
-      found := true
+    if ((x * x) = 25) then
+    begin
+      found := true;
+    end
     else
-      x := x + 1;
+    begin
+      x := (x + 1);
+    end;
   end;
   writeln('Result: x=', x, ', found=', found);
 end.

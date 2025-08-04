@@ -162,7 +162,7 @@ private:
     /** @brief Execute statement and generate Pascal code */
     void execute(std::shared_ptr<Statement> stmt);
     /** @brief Generate Pascal constraint checking code */
-    std::string generateConstraintCheck(std::shared_ptr<ConstrainedVarDeclStmt> constrainedVar);
+    std::string generateConstraintCheck(std::shared_ptr<ConstrainedVarDeclStmt> constrainedVar, const core::Token& name);
     /** @brief Pre-scan AST to collect information before code generation */
     void preScan(std::shared_ptr<Statement> stmt);
 

@@ -274,36 +274,40 @@ std::shared_ptr<Statement> NotalParser::typeDeclaration() {
 }
 
 std::shared_ptr<Statement> NotalParser::varDeclaration() {
-    Token name = consume(TokenType::IDENTIFIER, "Expect variable name.");
-    consume(TokenType::COLON, "Expect ':' after variable name.");
+    std::vector<Token> names;
+    do {
+        names.push_back(consume(TokenType::IDENTIFIER, "Expect variable name."));
+    } while (match({TokenType::COMMA}));
+
+    consume(TokenType::COLON, "Expect ':' after variable name(s).");
 
     if (check(TokenType::ARRAY)) {
-        return arrayDeclaration(name);
+        return arrayDeclaration(names);
     }
-    
+
     Token type = advance();
     if (type.type != TokenType::INTEGER && type.type != TokenType::REAL &&
         type.type != TokenType::STRING && type.type != TokenType::BOOLEAN &&
         type.type != TokenType::CHARACTER && type.type != TokenType::IDENTIFIER &&
         type.type != TokenType::POINTER && type.type != TokenType::NULL_TYPE) {
-            throw error(type, "Expect a type name.");
+        throw error(type, "Expect a type name.");
     }
 
     if (type.type == TokenType::POINTER) {
         consume(TokenType::TO, "Expect 'to' after 'pointer'.");
         Token pointedType = advance();
-        return std::make_shared<VarDeclStmt>(name, type, pointedType);
+        return std::make_shared<VarDeclStmt>(names, type, pointedType);
     }
 
     if (match({TokenType::PIPE})) {
         std::shared_ptr<Expression> constraint = expression();
-        return std::make_shared<ConstrainedVarDeclStmt>(name, type, constraint);
+        return std::make_shared<ConstrainedVarDeclStmt>(names, type, constraint);
     }
 
-    return std::make_shared<VarDeclStmt>(name, type);
+    return std::make_shared<VarDeclStmt>(names, type);
 }
 
-std::shared_ptr<Statement> NotalParser::arrayDeclaration(Token name) {
+std::shared_ptr<Statement> NotalParser::arrayDeclaration(const std::vector<Token>& names) {
     consume(TokenType::ARRAY, "Expect 'array'.");
 
     if (check(TokenType::LBRACKET)) {
@@ -319,17 +323,17 @@ std::shared_ptr<Statement> NotalParser::arrayDeclaration(Token name) {
 
         consume(TokenType::OF, "Expect 'of' after array dimensions.");
         Token elementType = advance();
-        return std::make_shared<StaticArrayDeclStmt>(name, dimensions, elementType);
+        return std::make_shared<StaticArrayDeclStmt>(names, dimensions, elementType);
 
     } else {
-        int dimensions = 1;
         consume(TokenType::OF, "Expect 'of' after 'array'.");
-        while(match({TokenType::ARRAY})) {
-            dimensions++;
+        int dimensionCount = 1;
+        while (match({TokenType::ARRAY})) {
             consume(TokenType::OF, "Expect 'of' after 'array'.");
+            dimensionCount++;
         }
         Token elementType = advance();
-        return std::make_shared<DynamicArrayDeclStmt>(name, dimensions, elementType);
+        return std::make_shared<DynamicArrayDeclStmt>(names, dimensionCount, elementType);
     }
 }
 
@@ -398,8 +402,11 @@ std::shared_ptr<Statement> NotalParser::allocateStatement() {
     std::shared_ptr<Expression> callee = expression();
 
     std::vector<std::shared_ptr<Expression>> sizes;
-    while (match({TokenType::COMMA})) {
-        sizes.push_back(expression());
+    if (check(TokenType::COMMA)) {
+        consume(TokenType::COMMA, "Expect ',' after callee in allocate.");
+        do {
+            sizes.push_back(expression());
+        } while (match({TokenType::COMMA}));
     }
 
     consume(TokenType::RPAREN, "Expect ')' after allocate arguments.");
@@ -535,9 +542,9 @@ std::shared_ptr<Statement> NotalParser::traversalStatement() {
     consume(TokenType::TRAVERSAL, "Expect 'traversal'.");
     consume(TokenType::LBRACKET, "Expect '[' after 'traversal'.");
     
-    std::shared_ptr<Expression> start = primary();
+    std::shared_ptr<Expression> start = expression();
     consume(TokenType::DOT_DOT, "Expect '..' between start and end values.");
-    std::shared_ptr<Expression> end = primary();
+    std::shared_ptr<Expression> end = expression();
     
     std::shared_ptr<Expression> step = nullptr;
     if (match({TokenType::STEP})) {
@@ -1080,9 +1087,17 @@ Token NotalParser::peek() { return tokens_[current_]; }
 
 Token NotalParser::previous() { return tokens_[current_ - 1]; }
 
-Token NotalParser::advance() { if (!isAtEnd()) current_++; return previous(); }
+Token NotalParser::advance() {
+    if (!isAtEnd()) {
+        current_++;
+    }
+    return previous();
+}
 
-bool NotalParser::check(TokenType type) { if (isAtEnd()) return false; return peek().type == type; }
+bool NotalParser::check(TokenType type) {
+    if (isAtEnd()) return false;
+    return peek().type == type;
+}
 
 bool NotalParser::match(const std::vector<TokenType>& types) {
     for (TokenType type : types) {
