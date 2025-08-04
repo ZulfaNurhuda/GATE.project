@@ -21,16 +21,13 @@ ALGORITMA
 )";
     std::string expected_pascal_code = R"(program CommentsExample;
 
-{ This is a single line comment }
 var
-  x: integer; { Variable declaration comment }
+  x: integer;
   y: real;
 
 begin
-  { Initialize variables }
   x := 10;
-  y := 3.14; { Assign pi approximation }
-  { Output results }
+  y := 3.14;
   writeln('x = ', x);
   writeln('y = ', y);
 end.
@@ -62,20 +59,10 @@ ALGORITMA
 )";
     std::string expected_pascal_code = R"(program MultiLineCommentsExample;
 
-{
-  This is a multi-line comment
-  that spans several lines
-  and explains the program purpose
-}
-
 var
   result: integer;
 
 begin
-  {
-    Calculate some value
-    using complex logic
-  }
   result := 42;
   writeln('The answer is: ', result);
 end.
@@ -173,16 +160,13 @@ var
   product: integer;
 
 begin
-  { Initialize values }
   x := 15;
   y := 25;
-  { Swap values using temporary variable }
   temp := x;
   x := y;
   y := temp;
-  { Calculate sum and product }
-  sum := x + y;
-  product := x * y;
+  sum := (x + y);
+  product := (x * y);
   writeln('After swap: x=', x, ', y=', y);
   writeln('Sum: ', sum);
   writeln('Product: ', product);

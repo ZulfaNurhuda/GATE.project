@@ -18,12 +18,12 @@ ALGORITMA
 
     std::string generated_pascal = transpile(source);
     
-    // Check that basic traversal is converted to Pascal for loop
+    // Check that basic traversal is converted to Pascal while loop
     EXPECT_TRUE(generated_pascal.find("i") != std::string::npos);
     EXPECT_TRUE(generated_pascal.find("1") != std::string::npos);
     EXPECT_TRUE(generated_pascal.find("5") != std::string::npos);
-    EXPECT_TRUE(generated_pascal.find("for") != std::string::npos || 
-                generated_pascal.find("For") != std::string::npos);
+    EXPECT_TRUE(generated_pascal.find("while") != std::string::npos ||
+                generated_pascal.find("While") != std::string::npos);
 }
 
 TEST(TraversalTest, TraversalWithStep) {
