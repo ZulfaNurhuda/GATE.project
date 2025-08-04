@@ -84,15 +84,13 @@ add_subdirectory(vendor/cxxopts)
 # Automatically discover all source files for the core library
 # Excludes main.cpp to allow separate executable compilation
 # Source organization:
-#   - src/transpiler/: Lexer, Parser, and Code Generator implementations
+#   - src/core/: Core transpiler components (Lexer, Parser, Code Generator, Token, etc.)
 #   - src/ast/: Abstract Syntax Tree nodes and visitors
-#   - src/core/: Core language constructs (Token, etc.)
-#   - src/utils/: Utility classes (ErrorHandler, validators, etc.)
+#   - src/diagnostics/: Error handling and diagnostic reporting
 file(GLOB_RECURSE GATE_LIB_SOURCES
-    "src/transpiler/*.cpp"
-    "src/ast/*.cpp"
     "src/core/*.cpp"
-    "src/utils/*.cpp"
+    "src/ast/*.cpp"
+    "src/diagnostics/*.cpp"
 )
 
 # --- Core Library Target ---
@@ -195,9 +193,13 @@ if(GATE_BUILD_TESTS)
     # Collect test source files
     # Recursively finds all .cpp files in tests/ subdirectories
     # Automatically includes new test files without CMake modification
-    # Test organization: tests/ mirrors src/ structure
+    # Test organization:
+    #   - tests/components/: Tests for transpiler components (Lexer, Parser, CodeGen)
+    #   - tests/features/: Tests for NOTAL language features (Arrays, Loops, Functions, etc.)
+    #   - tests/helpers/: Shared test utilities and helper functions
     file(GLOB_RECURSE TEST_SOURCES
-        "tests/unit/*.cpp"
+        "tests/components/*.cpp"
+        "tests/features/*.cpp"
         "tests/helpers/*.cpp"
     )
 

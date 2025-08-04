@@ -15,7 +15,7 @@
  * @date 2025
  */
 
-#include "gate/ast/ASTPrinter.h"
+#include "ast/ASTPrinter.h"
 #include <sstream>
 #include <any>
 
@@ -103,12 +103,51 @@ std::any ASTPrinter::visit(std::shared_ptr<BlockStmt> stmt) {
  * @return std::any String representation of the variable declaration
  */
 std::any ASTPrinter::visit(std::shared_ptr<VarDeclStmt> stmt) {
-    return "(VAR_DECL " + stmt->name.lexeme + " : " + stmt->type.lexeme + ")";
+    std::string names;
+    for (size_t i = 0; i < stmt->names.size(); ++i) {
+        names += stmt->names[i].lexeme;
+        if (i < stmt->names.size() - 1) {
+            names += ", ";
+        }
+    }
+    return "(VAR_DECL " + names + " : " + stmt->type.lexeme + ")";
 }
 
 std::any ASTPrinter::visit(std::shared_ptr<StaticArrayDeclStmt> stmt) {
-    (void)stmt;
-    return "(static_array_decl ...)";
+    if (!stmt) return std::string("(null static-array-decl)");
+    
+    std::string names;
+    for (size_t i = 0; i < stmt->names.size(); ++i) {
+        names += stmt->names[i].lexeme;
+        if (i < stmt->names.size() - 1) {
+            names += ", ";
+        }
+    }
+    std::string result = "(STATIC_ARRAY_DECL " + names + " : array";
+    for (const auto& dim : stmt->dimensions) {
+        result += "[";
+        if (dim.start) {
+            try {
+                std::string startStr = std::any_cast<std::string>(dim.start->accept(*this));
+                result += startStr;
+            } catch (const std::bad_any_cast&) {
+                result += "(error)";
+            }
+        }
+        result += "..";
+        if (dim.end) {
+            try {
+                std::string endStr = std::any_cast<std::string>(dim.end->accept(*this));
+                result += endStr;
+            } catch (const std::bad_any_cast&) {
+                result += "(error)";
+            }
+        }
+        result += "]";
+    }
+    result += " of " + stmt->elementType.lexeme + ")";
+    
+    return result;
 }
 
 std::any ASTPrinter::visit(std::shared_ptr<DynamicArrayDeclStmt> stmt) {
@@ -181,8 +220,33 @@ std::any ASTPrinter::visit(std::shared_ptr<Literal> expr) {
 }
 
 std::any ASTPrinter::visit(std::shared_ptr<ArrayAccess> expr) {
-    (void)expr;
-    return "(array_access ...)";
+    if (!expr) return std::string("(null array-access)");
+    
+    std::string calleeStr = "(null array)";
+    if (expr->callee) {
+        try {
+            calleeStr = std::any_cast<std::string>(expr->callee->accept(*this));
+        } catch (const std::bad_any_cast&) {
+            calleeStr = "(error in array)";
+        }
+    }
+    
+    std::string result = "(array-access " + calleeStr;
+    for (const auto& index : expr->indices) {
+        if (index) {
+            try {
+                std::string indexStr = std::any_cast<std::string>(index->accept(*this));
+                result += " [" + indexStr + "]";
+            } catch (const std::bad_any_cast&) {
+                result += " [error]";
+            }
+        } else {
+            result += " [null]";
+        }
+    }
+    result += ")";
+    
+    return result;
 }
 
 // --- Unimplemented Visitors (for now) ---
@@ -193,13 +257,57 @@ std::any ASTPrinter::visit(std::shared_ptr<IfStmt> stmt) {
 }
 
 std::any ASTPrinter::visit(std::shared_ptr<WhileStmt> stmt) {
-    (void)stmt;
-    return std::string("(while ...)");
+    if (!stmt) return std::string("(null while)");
+    
+    std::string conditionStr = "(null condition)";
+    if (stmt->condition) {
+        try {
+            conditionStr = std::any_cast<std::string>(stmt->condition->accept(*this));
+        } catch (const std::bad_any_cast&) {
+            conditionStr = "(error in condition)";
+        }
+    }
+    
+    std::string bodyStr = "(null body)";
+    if (stmt->body) {
+        try {
+            bodyStr = std::any_cast<std::string>(stmt->body->accept(*this));
+        } catch (const std::bad_any_cast&) {
+            bodyStr = "(error in body)";
+        }
+    }
+    
+    return std::string("(while " + conditionStr + " " + bodyStr + ")");
 }
 
 std::any ASTPrinter::visit(std::shared_ptr<Call> expr) {
-    (void)expr;
-    return std::string("(call ...)");
+    if (!expr) return std::string("(null call)");
+    
+    std::string calleeStr = "(null callee)";
+    if (expr->callee) {
+        try {
+            calleeStr = std::any_cast<std::string>(expr->callee->accept(*this));
+        } catch (const std::bad_any_cast&) {
+            calleeStr = "(error in callee)";
+        }
+    }
+    
+    std::string result = "(call " + calleeStr;
+    for (const auto& arg : expr->arguments) {
+        if (arg) {
+            try {
+                std::string argStr = std::any_cast<std::string>(arg->accept(*this));
+                result += " " + argStr;
+            } catch (const std::bad_any_cast&) {
+                result += " (error in arg)";
+            }
+        } else {
+            result += " (null arg)";
+        }
+    }
+    result += ")";
+    
+    return result;
 }
 
 std::any ASTPrinter::visit(std::shared_ptr<FieldAccess> expr) {
@@ -258,7 +366,14 @@ std::any ASTPrinter::visit(std::shared_ptr<EnumTypeDeclStmt> stmt) {
 }
 
 std::any ASTPrinter::visit(std::shared_ptr<ConstrainedVarDeclStmt> stmt) {
-    return parenthesize("CONSTRAINED_VAR_DECL " + stmt->name.lexeme + " : " + stmt->type.lexeme, {stmt->constraint});
+    std::string names;
+    for (size_t i = 0; i < stmt->names.size(); ++i) {
+        names += stmt->names[i].lexeme;
+        if (i < stmt->names.size() - 1) {
+            names += ", ";
+        }
+    }
+    return parenthesize("CONSTRAINED_VAR_DECL " + names + " : " + stmt->type.lexeme, {stmt->constraint});
 }
 
 std::any ASTPrinter::visit(std::shared_ptr<StopStmt> stmt) {

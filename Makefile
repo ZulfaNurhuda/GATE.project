@@ -108,11 +108,10 @@ GTEST_INC_PATHS = -I$(VENDOR_DIR)/googletest/googletest/include \
 #   - transpiler/: NotalLexer.cpp, NotalParser.cpp, PascalCodeGenerator.cpp
 #   - ast/: ASTPrinter.cpp and other AST-related implementations
 #   - core/: Token.cpp and other core language constructs
-#   - utils/: ErrorHandler and utility class implementations
 GATE_LIB_SRCS = $(wildcard $(SRC_DIR)/transpiler/*.cpp) \
                 $(wildcard $(SRC_DIR)/ast/*.cpp) \
                 $(wildcard $(SRC_DIR)/core/*.cpp) \
-                $(wildcard $(SRC_DIR)/utils/*.cpp)
+                $(wildcard $(SRC_DIR)/diagnostics/*.cpp)
 
 # Main application source
 # GATE_MAIN_SRC: Entry point for the transpiler executable
@@ -121,10 +120,12 @@ GATE_MAIN_SRC = $(SRC_DIR)/main.cpp
 
 # Test source files
 # TEST_SRCS: Unit test implementations
-#   - unit/: Individual test files for different components
+#   - components/: Individual test files for different components
+#   - features/: Feature test files
 #   - helpers/: Test utility functions and common test infrastructure
 # Note: test_main.cpp is excluded because we use gtest_main.cc
-TEST_SRCS = $(wildcard $(TEST_SRC_DIR)/unit/*.cpp) \
+TEST_SRCS = $(wildcard $(TEST_SRC_DIR)/components/*.cpp) \
+            $(wildcard $(TEST_SRC_DIR)/features/*.cpp) \
             $(wildcard $(TEST_SRC_DIR)/helpers/*.cpp)
 
 # GoogleTest source files (compiled from source for better control)

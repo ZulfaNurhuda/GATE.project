@@ -18,15 +18,15 @@
 #include <cxxopts.hpp>
 
 // GATE transpiler components
-#include "gate/transpiler/NotalLexer.h"
-#include "gate/transpiler/NotalParser.h"
-#include "gate/transpiler/PascalCodeGenerator.h"
-#include "gate/core/Token.h"
-#include "gate/ast/Statement.h"
-#include "gate/ast/Expression.h"
-#include "gate/utils/SecureFileReader.h"
-#include "gate/utils/InputValidator.h"
-#include "gate/utils/ErrorHandler.h"
+#include "core/NotalLexer.h"
+#include "core/NotalParser.h"
+#include "core/PascalCodeGenerator.h"
+#include "diagnostics/DiagnosticEngine.h"
+#include "core/Token.h"
+#include "ast/Statement.h"
+#include "ast/Expression.h"
+#include "utils/SecureFileReader.h"
+#include "utils/InputValidator.h"
 
 /**
  * @brief Removes comments from NOTAL source code before transpilation
@@ -72,120 +72,95 @@ std::string removeComments(const std::string& source) {
  * @note Supports both file output and console output modes
  */
 int main(int argc, char* argv[]) {
-    // Initialize error handler for this transpilation session
-    gate::utils::ErrorHandler::getInstance().clear();
+    cxxopts::Options options("gate", "A transpiler from NOTAL to Pascal.");
+    options.add_options()
+        ("i,input", "Input NOTAL file", cxxopts::value<std::string>())
+        ("o,output", "Output Pascal file (optional)", cxxopts::value<std::string>()->default_value(""))
+        ("h,help", "Print usage");
 
-    try {
-        // Configure command-line options using cxxopts library
-        cxxopts::Options options("gate", "A transpiler from NOTAL to Pascal.");
+    options.parse_positional("input");
+    options.positional_help("[<input file>]");
 
-        options.add_options()
-            ("i,input", "Input NOTAL file", cxxopts::value<std::string>())
-            ("o,output", "Output Pascal file (optional)", cxxopts::value<std::string>()->default_value(""))
-            ("h,help", "Print usage");
+    auto result = options.parse(argc, argv);
 
-        options.parse_positional("input");
-        options.positional_help("[<input file>]");
-
-        auto result = options.parse(argc, argv);
-
-        if (result.count("help")) {
-            std::cout << options.help() << std::endl;
-            return 0;
-        }
-
-        if (!result.count("input")) {
-            GATE_ERROR("Input file not specified.", "Use the -i or --input flag.", 0, 0, "Provide an input file, e.g., 'gate -i myprogram.notal'");
-            gate::utils::ErrorHandler::getInstance().printSummary();
-            return 1;
-        }
-
-        // Extract command-line arguments
-        std::string inputFile = result["input"].as<std::string>();
-        std::string outputFile = result["output"].as<std::string>();
-
-        // Validate output file path for security (prevent path traversal attacks)
-        if (!outputFile.empty() && !gate::utils::InputValidator::isValidOutputPath(outputFile)) {
-            GATE_ERROR("Invalid or potentially unsafe output file path.", outputFile);
-            gate::utils::ErrorHandler::getInstance().printSummary();
-            return 1;
-        }
-
-        // STEP 1: Secure file reading with validation
-        // Read the NOTAL source file using secure file reader to prevent security vulnerabilities
-        auto readResult = gate::utils::SecureFileReader::readFile(inputFile);
-        if (!readResult.success) {
-            GATE_ERROR(readResult.errorMessage, inputFile);
-            gate::utils::ErrorHandler::getInstance().printSummary();
-            return 1;
-        }
-        std::string sourceWithComments = readResult.content;
-
-        // STEP 2: Source code validation
-        // Validate the NOTAL source code for basic syntax and security issues
-        auto validationResult = gate::utils::InputValidator::validateNotalSource(sourceWithComments);
-        if (!validationResult.isValid) {
-            GATE_ERROR(validationResult.errorMessage, inputFile);
-            gate::utils::ErrorHandler::getInstance().printSummary();
-            return 1;
-        }
-        // Display any warnings found during validation
-        for (const auto& warning : validationResult.warnings) {
-            GATE_WARNING(warning, inputFile);
-        }
-
-        // STEP 3: Pre-processing - Comment removal
-        // Remove all comments from source code before tokenization
-        std::string source = removeComments(sourceWithComments);
-
-        // STEP 4: Lexical Analysis (Tokenization)
-        // Convert the source code into a stream of tokens for parsing
-        gate::transpiler::NotalLexer lexer(source);
-        std::vector<gate::core::Token> tokens = lexer.getAllTokens();
-
-        // STEP 5: Syntax Analysis (Parsing)
-        // Parse the token stream into an Abstract Syntax Tree (AST)
-        gate::transpiler::NotalParser parser(tokens);
-        std::shared_ptr<gate::ast::ProgramStmt> program = parser.parse();
-
-        // STEP 6: Code Generation and Output
-        // Generate Pascal code from the AST if parsing was successful
-        if (program && !gate::utils::ErrorHandler::getInstance().hasErrors()) {
-            // Initialize the Pascal code generator
-            gate::transpiler::PascalCodeGenerator generator;
-            std::string pascalCode = generator.generate(program);
-
-            // Handle output: either write to file or display on console
-            if (!outputFile.empty()) {
-                // Write generated Pascal code to the specified output file
-                std::ofstream outFile(outputFile);
-                if (outFile.is_open()) {
-                    outFile << pascalCode;
-                    outFile.close();
-                    std::cout << "Transpilation successful. Pascal code written to '" << outputFile << "'" << std::endl;
-                } else {
-                    GATE_ERROR("Unable to open output file for writing.", outputFile);
-                }
-            } else {
-                // No output file specified, display Pascal code on console
-                std::cout << "\n" << pascalCode << std::endl;
-            }
-        } else {
-            // Parsing failed, report error
-            GATE_ERROR("Transpilation failed due to parsing errors.", inputFile);
-        }
-
-    } catch (const std::exception& e) {
-        // Handle any standard C++ exceptions that weren't caught earlier
-        GATE_FATAL("An unexpected error occurred: " + std::string(e.what()));
-    } catch (...) {
-        // Handle any other unknown exceptions to prevent application crash
-        GATE_FATAL("An unknown and unexpected error occurred.");
+    if (result.count("help")) {
+        std::cout << options.help() << std::endl;
+        return 0;
     }
 
-    // Print summary of all errors and warnings encountered during transpilation
-    gate::utils::ErrorHandler::getInstance().printSummary();
+    if (!result.count("input")) {
+        std::cerr << "Error: Input file not specified. Use -i or --input." << std::endl;
+        return 1;
+    }
+
+    std::string inputFile = result["input"].as<std::string>();
+    std::string outputFile = result["output"].as<std::string>();
+
+    if (!outputFile.empty() && !gate::utils::InputValidator::isValidOutputPath(outputFile)) {
+        std::cerr << "Error: Invalid or potentially unsafe output file path: " << outputFile << std::endl;
+        return 1;
+    }
+
+    auto readResult = gate::utils::SecureFileReader::readFile(inputFile);
+    if (!readResult.success) {
+        std::cerr << "Error: " << readResult.errorMessage << " (" << inputFile << ")" << std::endl;
+        return 1;
+    }
+    std::string sourceWithComments = readResult.content;
+
+    // The DiagnosticEngine needs the source code to provide context for errors.
+    std::string source = removeComments(sourceWithComments);
+    gate::diagnostics::DiagnosticEngine diagnosticEngine(source, inputFile);
+
+    // Perform preliminary source validation (optional, but good practice)
+    auto validationResult = gate::utils::InputValidator::validateNotalSource(sourceWithComments);
+    if (!validationResult.isValid) {
+        // Report a fatal error through the new system
+        gate::diagnostics::SourceLocation loc(inputFile, 0, 0);
+        auto diag = gate::diagnostics::Diagnostic::Builder(validationResult.errorMessage, loc)
+                        .withLevel(gate::diagnostics::DiagnosticLevel::FATAL)
+                        .build();
+        diagnosticEngine.report(diag);
+    }
+    for (const auto& warning : validationResult.warnings) {
+        gate::diagnostics::SourceLocation loc(inputFile, 0, 0);
+        auto diag = gate::diagnostics::Diagnostic::Builder(warning, loc)
+                        .withLevel(gate::diagnostics::DiagnosticLevel::WARNING)
+                        .build();
+        diagnosticEngine.report(diag);
+    }
+
+    // Lexical Analysis
+    gate::transpiler::NotalLexer lexer(source, inputFile);
+    std::vector<gate::core::Token> tokens = lexer.getAllTokens();
+
+    // Syntax Analysis
+    gate::transpiler::NotalParser parser(tokens, diagnosticEngine);
+    std::shared_ptr<gate::ast::ProgramStmt> program = parser.parse();
+
+    // Code Generation
+    if (program && !diagnosticEngine.hasErrors()) {
+        gate::transpiler::PascalCodeGenerator generator;
+        std::string pascalCode = generator.generate(program);
+
+        if (!outputFile.empty()) {
+            std::ofstream outFile(outputFile);
+            if (outFile.is_open()) {
+                outFile << pascalCode;
+                outFile.close();
+                std::cout << "Transpilation successful. Pascal code written to '" << outputFile << "'" << std::endl;
+            } else {
+                std::cerr << "Error: Unable to open output file for writing: " << outputFile << std::endl;
+            }
+        } else {
+            std::cout << "\n" << pascalCode << std::endl;
+        }
+    }
+
+    // Always print the diagnostic report
+    if (diagnosticEngine.hasErrors() || diagnosticEngine.hasWarnings()) {
+        std::cerr << diagnosticEngine.generateReport();
+    }
     
-    // Return appropriate exit code: 0 for success, 1 for failure
-    return gate::utils::ErrorHandler::getInstance().hasErrors() ? 1 : 0;
+    return diagnosticEngine.hasErrors() ? 1 : 0;
 }
