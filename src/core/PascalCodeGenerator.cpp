@@ -1005,7 +1005,7 @@ void PascalCodeGenerator::scanExpression(std::shared_ptr<Expression> expr) {
  * the function signatures to generate forward declarations. This is necessary
  * in Pascal to declare functions before they are implemented.
  * 
- * @note Reads from src/casting/*.casting.txt files
+ * @note Reads from src/casting/[name].casting.txt files
  * @note Only generates declarations for functions found in usedCastingFunctions_
  * @note Appends "; forward;" to function signatures
  */
@@ -1035,7 +1035,7 @@ void PascalCodeGenerator::generateCastingForwardDecls() {
  * and includes them in the generated Pascal code. These implementations
  * provide the actual type conversion logic.
  * 
- * @note Reads entire content from src/casting/*.casting.txt files
+ * @note Reads entire content from src/casting/[name].casting.txt files
  * @note Only generates implementations for functions found in usedCastingFunctions_
  * @note Includes complete function bodies with all necessary logic
  */

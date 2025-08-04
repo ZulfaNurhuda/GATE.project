@@ -120,10 +120,12 @@ GATE_MAIN_SRC = $(SRC_DIR)/main.cpp
 
 # Test source files
 # TEST_SRCS: Unit test implementations
-#   - unit/: Individual test files for different components
+#   - components/: Individual test files for different components
+#   - features/: Feature test files
 #   - helpers/: Test utility functions and common test infrastructure
 # Note: test_main.cpp is excluded because we use gtest_main.cc
-TEST_SRCS = $(wildcard $(TEST_SRC_DIR)/unit/*.cpp) \
+TEST_SRCS = $(wildcard $(TEST_SRC_DIR)/components/*.cpp) \
+            $(wildcard $(TEST_SRC_DIR)/features/*.cpp) \
             $(wildcard $(TEST_SRC_DIR)/helpers/*.cpp)
 
 # GoogleTest source files (compiled from source for better control)

@@ -193,9 +193,13 @@ if(GATE_BUILD_TESTS)
     # Collect test source files
     # Recursively finds all .cpp files in tests/ subdirectories
     # Automatically includes new test files without CMake modification
-    # Test organization: tests/ mirrors src/ structure
+    # Test organization:
+    #   - tests/components/: Tests for transpiler components (Lexer, Parser, CodeGen)
+    #   - tests/features/: Tests for NOTAL language features (Arrays, Loops, Functions, etc.)
+    #   - tests/helpers/: Shared test utilities and helper functions
     file(GLOB_RECURSE TEST_SOURCES
-        "tests/unit/*.cpp"
+        "tests/components/*.cpp"
+        "tests/features/*.cpp"
         "tests/helpers/*.cpp"
     )
 

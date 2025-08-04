@@ -106,6 +106,7 @@ std::string DiagnosticEngine::formatDiagnostic(const Diagnostic& diag) const {
     std::stringstream ss;
     const char* levelColor = RESET_COLOR;
     std::string levelString;
+    std::string categoryString;
 
     switch (diag.level) {
         case DiagnosticLevel::ERROR:
@@ -123,7 +124,24 @@ std::string DiagnosticEngine::formatDiagnostic(const Diagnostic& diag) const {
             break;
     }
 
-    ss << levelColor << levelString << "[" << diag.code << "]: " << RESET_COLOR << diag.message << "\n";
+    // Add category information for specific error types
+    switch (diag.category) {
+        case DiagnosticCategory::TYPE_ERROR:
+            categoryString = "Type error";
+            break;
+        case DiagnosticCategory::DECLARATION_ERROR:
+            categoryString = "Undefined variable";
+            break;
+        default:
+            categoryString = "";
+            break;
+    }
+
+    ss << levelColor << levelString << "[" << diag.code << "]: " << RESET_COLOR;
+    if (!categoryString.empty()) {
+        ss << categoryString << " - ";
+    }
+    ss << diag.message << "\n";
     ss << "   " << BLUE_COLOR << "--> " << RESET_COLOR << diag.location.filename << ":" << diag.location.line << ":" << diag.location.column << "\n";
 
     // Generate and append the source context with highlighting
@@ -136,8 +154,6 @@ std::string DiagnosticEngine::formatDiagnostic(const Diagnostic& diag) const {
     for (const auto& suggestion : diag.suggestions) {
          ss << "   " << CYAN_COLOR << "= help: " << RESET_COLOR << suggestion << "\n";
     }
-
-    ss << "\n";
 
     return ss.str();
 }
