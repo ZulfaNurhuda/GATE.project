@@ -103,13 +103,27 @@ std::any ASTPrinter::visit(std::shared_ptr<BlockStmt> stmt) {
  * @return std::any String representation of the variable declaration
  */
 std::any ASTPrinter::visit(std::shared_ptr<VarDeclStmt> stmt) {
-    return "(VAR_DECL " + stmt->name.lexeme + " : " + stmt->type.lexeme + ")";
+    std::string names;
+    for (size_t i = 0; i < stmt->names.size(); ++i) {
+        names += stmt->names[i].lexeme;
+        if (i < stmt->names.size() - 1) {
+            names += ", ";
+        }
+    }
+    return "(VAR_DECL " + names + " : " + stmt->type.lexeme + ")";
 }
 
 std::any ASTPrinter::visit(std::shared_ptr<StaticArrayDeclStmt> stmt) {
     if (!stmt) return std::string("(null static-array-decl)");
     
-    std::string result = "(STATIC_ARRAY_DECL " + stmt->name.lexeme + " : array";
+    std::string names;
+    for (size_t i = 0; i < stmt->names.size(); ++i) {
+        names += stmt->names[i].lexeme;
+        if (i < stmt->names.size() - 1) {
+            names += ", ";
+        }
+    }
+    std::string result = "(STATIC_ARRAY_DECL " + names + " : array";
     for (const auto& dim : stmt->dimensions) {
         result += "[";
         if (dim.start) {
@@ -352,7 +366,14 @@ std::any ASTPrinter::visit(std::shared_ptr<EnumTypeDeclStmt> stmt) {
 }
 
 std::any ASTPrinter::visit(std::shared_ptr<ConstrainedVarDeclStmt> stmt) {
-    return parenthesize("CONSTRAINED_VAR_DECL " + stmt->name.lexeme + " : " + stmt->type.lexeme, {stmt->constraint});
+    std::string names;
+    for (size_t i = 0; i < stmt->names.size(); ++i) {
+        names += stmt->names[i].lexeme;
+        if (i < stmt->names.size() - 1) {
+            names += ", ";
+        }
+    }
+    return parenthesize("CONSTRAINED_VAR_DECL " + names + " : " + stmt->type.lexeme, {stmt->constraint});
 }
 
 std::any ASTPrinter::visit(std::shared_ptr<StopStmt> stmt) {

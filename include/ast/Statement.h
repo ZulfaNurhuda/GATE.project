@@ -383,8 +383,8 @@ struct AlgoritmaStmt : Statement, public std::enable_shared_from_this<AlgoritmaS
  * @date 2025
  */
 struct VarDeclStmt : Statement, public std::enable_shared_from_this<VarDeclStmt> {
-    /** @brief The name token of the variable */
-    core::Token name;
+    /** @brief The name tokens of the variables */
+    std::vector<core::Token> names;
     /** @brief The type token of the variable */
     core::Token type;
     /** @brief The pointed-to type token (for pointer variables) */
@@ -392,11 +392,11 @@ struct VarDeclStmt : Statement, public std::enable_shared_from_this<VarDeclStmt>
     
     /**
      * @brief Constructor for variable declaration statement
-     * @param name The name of the variable
+     * @param names The names of the variables
      * @param type The type of the variable
      * @param pointedToType The pointed-to type (optional, for pointers)
      */
-    VarDeclStmt(core::Token name, core::Token type, core::Token pointedToType = {core::TokenType::UNKNOWN, ""}) : name(std::move(name)), type(std::move(type)), pointedToType(std::move(pointedToType)) {}
+    VarDeclStmt(std::vector<core::Token> names, core::Token type, core::Token pointedToType = {core::TokenType::UNKNOWN, ""}) : names(std::move(names)), type(std::move(type)), pointedToType(std::move(pointedToType)) {}
     
     /** @brief Accept method for visitor pattern */
     std::any accept(StatementVisitor& visitor) override { return visitor.visit(shared_from_this()); }
@@ -650,7 +650,7 @@ struct EnumTypeDeclStmt : Statement, public std::enable_shared_from_this<EnumTyp
  */
 struct ConstrainedVarDeclStmt : Statement, public std::enable_shared_from_this<ConstrainedVarDeclStmt> {
     /** @brief The name of the constrained variable */
-    core::Token name;
+    std::vector<core::Token> names;
     /** @brief The type of the constrained variable */
     core::Token type;
     /** @brief The constraint expression that must be satisfied */
@@ -658,12 +658,12 @@ struct ConstrainedVarDeclStmt : Statement, public std::enable_shared_from_this<C
     
     /**
      * @brief Constructor for constrained variable declaration
-     * @param name The variable name
+     * @param names The variable names
      * @param type The variable type
      * @param constraint The constraint expression
      */
-    ConstrainedVarDeclStmt(core::Token name, core::Token type, std::shared_ptr<Expression> constraint) 
-        : name(std::move(name)), type(std::move(type)), constraint(std::move(constraint)) {}
+    ConstrainedVarDeclStmt(std::vector<core::Token> names, core::Token type, std::shared_ptr<Expression> constraint)
+        : names(std::move(names)), type(std::move(type)), constraint(std::move(constraint)) {}
     
     /** @brief Accept method for visitor pattern */
     std::any accept(StatementVisitor& visitor) override { return visitor.visit(shared_from_this()); }
@@ -962,8 +962,8 @@ struct StaticArrayDeclStmt : Statement, public std::enable_shared_from_this<Stat
         std::shared_ptr<Expression> end;
     };
     
-    /** @brief The array name */
-    core::Token name;
+    /** @brief The array names */
+    std::vector<core::Token> names;
     /** @brief List of array dimensions */
     std::vector<Dimension> dimensions;
     /** @brief The element type of the array */
@@ -971,12 +971,12 @@ struct StaticArrayDeclStmt : Statement, public std::enable_shared_from_this<Stat
     
     /**
      * @brief Constructor for static array declaration
-     * @param name The array name
+     * @param names The array names
      * @param dimensions List of array dimensions
      * @param elementType The element type
      */
-    StaticArrayDeclStmt(core::Token name, std::vector<Dimension> dimensions, core::Token elementType) 
-        : name(std::move(name)), dimensions(std::move(dimensions)), elementType(std::move(elementType)) {}
+    StaticArrayDeclStmt(std::vector<core::Token> names, std::vector<Dimension> dimensions, core::Token elementType)
+        : names(std::move(names)), dimensions(std::move(dimensions)), elementType(std::move(elementType)) {}
     
     /** @brief Accept method for visitor pattern */
     std::any accept(StatementVisitor& visitor) override { return visitor.visit(shared_from_this()); }
@@ -993,8 +993,8 @@ struct StaticArrayDeclStmt : Statement, public std::enable_shared_from_this<Stat
  * @date 2025
  */
 struct DynamicArrayDeclStmt : Statement, public std::enable_shared_from_this<DynamicArrayDeclStmt> {
-    /** @brief The array name */
-    core::Token name;
+    /** @brief The array names */
+    std::vector<core::Token> names;
     /** @brief The number of dimensions */
     int dimensions;
     /** @brief The element type of the array */
@@ -1002,12 +1002,12 @@ struct DynamicArrayDeclStmt : Statement, public std::enable_shared_from_this<Dyn
     
     /**
      * @brief Constructor for dynamic array declaration
-     * @param name The array name
+     * @param names The array names
      * @param dimensions Number of dimensions
      * @param elementType The element type
      */
-    DynamicArrayDeclStmt(core::Token name, int dimensions, core::Token elementType) 
-        : name(std::move(name)), dimensions(dimensions), elementType(std::move(elementType)) {}
+    DynamicArrayDeclStmt(std::vector<core::Token> names, int dimensions, core::Token elementType)
+        : names(std::move(names)), dimensions(dimensions), elementType(std::move(elementType)) {}
     
     /** @brief Accept method for visitor pattern */
     std::any accept(StatementVisitor& visitor) override { return visitor.visit(shared_from_this()); }

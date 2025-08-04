@@ -49,7 +49,8 @@ TEST(TraversalTest, NestedTraversal) {
     std::string source = R"(
 PROGRAM NestedTraversalTest
 KAMUS
-    i, j: integer
+    i: integer
+    j: integer
     matrix: array[1..3][1..3] of integer
 ALGORITMA
     i traversal [1..3]

@@ -147,11 +147,11 @@ var
 begin
   currentStatus := active;
   case currentStatus of
-    active: message := 'System is running';
-    inactive: message := 'System is stopped';
-    pending: message := 'System is waiting';
+    active: begin message := 'System is running'; end;
+    inactive: begin message := 'System is stopped'; end;
+    pending: begin message := 'System is waiting'; end;
   else
-    message := 'Unknown status';
+    begin message := 'Unknown status'; end;
   end;
   writeln(message);
 end.

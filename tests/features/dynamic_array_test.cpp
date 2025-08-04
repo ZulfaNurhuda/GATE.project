@@ -34,7 +34,8 @@ TEST(DynamicArrayTest, TwoDimensionalDynamicArray) {
 PROGRAM DynamicMatrix
 KAMUS
     dynMatrix: array of array of integer
-    rows, cols: integer
+    rows: integer
+    cols: integer
     i, j: integer
 ALGORITMA
     rows <- 3
