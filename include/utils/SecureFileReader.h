@@ -112,7 +112,9 @@ private:
 
         // Prevent path traversal
         if (pathStr.find("..") != std::string::npos) return false;
-        if (pathStr.find("~") != std::string::npos) return false;
+        
+        // Prevent home directory references (~ at start of path)
+        if (!pathStr.empty() && pathStr[0] == '~') return false;
 
         // Ensure it's a regular file path
         if (pathStr.empty() || pathStr[0] == '|') return false;
