@@ -291,7 +291,11 @@ std::any PascalCodeGenerator::visit(std::shared_ptr<KamusStmt> stmt) {
         for (const auto& decl : varDecls) { indent(); execute(decl); out_ << ";\n"; }
         for (const auto& decl : constrainedVarDecls) {
             auto constrainedVar = std::dynamic_pointer_cast<ConstrainedVarDeclStmt>(decl);
-            if (constrainedVar) constrainedVars_[constrainedVar->name.lexeme] = constrainedVar;
+            if (constrainedVar) {
+                for (const auto& name : constrainedVar->names) {
+                    constrainedVars_[name.lexeme] = constrainedVar;
+                }
+            }
             indent(); execute(decl); out_ << ";\n";
         }
         for (const auto& var : loopVariables_) { indent(); out_ << var << ": integer;\n"; }
@@ -303,15 +307,17 @@ std::any PascalCodeGenerator::visit(std::shared_ptr<KamusStmt> stmt) {
         for (const auto& decl : constrainedVarDecls) {
             auto constrainedVar = std::dynamic_pointer_cast<ConstrainedVarDeclStmt>(decl);
             if (constrainedVar) {
-                out_ << "procedure Set" << constrainedVar->name.lexeme << "(var " << constrainedVar->name.lexeme << ": " << pascalType(constrainedVar->type) << "; value: " << pascalType(constrainedVar->type) << ");\n";
-                out_ << "begin\n";
-                indentLevel_++;
-                indent();
-                out_ << "Assert(" << generateConstraintCheck(constrainedVar) << ", 'Error: " << constrainedVar->name.lexeme << " constraint violation!');\n";
-                indent();
-                out_ << constrainedVar->name.lexeme << " := value;\n";
-                indentLevel_--;
-                out_ << "end;\n\n";
+                for (const auto& name : constrainedVar->names) {
+                    out_ << "procedure Set" << name.lexeme << "(var " << name.lexeme << ": " << pascalType(constrainedVar->type) << "; value: " << pascalType(constrainedVar->type) << ");\n";
+                    out_ << "begin\n";
+                    indentLevel_++;
+                    indent();
+                    out_ << "Assert(" << generateConstraintCheck(constrainedVar, name) << ", 'Error: " << name.lexeme << " constraint violation!');\n";
+                    indent();
+                    out_ << name.lexeme << " := value;\n";
+                    indentLevel_--;
+                    out_ << "end;\n\n";
+                }
             }
         }
     }
@@ -319,7 +325,13 @@ std::any PascalCodeGenerator::visit(std::shared_ptr<KamusStmt> stmt) {
 }
 
 std::any PascalCodeGenerator::visit(std::shared_ptr<VarDeclStmt> stmt) {
-    out_ << stmt->name.lexeme << ": ";
+    for (size_t i = 0; i < stmt->names.size(); ++i) {
+        out_ << stmt->names[i].lexeme;
+        if (i < stmt->names.size() - 1) {
+            out_ << ", ";
+        }
+    }
+    out_ << ": ";
     if (stmt->type.type == TokenType::POINTER) {
         out_ << "^" << pascalType(stmt->pointedToType);
     } else {
@@ -329,7 +341,13 @@ std::any PascalCodeGenerator::visit(std::shared_ptr<VarDeclStmt> stmt) {
 }
 
 std::any PascalCodeGenerator::visit(std::shared_ptr<StaticArrayDeclStmt> stmt) {
-    out_ << stmt->name.lexeme << ": array[";
+    for (size_t i = 0; i < stmt->names.size(); ++i) {
+        out_ << stmt->names[i].lexeme;
+        if (i < stmt->names.size() - 1) {
+            out_ << ", ";
+        }
+    }
+    out_ << ": array[";
     for (size_t i = 0; i < stmt->dimensions.size(); ++i) {
         out_ << evaluate(stmt->dimensions[i].start) << ".." << evaluate(stmt->dimensions[i].end);
         if (i < stmt->dimensions.size() - 1) out_ << ", ";
@@ -339,8 +357,14 @@ std::any PascalCodeGenerator::visit(std::shared_ptr<StaticArrayDeclStmt> stmt) {
 }
 
 std::any PascalCodeGenerator::visit(std::shared_ptr<DynamicArrayDeclStmt> stmt) {
-    dynamicArrayDimensions_[stmt->name.lexeme] = stmt->dimensions;
-    out_ << stmt->name.lexeme << ": ";
+    for (size_t i = 0; i < stmt->names.size(); ++i) {
+        dynamicArrayDimensions_[stmt->names[i].lexeme] = stmt->dimensions;
+        out_ << stmt->names[i].lexeme;
+        if (i < stmt->names.size() - 1) {
+            out_ << ", ";
+        }
+    }
+    out_ << ": ";
     for (int i = 0; i < stmt->dimensions; ++i) {
         out_ << "array of ";
     }
@@ -623,9 +647,32 @@ std::any PascalCodeGenerator::visit(std::shared_ptr<RepeatUntilStmt> stmt) {
 
 std::any PascalCodeGenerator::visit(std::shared_ptr<DependOnStmt> stmt) {
     bool allLiterals = true;
+    bool isEnum = false;
+    if (stmt->expressions.size() == 1) {
+        if (auto var = std::dynamic_pointer_cast<Variable>(stmt->expressions[0])) {
+            // This is a simplified check. A more robust implementation would involve
+            // tracking variable types from their declarations.
+            for (const auto& caseItem : stmt->cases) {
+                for (const auto& cond : caseItem.conditions) {
+                    if (auto literal = std::dynamic_pointer_cast<Literal>(cond)) {
+                        if (literal->value.type() == typeid(std::string)) {
+                             // Check if the literal corresponds to a known enum value.
+                             // This part requires a symbol table or similar mechanism.
+                             // For now, we assume string literals in depend-on might be enums.
+                             isEnum = true;
+                        }
+                    } else if (std::dynamic_pointer_cast<Variable>(cond)) {
+                        isEnum = true;
+                    }
+                }
+            }
+        }
+    }
+
+
     for (const auto& caseItem : stmt->cases) {
         for (const auto& cond : caseItem.conditions) {
-            if (std::dynamic_pointer_cast<Literal>(cond) == nullptr) {
+            if (std::dynamic_pointer_cast<Literal>(cond) == nullptr && std::dynamic_pointer_cast<Variable>(cond) == nullptr) {
                 allLiterals = false;
                 break;
             }
@@ -633,7 +680,7 @@ std::any PascalCodeGenerator::visit(std::shared_ptr<DependOnStmt> stmt) {
         if (!allLiterals) break;
     }
 
-    if (allLiterals && stmt->expressions.size() == 1) {
+    if ((allLiterals || isEnum) && stmt->expressions.size() == 1) {
         out_ << "case " << evaluate(stmt->expressions[0]) << " of\n";
         indentLevel_++;
         for (const auto& caseItem : stmt->cases) {
@@ -814,7 +861,13 @@ std::any PascalCodeGenerator::visit(std::shared_ptr<EnumTypeDeclStmt> stmt) {
 }
 
 std::any PascalCodeGenerator::visit(std::shared_ptr<ConstrainedVarDeclStmt> stmt) {
-    out_ << stmt->name.lexeme << ": " << pascalType(stmt->type);
+    for (size_t i = 0; i < stmt->names.size(); ++i) {
+        out_ << stmt->names[i].lexeme;
+        if (i < stmt->names.size() - 1) {
+            out_ << ", ";
+        }
+    }
+    out_ << ": " << pascalType(stmt->type);
     return {};
 }
 
@@ -877,11 +930,11 @@ std::any PascalCodeGenerator::visit(std::shared_ptr<ReturnStmt> stmt) {
     return {};
 }
 
-std::string PascalCodeGenerator::generateConstraintCheck(std::shared_ptr<ConstrainedVarDeclStmt> constrainedVar) {
+std::string PascalCodeGenerator::generateConstraintCheck(std::shared_ptr<ConstrainedVarDeclStmt> constrainedVar, const core::Token& name) {
     std::string constraintExpr = evaluate(constrainedVar->constraint);
     std::string result = constraintExpr;
     size_t pos = 0;
-    std::string varName = constrainedVar->name.lexeme;
+    std::string varName = name.lexeme;
     while ((pos = result.find(varName, pos)) != std::string::npos) {
         bool isWholeWord = true;
         if (pos > 0 && (std::isalnum(result[pos-1]) || result[pos-1] == '_')) isWholeWord = false;

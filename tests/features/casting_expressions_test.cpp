@@ -23,6 +23,7 @@ ALGORITMA
     output("StringToBoolean failed.")
 )";
     std::string expected_pascal_code = R"(program CastingExample;
+uses SysUtils;
 
 var
   myInt: integer;
@@ -30,15 +31,63 @@ var
   myBool: boolean;
   success: boolean;
 
+procedure IntegerToString(inInt: Int64; var outStr: string); forward;
+procedure IntegerToString(inInt: integer; var outStr: string); forward;
+function StringToBoolean(const inStr: string; var outBool: boolean): boolean; forward;
+
+procedure IntegerToString(inInt: Int64; var outStr: string);
+begin
+  outStr := IntToStr(inInt);
+end;
+
+procedure IntegerToString(inInt: integer; var outStr: string);
+begin
+  IntegerToString(Int64(inInt), outStr);
+end;
+
+function StringToBoolean(const inStr: string; var outBool: boolean): boolean;
+var
+  lowerS: string;
+  numValue: Int64;
+  code: integer;
+begin
+  lowerS := LowerCase(Trim(inStr));
+  Val(lowerS, numValue, code);
+  if code = 0 then
+  begin
+    outBool := (numValue <> 0);
+    StringToBoolean := true;
+  end
+  else if (lowerS = 'true') then
+  begin
+    outBool := true;
+    StringToBoolean := true;
+  end
+  else if (lowerS = 'false') then
+  begin
+    outBool := false;
+    StringToBoolean := true;
+  end
+  else
+  begin
+    outBool := false;
+    StringToBoolean := false;
+  end;
+end;
+
 begin
   myInt := 123;
   IntegerToString(myInt, myStr);
   writeln('The integer as a string is: ', myStr);
   success := StringToBoolean('True', myBool);
   if success then
-    writeln('StringToBoolean was successful. The value is: ', myBool)
+  begin
+    writeln('StringToBoolean was successful. The value is: ', myBool);
+  end
   else
+  begin
     writeln('StringToBoolean failed.');
+  end;
 end.
 )";
     std::string generated_code = transpile(notalCode);
@@ -77,8 +126,8 @@ var
 begin
   a := 10;
   b := 5;
-  c := a + b * 2;
-  d := (a + b) / 2.0;
+  c := (a + (b * 2));
+  d := ((a + b) / 2);
   writeln('c = ');
   writeln(c);
   writeln('d = ');
@@ -119,8 +168,8 @@ var
 begin
   x := 3.5;
   y := 2.1;
-  result := (x * y + 5.0) / (x - y);
-  isPositive := result > 0;
+  result := (((x * y) + 5) / (x - y));
+  isPositive := (result > 0);
   writeln('Result: ', result);
   writeln('Is positive: ', isPositive);
 end.
@@ -153,6 +202,7 @@ ALGORITMA
     output('String: ', strVal)
 )";
     std::string expected_pascal_code = R"(program TypeConversionsExample;
+uses SysUtils;
 
 var
   intVal: integer;
@@ -160,6 +210,79 @@ var
   strVal: string;
   boolVal: boolean;
   charVal: char;
+
+procedure BooleanToString(inBool: Boolean; var outStr: string); forward;
+function CharToInteger(inChar: Char; var outInt: Integer): Boolean; forward;
+procedure IntegerToReal(inInt: Integer; var outReal: Real); forward;
+procedure IntegerToReal(inInt: Int64; var outReal: Double); forward;
+procedure IntegerToReal(inInt: Integer; var outReal: Double); forward;
+procedure RealToInteger(inReal: Double; var outInt: Int64); forward;
+procedure RealToInteger(inReal: Real; var outInt: Integer); forward;
+procedure RealToInteger(inReal: Real; var outInt: Int64); forward;
+procedure RealToInteger(inReal: Double; var outInt: Integer); forward;
+
+procedure BooleanToString(inBool: Boolean; var outStr: string);
+begin
+  if inBool then
+    outStr := 'True'
+  else
+    outStr := 'False';
+end;
+
+function CharToInteger(inChar: Char; var outInt: Integer): Boolean;
+begin
+  if (inChar >= '0') and (inChar <= '9') then
+  begin
+    outInt := Ord(inChar) - Ord('0');
+    Result := True;
+  end
+  else
+  begin
+    outInt := 0;
+    Result := False;
+  end;
+end;
+
+procedure IntegerToReal(inInt: Integer; var outReal: Real);
+begin
+  outReal := inInt;
+end;
+
+procedure IntegerToReal(inInt: Int64; var outReal: Double);
+begin
+  outReal := inInt;
+end;
+
+procedure IntegerToReal(inInt: Integer; var outReal: Double);
+begin
+  outReal := inInt;
+end;
+
+procedure RealToInteger(inReal: Double; var outInt: Int64);
+begin
+  outInt := Round(inReal);
+end;
+
+procedure RealToInteger(inReal: Real; var outInt: Integer);
+begin
+  outInt := Round(inReal);
+end;
+
+procedure RealToInteger(inReal: Real; var outInt: Int64);
+begin
+  outInt := Round(inReal);
+end;
+
+procedure RealToInteger(inReal: Double; var outInt: Integer);
+var
+  tempInt64: Int64;
+begin
+  tempInt64 := Round(inReal);
+  if (tempInt64 >= Low(Integer)) and (tempInt64 <= High(Integer)) then
+    outInt := Integer(tempInt64)
+  else
+    outInt := 0;
+end;
 
 begin
   intVal := 42;

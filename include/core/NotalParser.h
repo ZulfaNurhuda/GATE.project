@@ -108,7 +108,7 @@ private:
     /** @brief Parse variable declaration */
     std::shared_ptr<ast::Statement> varDeclaration();
     /** @brief Parse array declaration with given name */
-    std::shared_ptr<ast::Statement> arrayDeclaration(core::Token name);
+    std::shared_ptr<ast::Statement> arrayDeclaration(const std::vector<core::Token>& names);
     /** @brief Parse constant declaration */
     std::shared_ptr<ast::Statement> constantDeclaration();
     /** @brief Parse type declaration */

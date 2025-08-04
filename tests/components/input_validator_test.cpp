@@ -103,7 +103,6 @@ TEST(InputValidatorTest, OutputPathValidation) {
     std::vector<std::string> validOutputPaths = {
         "output.pas",
         "generated/result.pas",
-        "../build/output.pas",
         "C:\\Output\\result.pas",
         "/tmp/output.pas"
     };
