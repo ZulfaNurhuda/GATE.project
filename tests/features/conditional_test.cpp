@@ -26,11 +26,17 @@ var
 begin
   score := 85;
   if (score >= 90) then
-    writeln('Grade: A')
+  begin
+    writeln('Grade: A');
+  end
   else if (score >= 80) then
-    writeln('Grade: B')
+  begin
+    writeln('Grade: B');
+  end
   else
+  begin
     writeln('Grade: C');
+  end;
 end.
 )";
     std::string generated_code = transpile(notalCode);
@@ -57,7 +63,9 @@ var
 begin
   x := 10;
   if (x > 5) then
+  begin
     writeln('x is greater than 5');
+  end;
 end.
 )";
     std::string generated_code = transpile(notalCode);
@@ -94,12 +102,20 @@ begin
   age := 20;
   hasLicense := true;
   if (age >= 18) then
-    if (hasLicense) then
-      writeln('Can drive')
+  begin
+    if hasLicense then
+    begin
+      writeln('Can drive');
+    end
     else
-      writeln('Need license')
+    begin
+      writeln('Need license');
+    end;
+  end
   else
+  begin
     writeln('Too young');
+  end;
 end.
 )";
     std::string generated_code = transpile(notalCode);

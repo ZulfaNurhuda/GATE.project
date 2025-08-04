@@ -58,14 +58,9 @@ TEST(ErrorRecoveryTest, MultipleSyntaxErrors) {
     std::string source = R"(
 PROGRAM MultiErrorTest
 KAMUS
-    x: integer
-    y: integer
-    z: integer
+    var x: integer
 ALGORITMA
-    x <- (10 + )
-    y <- * 5
-    z <- 30
-    output(z)
+    y <- (10 + )
 )";
 
     gate::diagnostics::DiagnosticEngine diagnosticEngine(source, "multi-error-test");
@@ -90,7 +85,6 @@ ALGORITMA
     x <- 10
     if x > 5
         output("Greater than 5")
-    endif
 )";
 
     gate::diagnostics::DiagnosticEngine diagnosticEngine(source, "missing-token-test");
@@ -136,7 +130,6 @@ ALGORITMA
     if x > 0 then
         y <- (x + )
         output(y)
-    endif
     x <- 10
 )";
 

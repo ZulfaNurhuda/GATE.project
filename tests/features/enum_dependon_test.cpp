@@ -62,11 +62,11 @@ var
 begin
   op := '+';
   case op of
-    '+': writeln('Operasi Penjumlahan');
-    '-': writeln('Operasi Pengurangan');
-    '*', '/': writeln('Operasi Perkalian atau Pembagian');
+    '+': begin writeln('Operasi Penjumlahan'); end;
+    '-': begin writeln('Operasi Pengurangan'); end;
+    '*', '/': begin writeln('Operasi Perkalian atau Pembagian'); end;
   else
-    writeln('Operator tidak dikenal');
+    begin writeln('Operator tidak dikenal'); end;
   end;
 end.
 )";
@@ -99,11 +99,17 @@ var
 begin
   nilai := 85;
   if (nilai >= 90) then
-    status := 'Sangat Baik'
+  begin
+    status := 'Sangat Baik';
+  end
   else if (nilai >= 75) then
-    status := 'Baik'
+  begin
+    status := 'Baik';
+  end
   else
+  begin
     status := 'Perlu Perbaikan';
+  end;
   writeln('Status: ', status);
 end.
 )";

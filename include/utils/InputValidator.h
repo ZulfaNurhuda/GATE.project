@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <cctype>
 
 namespace gate::utils {
 
@@ -35,6 +36,7 @@ class InputValidator {
 public:
     /** @brief Maximum allowed source code size (5MB) */
     static constexpr size_t MAX_SOURCE_SIZE = 5 * 1024 * 1024;
+    static constexpr size_t MAX_PATH_LENGTH = 256;
 
     /**
      * @brief Result structure for validation operations
@@ -79,21 +81,30 @@ public:
             return result;
         }
 
+        std::string trimmed_source = source;
+        size_t first = trimmed_source.find_first_not_of(" \t\n\r");
+        if (std::string::npos == first)
+        {
+            result.isValid = false;
+            result.errorMessage = "Source code contains only whitespace";
+            return result;
+        }
+
         // Basic structure validation
         if (source.find("PROGRAM") == std::string::npos) {
-            result.warnings.push_back("No PROGRAM declaration found");
+            result.isValid = false;
+            result.errorMessage = "No PROGRAM declaration found";
+            return result;
         }
 
         // Check for suspicious patterns
         std::vector<std::string> suspicious = {
-            "<script", "<?php", "#!/bin/", "cmd.exe", "powershell"
+            "system(", "exec(", "eval(", "__import__("
         };
 
         for (const auto& pattern : suspicious) {
             if (source.find(pattern) != std::string::npos) {
-                result.isValid = false;
-                result.errorMessage = "Source contains potentially malicious content";
-                return result;
+                result.warnings.push_back("Source contains potentially malicious content");
             }
         }
 
@@ -112,6 +123,22 @@ public:
      */
     static bool isValidOutputPath(const std::string& path) {
         if (path.empty()) return false;
+
+        std::string trimmed_path = path;
+        size_t first = trimmed_path.find_first_not_of(" \t\n\r");
+        if (std::string::npos == first) {
+            return false;
+        }
+        size_t last = trimmed_path.find_last_not_of(" \t\n\r");
+        trimmed_path = trimmed_path.substr(first, (last - first + 1));
+
+        if (trimmed_path.empty()) return false;
+        if (trimmed_path.length() > MAX_PATH_LENGTH) return false;
+
+        if (trimmed_path.length() < 4 || trimmed_path.substr(trimmed_path.length() - 4) != ".pas") {
+            return false;
+        }
+
         if (path.find("..") != std::string::npos) return false;
         if (path.find("~") != std::string::npos) return false;
         if (path[0] == '|' || path[0] == '>') return false;

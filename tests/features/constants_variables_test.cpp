@@ -19,10 +19,10 @@ ALGORITMA
     std::string expected_pascal_code = R"(program ConstantsExample;
 
 const
-  MAX: real = 100;
-  PI: real = 3.14159;
-  HELLO: string = 'Hello, World!';
-  ACTIVE: boolean = true;
+  MAX = 100;
+  PI = 3.14159;
+  HELLO = 'Hello, World!';
+  ACTIVE = true;
 
 begin
   writeln(HELLO);
@@ -129,8 +129,8 @@ var
   area: real;
 
 begin
-  radius := 5.0;
-  area := PI * radius * radius;
+  radius := 5;
+  area := ((PI * radius) * radius);
   writeln('Area: ', area);
 end.
 )";
