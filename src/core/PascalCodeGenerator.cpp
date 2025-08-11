@@ -1072,7 +1072,8 @@ void PascalCodeGenerator::generateCastingForwardDecls() {
         std::string line;
         while (std::getline(file, line)) {
             if (line.rfind("function", 0) == 0 || line.rfind("procedure", 0) == 0) {
-                if (!line.empty() && line.back() == ';') {
+                // Trim trailing whitespace and semicolons
+                while (!line.empty() && (isspace(line.back()) || line.back() == ';')) {
                     line.pop_back();
                 }
                 out_ << line << "; forward;\n";

@@ -1,0 +1,11 @@
+Fix: Resolve gtest failures in WSL environment
+
+This commit addresses inconsistencies in gtest results between native Windows/Linux and the Windows Subsystem for Linux (WSL) environment.
+
+The root causes of the failures were:
+
+1.  **Line ending inconsistencies:** Test files were being created with text-mode line endings (CRLF on Windows), while the file reader expected binary-mode line endings (LF). This was resolved by ensuring all file I/O in tests is done in binary mode and by normalizing line endings within the tests themselves.
+
+2.  **Incorrect forward declaration generation:** The logic for generating forward declarations for casting functions was flawed, leading to syntax errors when compiling in the WSL environment. This was fixed by correctly parsing the function signatures from the casting files.
+
+With these changes, all gtests now pass consistently across all environments.
