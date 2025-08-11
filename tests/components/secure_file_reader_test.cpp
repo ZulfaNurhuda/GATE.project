@@ -29,8 +29,19 @@ protected:
         std::filesystem::remove_all(testDir, ec);
     }
     
+    std::string normalize_line_endings(const std::string& str) {
+        std::string normalized_str;
+        normalized_str.reserve(str.length());
+        for (char c : str) {
+            if (c != '\r') {
+                normalized_str += c;
+            }
+        }
+        return normalized_str;
+    }
+
     void createTestFile(const std::filesystem::path& path, const std::string& content) {
-        std::ofstream file(path);
+        std::ofstream file(path, std::ios::binary);
         file << content;
         file.close();
     }
@@ -47,8 +58,10 @@ TEST_F(SecureFileReaderTest, ReadValidFile) {
     EXPECT_TRUE(result.success);
     EXPECT_TRUE(result.errorMessage.empty());
     EXPECT_FALSE(result.content.empty());
-    EXPECT_TRUE(result.content.find("PROGRAM Test") != std::string::npos);
-    EXPECT_TRUE(result.content.find("x <- 42") != std::string::npos);
+
+    std::string normalized_content = normalize_line_endings(result.content);
+    EXPECT_TRUE(normalized_content.find("PROGRAM Test") != std::string::npos);
+    EXPECT_TRUE(normalized_content.find("x <- 42") != std::string::npos);
 }
 
 TEST_F(SecureFileReaderTest, ReadEmptyFile) {
